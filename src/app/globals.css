@@ -1232,9 +1232,14 @@ textarea:focus {
   justify-self: start;
 }
 
-.chat-form-footer > .chat-points-info {
+.chat-footer-center {
   grid-column: 2;
   justify-self: center;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .chat-form-footer > .button {
@@ -1326,6 +1331,12 @@ textarea:focus {
   color: #1e40af;
   font-size: 0.72rem;
   font-weight: 600;
+}
+
+.chat-hint-tokens-info {
+  font-size: 0.78rem;
+  color: #166534;
+  font-weight: 500;
 }
 
 .chat-points-info {

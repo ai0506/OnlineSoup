@@ -175,6 +175,8 @@ export function RoomChat({
   const [tickTime, setTickTime] = useState(() => new Date().getTime());
   const messageListRef = useRef<HTMLDivElement>(null);
   const tempIdRef = useRef(0);
+  // 发送消息时设为 true，下次 messages 变化后强制滚到底部
+  const forceScrollRef = useRef(false);
 
   const currentMode = MODES.find((m) => m.key === mode)!;
 
@@ -190,10 +192,15 @@ export function RoomChat({
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
-  // Auto-scroll when new messages arrive
+  // Auto-scroll when new messages arrive；发送消息时强制滚底
   useEffect(() => {
     const el = messageListRef.current;
     if (!el) return;
+    if (forceScrollRef.current) {
+      el.scrollTop = el.scrollHeight;
+      forceScrollRef.current = false;
+      return;
+    }
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     if (atBottom) el.scrollTop = el.scrollHeight;
   }, [messages]);
@@ -429,6 +436,7 @@ export function RoomChat({
       created_at: new Date().toISOString(),
     };
 
+    forceScrollRef.current = true;
     setMessages((cur) => mergeMessages(cur, [optimisticMessage]));
     setContent("");
 
@@ -506,6 +514,10 @@ export function RoomChat({
       }
     } finally {
       setSending(false);
+      // 使用个人积分时通知右上角积分组件从数据库同步最新值
+      if (usePersonal) {
+        window.dispatchEvent(new Event("room-data-refresh"));
+      }
     }
   }
 
@@ -815,9 +827,6 @@ export function RoomChat({
               >
                 {m.label}
                 {m.cost > 0 && <span className="chat-mode-cost">{m.cost}pt</span>}
-                {m.key === "hint" && hintTokens > 0 && (
-                  <span className="hint-token-badge">{hintTokens}</span>
-                )}
               </button>
             );
           })}
@@ -845,13 +854,20 @@ export function RoomChat({
         <div className="chat-form-footer">
           <span className="muted">{content.length}/{currentMode.maxLength}</span>
 
-          {/* Points status for paid modes */}
-          {currentMode.cost > 0 && (
-            <span className={`chat-points-info${canAfford ? "" : " insufficient"}`}>
-              {seatPoints}[临]
-              {currentUserId ? ` + ${personalPoints}` : ""}
-            </span>
-          )}
+          {/* 积分 + 提示机会（合为一行，占 grid 中间列） */}
+          <span className="chat-footer-center">
+            {currentMode.cost > 0 && (
+              <span className={`chat-points-info${canAfford ? "" : " insufficient"}`}>
+                {seatPoints}[临]
+                {currentUserId ? ` + ${personalPoints}` : ""}
+              </span>
+            )}
+            {hasPuzzle && mode !== "chat" && (
+              <span className={`chat-hint-tokens-info${hintTokens === 0 ? " muted" : ""}`}>
+                提示机会 {hintTokens} 次
+              </span>
+            )}
+          </span>
 
           <button
             className="button"
