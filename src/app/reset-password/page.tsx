@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 
 import { setNewPassword } from "@/app/reset-password/actions";
+import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
 import { SubmitButton } from "@/components/submit-button";
+import { getFlashMessage } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 
 type ResetPasswordPageProps = {
@@ -26,14 +28,17 @@ export default async function ResetPasswordPage({
   }
 
   const { error } = await searchParams;
+  const flash = await getFlashMessage("reset-password");
+  const errorCode = flash?.kind === "error" ? flash.code : error;
 
   return (
     <section className="form-card">
+      {flash && <FlashCookieCleaner />}
       <p className="eyebrow">账户安全</p>
       <h1>设置新密码</h1>
       <p className="lead">为 {user.email} 设置一个新的登录密码。</p>
 
-      {error && <div className="error">{errors[error] ?? "操作失败。"}</div>}
+      {errorCode && <div className="error">{errors[errorCode] ?? "操作失败。"}</div>}
 
       <form action={setNewPassword} className="form-grid">
         <label>

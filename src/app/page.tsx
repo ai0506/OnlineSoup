@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 
+import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
 import { hasSupabaseEnv } from "@/lib/env";
+import { getFlashMessage } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 
 type HomePageProps = {
@@ -20,8 +22,11 @@ const homeNotices: Record<string, string> = {
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const { error, notice } = await searchParams;
-  const errorMessage = error ? homeErrors[error] ?? "操作失败，请稍后重试" : null;
-  const noticeMessage = notice ? homeNotices[notice] ?? null : null;
+  const flash = await getFlashMessage("home");
+  const errorCode = flash?.kind === "error" ? flash.code : error;
+  const noticeCode = flash?.kind === "notice" ? flash.code : notice;
+  const errorMessage = errorCode ? homeErrors[errorCode] ?? "操作失败，请稍后重试" : null;
+  const noticeMessage = noticeCode ? homeNotices[noticeCode] ?? null : null;
 
   let userId: string | undefined;
   let memberRoomCode: string | undefined;
@@ -39,7 +44,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   // 离开/被踢/房间关闭时不检测 cookie，避免残留 cookie 造成误判
   const isExiting =
-    notice === "room_left" || notice === "room_kicked" || notice === "room_closed";
+    noticeCode === "room_left" || noticeCode === "room_kicked" || noticeCode === "room_closed";
 
   let guestRoomCode: string | undefined;
   if (!memberRoomCode && !userId && !isExiting) {
@@ -56,6 +61,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   return (
     <>
+      {flash && <FlashCookieCleaner />}
       {errorMessage && <div className="error">{errorMessage}</div>}
       {noticeMessage && <div className="notice">{noticeMessage}</div>}
       <section className="join-landing">

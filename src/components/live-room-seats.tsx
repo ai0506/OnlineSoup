@@ -36,7 +36,13 @@ type LiveRoomSeatsProps = {
 };
 
 function leaveWithNotice(notice: "room_kicked" | "room_closed" | "room_left") {
-  window.location.replace(`/?notice=${notice}`);
+  const params = new URLSearchParams({
+    code: notice,
+    kind: "notice",
+    next: "/",
+    scope: "home",
+  });
+  window.location.replace(`/flash/redirect?${params.toString()}`);
 }
 
 export function LiveRoomSeats({

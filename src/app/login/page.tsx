@@ -1,5 +1,6 @@
 import { LoginForm } from "@/components/login-form";
 import { hasSupabaseEnv } from "@/lib/env";
+import { getFlashMessage } from "@/lib/flash";
 
 type LoginPageProps = {
   searchParams: Promise<{
@@ -25,14 +26,18 @@ const loginMessages: Record<string, string> = {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { error, message } = await searchParams;
+  const flash = await getFlashMessage("login");
   const configured = hasSupabaseEnv();
-  const errorMessage = error ? loginErrors[error] ?? "操作失败，请稍后重试" : null;
-  const noticeMessage = message ? loginMessages[message] ?? null : null;
+  const errorCode = flash?.kind === "error" ? flash.code : error;
+  const messageCode = flash?.kind === "notice" ? flash.code : message;
+  const errorMessage = errorCode ? loginErrors[errorCode] ?? "操作失败，请稍后重试" : null;
+  const noticeMessage = messageCode ? loginMessages[messageCode] ?? null : null;
 
   return (
     <LoginForm
       configured={configured}
       errorMessage={errorMessage}
+      hasFlash={Boolean(flash)}
       noticeMessage={noticeMessage}
     />
   );

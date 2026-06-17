@@ -16,8 +16,10 @@ import { AdminPuzzleImport } from "@/components/admin-puzzle-import";
 import { AdminPuzzleList } from "@/components/admin-puzzle-list";
 import { AdminRoomCleanupList } from "@/components/admin-room-cleanup-list";
 import { AdminTabs } from "@/components/admin-tabs";
+import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
 import { SubmitButton } from "@/components/submit-button";
 import { requireAdmin } from "@/lib/admin";
+import { getFlashMessage } from "@/lib/flash";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -303,6 +305,9 @@ function getAskAnswerDetails(message: AdminMessage): AskAnswerDetails | null {
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   await requireAdmin();
   const params = await searchParams;
+  const flash = await getFlashMessage("admin");
+  const errorCode = flash?.kind === "error" ? flash.code : params.error;
+  const messageCode = flash?.kind === "notice" ? flash.code : params.message;
   const query = params.q?.trim().toLowerCase() ?? "";
   const activeTab = getAdminTab(params.tab);
   const roomCodeFilter = params.roomCode?.trim().toUpperCase() ?? "";
@@ -710,13 +715,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         )}
       </div>
 
-      {params.error && (
+      {flash && <FlashCookieCleaner />}
+      {errorCode && (
         <div className="error">
-          {errors[params.error] ?? "操作失败，请稍后重试。"}
+          {errors[errorCode] ?? "操作失败，请稍后重试。"}
         </div>
       )}
-      {params.message && (
-        <div className="notice">{messages[params.message] ?? "操作成功。"}</div>
+      {messageCode && (
+        <div className="notice">{messages[messageCode] ?? "操作成功。"}</div>
       )}
 
       <AdminTabs

@@ -5,12 +5,9 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { redirectWithFlash } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 import { guestJoinSchema, roomSchema } from "@/lib/validation";
-
-function errorUrl(path: string, error: string) {
-  return `${path}?error=${encodeURIComponent(error)}`;
-}
 
 function isMissingDatabaseFunction(
   error: { code?: string; message: string },
@@ -43,7 +40,11 @@ export async function createRoom(
   const { data: claimsData } = await supabase.auth.getClaims();
 
   if (!claimsData?.claims?.sub) {
-    redirect(errorUrl("/login", "login_required"));
+    await redirectWithFlash("/login", {
+      code: "login_required",
+      kind: "error",
+      scope: "login",
+    });
   }
 
   const { data, error } = await supabase.rpc("create_room", {

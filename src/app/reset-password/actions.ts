@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { redirectWithFlash } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 
 const passwordSchema = z.string().min(6).max(72);
@@ -12,7 +13,11 @@ export async function setNewPassword(formData: FormData) {
   const confirmation = formData.get("confirmation");
 
   if (!password.success || password.data !== confirmation) {
-    redirect("/reset-password?error=invalid_password");
+    await redirectWithFlash("/reset-password", {
+      code: "invalid_password",
+      kind: "error",
+      scope: "reset-password",
+    });
   }
 
   const supabase = await createClient();
@@ -21,7 +26,11 @@ export async function setNewPassword(formData: FormData) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?error=invalid_email_callback");
+    await redirectWithFlash("/login", {
+      code: "invalid_email_callback",
+      kind: "error",
+      scope: "login",
+    });
   }
 
   const { error } = await supabase.auth.updateUser({
@@ -29,7 +38,11 @@ export async function setNewPassword(formData: FormData) {
   });
 
   if (error) {
-    redirect("/reset-password?error=update_failed");
+    await redirectWithFlash("/reset-password", {
+      code: "update_failed",
+      kind: "error",
+      scope: "reset-password",
+    });
   }
 
   await supabase.auth.signOut();

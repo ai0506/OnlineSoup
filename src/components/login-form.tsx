@@ -3,19 +3,27 @@
 import { useState } from "react";
 
 import { login, signup } from "@/app/auth/actions";
+import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
 import { SubmitButton } from "@/components/submit-button";
 
 type LoginFormProps = {
   configured: boolean;
   errorMessage: string | null;
+  hasFlash?: boolean;
   noticeMessage: string | null;
 };
 
-export function LoginForm({ configured, errorMessage, noticeMessage }: LoginFormProps) {
+export function LoginForm({
+  configured,
+  errorMessage,
+  hasFlash = false,
+  noticeMessage,
+}: LoginFormProps) {
   const [mode, setMode] = useState<"login" | "signup">("login");
 
   return (
     <section className="auth-page">
+      {hasFlash && <FlashCookieCleaner />}
       {!configured && (
         <div className="error">
           尚未配置 Supabase，请先按 README 创建 <code>.env.local</code>。

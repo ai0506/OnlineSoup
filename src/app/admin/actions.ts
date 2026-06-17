@@ -1,10 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireAdmin } from "@/lib/admin";
+import { redirectWithFlash } from "@/lib/flash";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { usernameSchema } from "@/lib/validation";
 
@@ -57,14 +57,16 @@ function normalizeImportItem(item: unknown) {
 
 type AdminResultTab = "puzzles" | "messages" | "cleanup";
 
-function resultUrl(
+async function redirectAdminResult(
   type: "error" | "message",
   code: string,
   tab?: AdminResultTab,
-) {
-  const params = new URLSearchParams([[type, code]]);
-  if (tab) params.set("tab", tab);
-  return `/admin?${params.toString()}`;
+): Promise<never> {
+  return await redirectWithFlash(tab ? `/admin?tab=${tab}` : "/admin", {
+    code,
+    kind: type === "error" ? "error" : "notice",
+    scope: "admin",
+  });
 }
 
 function resultTab(formData: FormData) {
@@ -148,7 +150,7 @@ export async function updateUserPoints(formData: FormData) {
   const points = pointsSchema.safeParse(formData.get("points"));
 
   if (!userId.success || !points.success) {
-    redirect(resultUrl("error", "invalid_points"));
+    return await redirectAdminResult("error", "invalid_points");
   }
 
   const admin = createAdminClient();
@@ -159,12 +161,12 @@ export async function updateUserPoints(formData: FormData) {
 
   if (error) {
     console.error("Admin points update failed", error);
-    redirect(resultUrl("error", "points_update_failed"));
+    return await redirectAdminResult("error", "points_update_failed");
   }
 
   revalidatePath("/admin");
   revalidatePath("/");
-  redirect(resultUrl("message", "points_updated"));
+  return await redirectAdminResult("message", "points_updated");
 }
 
 export async function updateUserUsername(formData: FormData) {
@@ -174,7 +176,7 @@ export async function updateUserUsername(formData: FormData) {
   const username = usernameSchema.safeParse(formData.get("username"));
 
   if (!userId.success || !username.success) {
-    redirect(resultUrl("error", "invalid_username"));
+    return await redirectAdminResult("error", "invalid_username");
   }
 
   const admin = createAdminClient();
@@ -195,12 +197,12 @@ export async function updateUserUsername(formData: FormData) {
         : error.message.includes("room_name_conflict")
           ? "username_room_conflict"
           : "username_update_failed";
-    redirect(resultUrl("error", code));
+    return await redirectAdminResult("error", code);
   }
 
   revalidatePath("/admin");
   revalidatePath("/");
-  redirect(resultUrl("message", "username_updated"));
+  return await redirectAdminResult("message", "username_updated");
 }
 
 export async function sendPasswordReset(formData: FormData) {
@@ -209,7 +211,7 @@ export async function sendPasswordReset(formData: FormData) {
   const userId = userIdSchema.safeParse(formData.get("userId"));
 
   if (!userId.success) {
-    redirect(resultUrl("error", "invalid_user"));
+    return await redirectAdminResult("error", "invalid_user");
   }
 
   const admin = createAdminClient();
@@ -219,7 +221,7 @@ export async function sendPasswordReset(formData: FormData) {
 
   if (userError || !data.user.email) {
     console.error("Admin user lookup failed", userError);
-    redirect(resultUrl("error", "password_reset_failed"));
+    return await redirectAdminResult("error", "password_reset_failed");
   }
 
   const siteUrl =
@@ -231,10 +233,10 @@ export async function sendPasswordReset(formData: FormData) {
 
   if (error) {
     console.error("Admin password reset email failed", error);
-    redirect(resultUrl("error", "password_reset_failed"));
+    return await redirectAdminResult("error", "password_reset_failed");
   }
 
-  redirect(resultUrl("message", "password_reset_sent"));
+  return await redirectAdminResult("message", "password_reset_sent");
 }
 
 export async function createPuzzle(formData: FormData) {
@@ -247,7 +249,7 @@ export async function createPuzzle(formData: FormData) {
     keyPoints = parseKeyPoints(formData);
     examples = parseExamples(formData);
   } catch {
-    redirect(resultUrl("error", "invalid_puzzle", tab));
+    return await redirectAdminResult("error", "invalid_puzzle", tab);
   }
 
   const parsed = puzzleSchema.safeParse({
@@ -259,7 +261,7 @@ export async function createPuzzle(formData: FormData) {
   });
 
   if (!parsed.success) {
-    redirect(resultUrl("error", "invalid_puzzle", tab));
+    return await redirectAdminResult("error", "invalid_puzzle", tab);
   }
 
   const admin = createAdminClient();
@@ -274,12 +276,12 @@ export async function createPuzzle(formData: FormData) {
 
   if (error) {
     console.error("Admin puzzle create failed", error);
-    redirect(resultUrl("error", puzzleErrorCode(error), tab));
+    return await redirectAdminResult("error", puzzleErrorCode(error), tab);
   }
 
   revalidatePath("/admin");
   revalidatePath("/", "layout");
-  redirect(resultUrl("message", "puzzle_created", tab));
+  return await redirectAdminResult("message", "puzzle_created", tab);
 }
 
 export async function updatePuzzle(formData: FormData) {
@@ -292,7 +294,7 @@ export async function updatePuzzle(formData: FormData) {
     keyPoints = parseKeyPoints(formData);
     examples = parseExamples(formData);
   } catch {
-    redirect(resultUrl("error", "invalid_puzzle", tab));
+    return await redirectAdminResult("error", "invalid_puzzle", tab);
   }
 
   const puzzleId = puzzleIdSchema.safeParse(formData.get("puzzleId"));
@@ -305,7 +307,7 @@ export async function updatePuzzle(formData: FormData) {
   });
 
   if (!puzzleId.success || !parsed.success) {
-    redirect(resultUrl("error", "invalid_puzzle", tab));
+    return await redirectAdminResult("error", "invalid_puzzle", tab);
   }
 
   const admin = createAdminClient();
@@ -322,12 +324,12 @@ export async function updatePuzzle(formData: FormData) {
 
   if (error) {
     console.error("Admin puzzle update failed", error);
-    redirect(resultUrl("error", puzzleErrorCode(error), tab));
+    return await redirectAdminResult("error", puzzleErrorCode(error), tab);
   }
 
   revalidatePath("/admin");
   revalidatePath("/", "layout");
-  redirect(resultUrl("message", "puzzle_updated", tab));
+  return await redirectAdminResult("message", "puzzle_updated", tab);
 }
 
 export async function importPuzzles(formData: FormData) {
@@ -338,7 +340,7 @@ export async function importPuzzles(formData: FormData) {
   const file = formData.get("file");
 
   if (!confirmed || !(file instanceof File) || file.size === 0) {
-    redirect(resultUrl("error", "invalid_puzzle_import", tab));
+    return await redirectAdminResult("error", "invalid_puzzle_import", tab);
   }
 
   let parsedJson: unknown;
@@ -346,7 +348,7 @@ export async function importPuzzles(formData: FormData) {
     const text = await file.text();
     parsedJson = JSON.parse(text);
   } catch {
-    redirect(resultUrl("error", "invalid_puzzle_import_json", tab));
+    return await redirectAdminResult("error", "invalid_puzzle_import_json", tab);
   }
 
   const normalized = Array.isArray(parsedJson)
@@ -355,7 +357,7 @@ export async function importPuzzles(formData: FormData) {
   const parsed = importPuzzlesSchema.safeParse(normalized);
 
   if (!parsed.success) {
-    redirect(resultUrl("error", "invalid_puzzle_import", tab));
+    return await redirectAdminResult("error", "invalid_puzzle_import", tab);
   }
 
   const admin = createAdminClient();
@@ -365,12 +367,12 @@ export async function importPuzzles(formData: FormData) {
 
   if (error) {
     console.error("Admin puzzle import failed", error);
-    redirect(resultUrl("error", puzzleErrorCode(error), tab));
+    return await redirectAdminResult("error", puzzleErrorCode(error), tab);
   }
 
   revalidatePath("/admin");
   revalidatePath("/", "layout");
-  redirect(resultUrl("message", "puzzles_imported", tab));
+  return await redirectAdminResult("message", "puzzles_imported", tab);
 }
 
 export async function deletePuzzle(formData: FormData) {
@@ -381,7 +383,7 @@ export async function deletePuzzle(formData: FormData) {
   const confirmed = formData.get("confirmDelete") === "on";
 
   if (!puzzleId.success || !confirmed) {
-    redirect(resultUrl("error", "invalid_puzzle_delete", tab));
+    return await redirectAdminResult("error", "invalid_puzzle_delete", tab);
   }
 
   const admin = createAdminClient();
@@ -391,12 +393,12 @@ export async function deletePuzzle(formData: FormData) {
 
   if (error) {
     console.error("Admin puzzle delete failed", error);
-    redirect(resultUrl("error", puzzleErrorCode(error), tab));
+    return await redirectAdminResult("error", puzzleErrorCode(error), tab);
   }
 
   revalidatePath("/admin");
   revalidatePath("/", "layout");
-  redirect(resultUrl("message", "puzzle_deleted", tab));
+  return await redirectAdminResult("message", "puzzle_deleted", tab);
 }
 
 export async function clearRoomMessages(formData: FormData) {
@@ -405,7 +407,7 @@ export async function clearRoomMessages(formData: FormData) {
   const roomIds = z.array(roomIdSchema).min(1).safeParse(formData.getAll("roomId"));
 
   if (!roomIds.success) {
-    redirect(resultUrl("error", "invalid_room_cleanup", "cleanup"));
+    return await redirectAdminResult("error", "invalid_room_cleanup", "cleanup");
   }
 
   const admin = createAdminClient();
@@ -416,10 +418,10 @@ export async function clearRoomMessages(formData: FormData) {
 
     if (error) {
       console.error("Admin room cleanup failed", error);
-      redirect(resultUrl("error", "room_cleanup_failed", "cleanup"));
+      return await redirectAdminResult("error", "room_cleanup_failed", "cleanup");
     }
   }
 
   revalidatePath("/admin");
-  redirect(resultUrl("message", "room_cleaned", "cleanup"));
+  return await redirectAdminResult("message", "room_cleaned", "cleanup");
 }

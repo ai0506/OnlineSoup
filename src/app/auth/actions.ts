@@ -2,11 +2,19 @@
 
 import { redirect } from "next/navigation";
 
+import { redirectWithFlash } from "@/lib/flash";
 import { loginSchema, signupSchema } from "@/lib/validation";
 import { createClient } from "@/lib/supabase/server";
 
-function messageUrl(path: string, key: "error" | "message", code: string) {
-  return `${path}?${key}=${encodeURIComponent(code)}`;
+async function redirectLoginWithFlash(
+  kind: "error" | "notice",
+  code: string,
+): Promise<never> {
+  return await redirectWithFlash("/login", {
+    code,
+    kind,
+    scope: "login",
+  });
 }
 
 export async function login(formData: FormData) {
@@ -16,14 +24,14 @@ export async function login(formData: FormData) {
   });
 
   if (!parsed.success) {
-    redirect(messageUrl("/login", "error", "invalid_credentials_form"));
+    return await redirectLoginWithFlash("error", "invalid_credentials_form");
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
-    redirect(messageUrl("/login", "error", "invalid_credentials"));
+    return await redirectLoginWithFlash("error", "invalid_credentials");
   }
 
   redirect("/");
@@ -37,7 +45,7 @@ export async function signup(formData: FormData) {
   });
 
   if (!parsed.success) {
-    redirect(messageUrl("/login", "error", "invalid_signup_form"));
+    return await redirectLoginWithFlash("error", "invalid_signup_form");
   }
 
   const supabase = await createClient();
@@ -47,11 +55,11 @@ export async function signup(formData: FormData) {
     });
 
   if (usernameCheckError) {
-    redirect(messageUrl("/login", "error", "database_migration_required"));
+    return await redirectLoginWithFlash("error", "database_migration_required");
   }
 
   if (!usernameAvailable) {
-    redirect(messageUrl("/login", "error", "username_taken"));
+    return await redirectLoginWithFlash("error", "username_taken");
   }
 
   const siteUrl =
@@ -83,14 +91,14 @@ export async function signup(formData: FormData) {
     const errorCode = stillAvailable === false
       ? "username_taken"
       : "signup_failed";
-    redirect(messageUrl("/login", "error", errorCode));
+    return await redirectLoginWithFlash("error", errorCode);
   }
 
   if (data.session) {
     redirect("/");
   }
 
-  redirect(messageUrl("/login", "message", "signup_confirmation_sent"));
+  return await redirectLoginWithFlash("notice", "signup_confirmation_sent");
 }
 
 export async function logout() {

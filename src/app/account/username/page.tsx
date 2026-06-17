@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 
 import { updateUsername } from "@/app/account/username/actions";
+import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
 import { SubmitButton } from "@/components/submit-button";
+import { flashRedirectPath, getFlashMessage } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 
 type UsernamePageProps = {
@@ -21,12 +23,17 @@ export default async function UsernamePage({
   searchParams,
 }: UsernamePageProps) {
   const params = await searchParams;
+  const flash = await getFlashMessage("username");
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
 
   if (!userId) {
-    redirect("/login?error=login_required");
+    redirect(flashRedirectPath("/login", {
+      code: "login_required",
+      kind: "error",
+      scope: "login",
+    }));
   }
 
   const { data: profile } = await supabase
@@ -37,17 +44,18 @@ export default async function UsernamePage({
 
   return (
     <section className="form-card">
+      {flash && <FlashCookieCleaner />}
       <p className="eyebrow">账户</p>
       <h1>{profile?.username ? "修改用户名" : "设置用户名"}</h1>
       <p className="lead">
         登录后进入房间会直接使用用户名。用户名忽略大小写且全站唯一。
       </p>
-      {params.error && (
+      {(flash?.kind === "error" || params.error) && (
         <div className="error">
-          {errors[params.error] ?? errors.update_failed}
+          {errors[flash?.kind === "error" ? flash.code : params.error!] ?? errors.update_failed}
         </div>
       )}
-      {params.message === "username_updated" && (
+      {(flash?.kind === "notice" ? flash.code : params.message) === "username_updated" && (
         <div className="notice">用户名已保存。</div>
       )}
       <form action={updateUsername} className="form-grid">

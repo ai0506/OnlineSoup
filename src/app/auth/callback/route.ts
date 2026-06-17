@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+import { flashRedirectPath } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -22,6 +23,10 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.redirect(
-    `${origin}/login?error=invalid_email_callback`,
+    `${origin}${flashRedirectPath("/login", {
+      code: "invalid_email_callback",
+      kind: "error",
+      scope: "login",
+    })}`,
   );
 }

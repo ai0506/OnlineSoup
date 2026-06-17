@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { flashRedirectPath } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 
 function getAdminEmails() {
@@ -20,7 +21,11 @@ export async function requireAdmin() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?error=login_required");
+    redirect(flashRedirectPath("/login", {
+      code: "login_required",
+      kind: "error",
+      scope: "login",
+    }));
   }
 
   if (!isAdminEmail(user.email)) {

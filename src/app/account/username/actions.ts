@@ -1,26 +1,36 @@
 "use server";
 
-import { redirect } from "next/navigation";
-
+import { redirectWithFlash } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 import { usernameSchema } from "@/lib/validation";
 
-function resultUrl(type: "error" | "message", code: string) {
-  return `/account/username?${type}=${encodeURIComponent(code)}`;
+async function redirectUsernameWithFlash(
+  kind: "error" | "notice",
+  code: string,
+): Promise<never> {
+  return await redirectWithFlash("/account/username", {
+    code,
+    kind,
+    scope: "username",
+  });
 }
 
 export async function updateUsername(formData: FormData) {
   const parsed = usernameSchema.safeParse(formData.get("username"));
 
   if (!parsed.success) {
-    redirect(resultUrl("error", "invalid_username"));
+    return await redirectUsernameWithFlash("error", "invalid_username");
   }
 
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
 
   if (!claimsData?.claims?.sub) {
-    redirect("/login?error=login_required");
+    await redirectWithFlash("/login", {
+      code: "login_required",
+      kind: "error",
+      scope: "login",
+    });
   }
 
   const { error } = await supabase.rpc("set_my_username", {
@@ -37,8 +47,8 @@ export async function updateUsername(formData: FormData) {
           : error.message.includes("invalid_username")
             ? "invalid_username"
             : "update_failed";
-    redirect(resultUrl("error", code));
+    return await redirectUsernameWithFlash("error", code);
   }
 
-  redirect(resultUrl("message", "username_updated"));
+  return await redirectUsernameWithFlash("notice", "username_updated");
 }

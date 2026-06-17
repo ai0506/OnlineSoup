@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { CreateRoomForm } from "@/components/create-room-form";
+import { flashRedirectPath } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function NewRoomPage() {
@@ -9,7 +10,11 @@ export default async function NewRoomPage() {
   const userId = claimsData?.claims?.sub;
 
   if (!userId) {
-    redirect("/login?error=login_required");
+    redirect(flashRedirectPath("/login", {
+      code: "login_required",
+      kind: "error",
+      scope: "login",
+    }));
   }
 
   const { data: activeRoomCode } = await supabase.rpc("get_my_active_room");

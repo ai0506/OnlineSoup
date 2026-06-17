@@ -11,6 +11,7 @@ import { PuzzlePanel } from "@/components/puzzle-panel";
 import { RoomActionForm } from "@/components/room-action-form";
 import { RoomChat } from "@/components/room-chat";
 import { hasSupabaseEnv } from "@/lib/env";
+import { flashRedirectPath } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 import type { CurrentPuzzle, PuzzleListItem, Room, RoomChatBootstrap, RoomSeat } from "@/lib/types";
 
@@ -58,11 +59,19 @@ export default async function RoomPage({
   }
 
   if (exitReason === "closed") {
-    redirect("/?notice=room_closed");
+    redirect(flashRedirectPath("/", {
+      code: "room_closed",
+      kind: "notice",
+      scope: "home",
+    }));
   }
 
   if (exitReason === "kicked") {
-    redirect("/?notice=room_kicked");
+    redirect(flashRedirectPath("/", {
+      code: "room_kicked",
+      kind: "notice",
+      scope: "home",
+    }));
   }
 
   const { data: roomData } = await supabase

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 import { hasSupabaseEnv } from "@/lib/env";
+import { FLASH_COOKIE_NAME, encodeFlashMessage, flashCookieOptions } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 
 function redirectTo(path: string) {
@@ -19,7 +20,17 @@ export async function GET(request: NextRequest) {
     .toUpperCase();
 
   if (!code || !/^[A-Z0-9]{6}$/.test(code)) {
-    return redirectTo("/?error=invalid_room_code");
+    const response = redirectTo("/");
+    response.cookies.set(
+      FLASH_COOKIE_NAME,
+      encodeFlashMessage({
+        code: "invalid_room_code",
+        kind: "error",
+        scope: "home",
+      }),
+      flashCookieOptions,
+    );
+    return response;
   }
 
   if (hasSupabaseEnv()) {
