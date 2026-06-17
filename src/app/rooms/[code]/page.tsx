@@ -93,7 +93,7 @@ export default async function RoomPage({
   const { data: seatData } = await supabase
     .from("room_seats")
     .select(
-      "id, seat_number, nickname, user_id, remaining_points, occupied_at",
+      "id, seat_number, nickname, user_id, remaining_points, hint_tokens, occupied_at",
     )
     .eq("room_id", room.id)
     .order("seat_number");
@@ -178,6 +178,7 @@ export default async function RoomPage({
   const chatSeatId = chatBootstrap?.seat_id ?? null;
   const chatSeat = chatSeatId ? seats.find((s) => s.id === chatSeatId) : null;
   const initialSeatPoints = chatSeat?.remaining_points ?? 0;
+  const initialHintTokens = chatSeat?.hint_tokens ?? 0;
 
   // 题目数据
   let currentPuzzle: CurrentPuzzle | null = null;
@@ -208,6 +209,7 @@ export default async function RoomPage({
             currentUserId={userId}
             initialPersonalPoints={currentUserPoints ?? 0}
             initialSeatPoints={initialSeatPoints}
+            initialHintTokens={initialHintTokens}
             initialHasPuzzle={Boolean(currentPuzzle)}
             initialPuzzleId={currentPuzzle?.id ?? null}
             senderName={chatSeat?.nickname ?? undefined}
