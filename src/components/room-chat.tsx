@@ -854,20 +854,20 @@ export function RoomChat({
         <div className="chat-form-footer">
           <span className="muted">{content.length}/{currentMode.maxLength}</span>
 
-          {/* Points status for paid modes */}
-          {currentMode.cost > 0 && (
-            <span className={`chat-points-info${canAfford ? "" : " insufficient"}`}>
-              {seatPoints}[临]
-              {currentUserId ? ` + ${personalPoints}` : ""}
-            </span>
-          )}
-
-          {/* 提示机会（有题目时始终显示） */}
-          {hasPuzzle && (
-            <span className={`chat-hint-tokens-info${hintTokens === 0 ? " muted" : ""}`}>
-              提示机会 {hintTokens} 次
-            </span>
-          )}
+          {/* 积分 + 提示机会（合为一行，占 grid 中间列） */}
+          <span className="chat-footer-center">
+            {currentMode.cost > 0 && (
+              <span className={`chat-points-info${canAfford ? "" : " insufficient"}`}>
+                {seatPoints}[临]
+                {currentUserId ? ` + ${personalPoints}` : ""}
+              </span>
+            )}
+            {hasPuzzle && mode !== "chat" && (
+              <span className={`chat-hint-tokens-info${hintTokens === 0 ? " muted" : ""}`}>
+                提示机会 {hintTokens} 次
+              </span>
+            )}
+          </span>
 
           <button
             className="button"

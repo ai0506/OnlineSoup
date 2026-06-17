@@ -1232,9 +1232,14 @@ textarea:focus {
   justify-self: start;
 }
 
-.chat-form-footer > .chat-points-info {
+.chat-footer-center {
   grid-column: 2;
   justify-self: center;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .chat-form-footer > .button {
