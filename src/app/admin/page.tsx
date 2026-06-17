@@ -2,6 +2,7 @@ import {
   clearRoomMessages,
   createAdminUser,
   createPuzzle,
+  deleteAdminUser,
   deletePuzzle,
   importPuzzles,
   sendPasswordReset,
@@ -11,6 +12,10 @@ import {
   updateUserUsername,
 } from "@/app/admin/actions";
 import {
+  AdminUserSection,
+  type AdminUserEntry,
+} from "@/components/admin-user-section";
+import {
   AdminPuzzleForm,
   type AdminPuzzleFormValue,
 } from "@/components/admin-puzzle-form";
@@ -19,7 +24,6 @@ import { AdminPuzzleList } from "@/components/admin-puzzle-list";
 import { AdminRoomCleanupList } from "@/components/admin-room-cleanup-list";
 import { AdminTabs } from "@/components/admin-tabs";
 import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
-import { SubmitButton } from "@/components/submit-button";
 import { requireAdmin } from "@/lib/admin";
 import { getFlashMessage } from "@/lib/flash";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -107,12 +111,6 @@ type AskAnswerDetails = {
   usedArbitration: boolean;
 };
 
-const NOEMAIL_DOMAIN = "@noemail.internal";
-
-function isEmaillessAccount(email: string | undefined) {
-  return email?.endsWith(NOEMAIL_DOMAIN) ?? false;
-}
-
 const errors: Record<string, string> = {
   invalid_points: "积分必须是 0 到 10 亿之间的整数。",
   points_update_failed: "积分修改失败，请稍后重试。",
@@ -129,6 +127,7 @@ const errors: Record<string, string> = {
   create_user_failed: "创建账户失败，请稍后重试。",
   invalid_password: "密码需要 6 到 72 位。",
   password_update_failed: "密码修改失败，请稍后重试。",
+  delete_user_failed: "删除账户失败，请稍后重试。",
   invalid_puzzle: "题目信息不完整，请检查标题、题面、汤底、评分点、示例问题和难度。",
   invalid_puzzle_delete: "删除题目前请勾选确认。",
   invalid_puzzle_import: "文件内容格式不正确，或者没有勾选确认替换。",
@@ -145,6 +144,7 @@ const messages: Record<string, string> = {
   password_reset_sent: "密码重置邮件已发送。",
   password_updated: "密码已修改。",
   user_created: "账户已创建。",
+  user_deleted: "账户已删除。",
   username_updated: "用户名已更新。",
   puzzle_created: "题目已新增。",
   puzzle_updated: "题目已保存。",
@@ -465,144 +465,27 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     <AdminPuzzleImport action={importPuzzles} key="import-puzzle-form" />
   );
 
+  const accountUsers: AdminUserEntry[] = visibleUsers.map((user) => {
+    const profile = profileById.get(user.id);
+    return {
+      id: user.id,
+      email: user.email,
+      username: profile?.username ?? null,
+      points: profile?.points ?? 0,
+    };
+  });
+
   const accountContent = (
     <div className="admin-section" key="accounts-section">
-      <div className="admin-section-heading">
-        <h2>账户管理</h2>
-        <p className="muted">创建账户，或修改用户名、积分、密码。</p>
-      </div>
-
-      <details className="admin-create-user-panel">
-        <summary>创建无邮箱账户</summary>
-        <form action={createAdminUser} className="admin-create-user-form">
-          <label>
-            用户名
-            <input
-              maxLength={8}
-              minLength={3}
-              name="username"
-              pattern="[A-Za-z0-9_]{3,8}"
-              placeholder="例如 Player01"
-              required
-            />
-          </label>
-          <label>
-            初始密码
-            <input
-              minLength={6}
-              name="password"
-              placeholder="至少 6 位"
-              required
-              type="password"
-            />
-          </label>
-          <label>
-            初始积分
-            <input
-              defaultValue={100}
-              max={1_000_000_000}
-              min={0}
-              name="points"
-              required
-              type="number"
-            />
-          </label>
-          <SubmitButton pendingText="创建中...">创建账户</SubmitButton>
-        </form>
-      </details>
-
-      <div className="admin-list">
-        {visibleUsers.map((user) => {
-          const profile = profileById.get(user.id);
-          const emailless = isEmaillessAccount(user.email);
-          const displayEmail = emailless ? "无邮箱账户" : (user.email ?? "无邮箱账户");
-
-          return (
-            <article className="admin-user-card" key={user.id}>
-              <div className="admin-user-summary">
-                <div>
-                  <strong>{displayEmail}</strong>
-                  <span>{profile?.username ?? "未设置用户名"}</span>
-                </div>
-                <div className="points-badge">
-                  {profile?.points ?? 0} 积分
-                </div>
-              </div>
-
-              <div className="admin-user-actions">
-                <form
-                  action={updateUserUsername}
-                  className="inline-admin-form"
-                >
-                  <input name="userId" type="hidden" value={user.id} />
-                  <label>
-                    用户名
-                    <input
-                      defaultValue={profile?.username ?? ""}
-                      maxLength={8}
-                      minLength={3}
-                      name="username"
-                      pattern="[A-Za-z0-9_]{3,8}"
-                      required
-                    />
-                  </label>
-                  <SubmitButton pendingText="保存中...">
-                    保存用户名
-                  </SubmitButton>
-                </form>
-
-                <form action={updateUserPoints} className="inline-admin-form">
-                  <input name="userId" type="hidden" value={user.id} />
-                  <label>
-                    新积分
-                    <input
-                      defaultValue={profile?.points ?? 0}
-                      max={1_000_000_000}
-                      min={0}
-                      name="points"
-                      required
-                      type="number"
-                    />
-                  </label>
-                  <SubmitButton pendingText="保存中...">保存积分</SubmitButton>
-                </form>
-
-                <form action={updateUserPassword} className="inline-admin-form">
-                  <input name="userId" type="hidden" value={user.id} />
-                  <label>
-                    新密码
-                    <input
-                      minLength={6}
-                      maxLength={72}
-                      name="password"
-                      placeholder="至少 6 位"
-                      required
-                      type="password"
-                    />
-                  </label>
-                  <SubmitButton pendingText="保存中...">修改密码</SubmitButton>
-                </form>
-
-                {!emailless && (
-                  <form action={sendPasswordReset} className="password-reset-form">
-                    <input name="userId" type="hidden" value={user.id} />
-                    <SubmitButton
-                      className="button secondary"
-                      pendingText="发送中..."
-                    >
-                      发送重置邮件
-                    </SubmitButton>
-                  </form>
-                )}
-              </div>
-            </article>
-          );
-        })}
-
-        {visibleUsers.length === 0 && (
-          <div className="card muted">没有找到匹配的账户。</div>
-        )}
-      </div>
+      <AdminUserSection
+        createAdminUser={createAdminUser}
+        deleteAdminUser={deleteAdminUser}
+        sendPasswordReset={sendPasswordReset}
+        updateUserPassword={updateUserPassword}
+        updateUserPoints={updateUserPoints}
+        updateUserUsername={updateUserUsername}
+        users={accountUsers}
+      />
     </div>
   );
 

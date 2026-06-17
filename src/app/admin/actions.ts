@@ -330,6 +330,38 @@ export async function updateUserPassword(formData: FormData) {
   return await redirectAdminResult("message", "password_updated");
 }
 
+export async function deleteAdminUser(formData: FormData) {
+  await requireAdmin();
+
+  const userId = userIdSchema.safeParse(formData.get("userId"));
+  if (!userId.success) {
+    return await redirectAdminResult("error", "invalid_user");
+  }
+
+  const admin = createAdminClient();
+  const id = userId.data;
+
+  // Nullify room_ai_requests.user_id (nullable column, no cascade defined)
+  await admin.from("room_ai_requests").update({ user_id: null }).eq("user_id", id);
+
+  // Delete points history
+  await admin.from("points_transactions").delete().eq("user_id", id);
+
+  // Delete rooms owned by user — cascades to room_seats, room_messages,
+  // room_private, guest_sessions, guest_removals, puzzle_progress, room_ai_requests
+  await admin.from("rooms").delete().eq("owner_id", id);
+
+  // Delete auth user — cascades to profiles; room_seats.user_id set null by FK
+  const { error } = await admin.auth.admin.deleteUser(id);
+  if (error) {
+    console.error("Admin delete user failed", error);
+    return await redirectAdminResult("error", "delete_user_failed");
+  }
+
+  revalidatePath("/admin");
+  return await redirectAdminResult("message", "user_deleted");
+}
+
 export async function createPuzzle(formData: FormData) {
   await requireAdmin();
   const tab = resultTab(formData);
