@@ -210,7 +210,7 @@ export function RoomChat({
     window.addEventListener("focus", handleVisible);
     window.addEventListener("online", handleVisible);
     window.addEventListener("room-data-refresh", refreshMessages);
-    const timer = window.setInterval(() => void refreshMessages(), 1000);
+    const timer = window.setInterval(() => void refreshMessages(), 2000);
 
     const supabase = createClient();
     const channel = supabase

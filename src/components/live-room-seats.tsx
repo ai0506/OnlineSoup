@@ -311,7 +311,7 @@ export function LiveRoomSeats({
     window.addEventListener("focus", syncSeats);
     window.addEventListener("online", syncSeats);
     window.addEventListener("room-data-refresh", syncSeats);
-    const syncTimer = window.setInterval(() => void syncSeats(), 1000);
+    const syncTimer = window.setInterval(() => void syncSeats(), 3000);
     void syncSeats();
 
     return () => {
@@ -365,7 +365,7 @@ export function LiveRoomSeats({
     window.addEventListener("focus", syncPersonalPoints);
     window.addEventListener("online", syncPersonalPoints);
     window.addEventListener("room-data-refresh", syncPersonalPoints);
-    const syncTimer = window.setInterval(() => void syncPersonalPoints(), 1000);
+    const syncTimer = window.setInterval(() => void syncPersonalPoints(), 5000);
 
     return () => {
       disposed = true;

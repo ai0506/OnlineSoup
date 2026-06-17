@@ -46,6 +46,9 @@ export function RoomActionForm({
     if (state.status === "success" && onSuccess) {
       onSuccess();
     }
+    if (state.status === "success") {
+      window.dispatchEvent(new Event("room-data-refresh"));
+    }
   }, [router, state, onSuccess]);
 
   return (

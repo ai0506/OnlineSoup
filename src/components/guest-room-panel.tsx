@@ -54,7 +54,7 @@ export function GuestRoomPanel({
           detail: { seatId: joinState.seatId },
         }),
       );
-      router.refresh();
+      window.dispatchEvent(new Event("room-data-refresh"));
     }
   }, [joinState, router]);
 
