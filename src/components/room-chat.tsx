@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type ReactNode,
   FormEvent,
   useEffect,
   useLayoutEffect,
@@ -26,6 +27,9 @@ const MODE_LABEL: Record<MessageMode, string> = {
   reason: "推理",
 };
 
+// 待回复的 AI 请求超时阈值：超过此时间仍无 AI 消息则不再显示"回复中"
+const PENDING_AI_TIMEOUT_MS = 90_000;
+
 type RoomChatProps = {
   initialMessages: RoomMessage[];
   roomCode: string;
@@ -34,6 +38,7 @@ type RoomChatProps = {
   currentUserId?: string;
   initialPersonalPoints?: number;
   initialSeatPoints?: number;
+  initialHintTokens?: number;
   initialHasPuzzle?: boolean;
   initialPuzzleId?: number | null;
   senderName?: string;
@@ -59,12 +64,9 @@ const ANSWER_COLOR_CLASS: Record<string, string> = {
   模糊问题: "ask-answer-ambiguous",
 };
 
-function pendingKey(seatId: string, mode: MessageMode, content: string) {
-  return `${seatId}|${mode}|${content}`;
-}
-
+// 每条消息的去重 key（用于判断临时消息是否已有真实消息对应）
 function messageKey(message: RoomMessage) {
-  return pendingKey(message.seat_id, message.message_mode, message.content);
+  return `${message.seat_id}|${message.message_mode}|${message.content}`;
 }
 
 function mergeMessages(current: RoomMessage[], incoming: RoomMessage[]) {
@@ -97,8 +99,8 @@ function getSystemMessageContent(message: RoomMessage) {
 function getPlaceholder(mode: MessageMode) {
   switch (mode) {
     case "ask":    return "向 AI 提问（50 字以内），消耗 1 积分";
-    case "hint":   return "请求提示（50 字以内），消耗 1 积分";
-    case "reason": return "尝试推理（200 字以内），消耗 2 积分";
+    case "hint":   return "请求提示（50 字以内），消耗 1 积分 + 1 次提示机会";
+    case "reason": return "尝试推理（200 字以内），消耗 2 积分，完成后获得 1 次提示机会";
     default:       return "输入普通聊天内容，Enter 发送，Shift+Enter 换行";
   }
 }
@@ -144,6 +146,7 @@ export function RoomChat({
   currentUserId,
   initialPersonalPoints = 0,
   initialSeatPoints = 0,
+  initialHintTokens = 0,
   initialHasPuzzle = false,
   initialPuzzleId = null,
   senderName,
@@ -162,9 +165,14 @@ export function RoomChat({
   const [showRateLimitNotice, setShowRateLimitNotice] = useState(false);
   const [seatPoints, setSeatPoints] = useState(initialSeatPoints);
   const [personalPoints, setPersonalPoints] = useState(initialPersonalPoints);
+  const [hintTokens, setHintTokens] = useState(initialHintTokens);
   const [activeSeatId, setActiveSeatId] = useState(seatId);
   const [currentPuzzleId, setCurrentPuzzleId] = useState<number | null>(initialPuzzleId);
-  const [pendingSends, setPendingSends] = useState<Record<string, "waiting" | "failed">>({});
+  // pendingSends: keyed by tempId (negative number); value is "failed" only
+  // "waiting" is no longer stored here — shown globally via pendingAiAfterMessageId
+  const [pendingSends, setPendingSends] = useState<Record<number, "failed">>({});
+  // tickTime 每 10 秒更新一次（毫秒时间戳），驱动 pendingAiAfterMessageId 重新检查超时
+  const [tickTime, setTickTime] = useState(() => new Date().getTime());
   const messageListRef = useRef<HTMLDivElement>(null);
   const tempIdRef = useRef(0);
 
@@ -234,7 +242,7 @@ export function RoomChat({
     };
   }, [roomCode, roomId]);
 
-  // Points Realtime + polling
+  // Points + hint tokens Realtime + polling
   useEffect(() => {
     if (!activeSeatId && !currentUserId) return;
 
@@ -242,15 +250,16 @@ export function RoomChat({
     let disposed = false;
     const channels: ReturnType<typeof supabase.channel>[] = [];
 
-    const syncSeatPoints = async () => {
+    const syncSeatData = async () => {
       if (!activeSeatId || document.visibilityState !== "visible") return;
       const { data } = await supabase
         .from("room_seats")
-        .select("remaining_points")
+        .select("remaining_points, hint_tokens")
         .eq("id", activeSeatId)
         .maybeSingle();
-      if (!disposed && typeof data?.remaining_points === "number") {
-        setSeatPoints(data.remaining_points);
+      if (!disposed) {
+        if (typeof data?.remaining_points === "number") setSeatPoints(data.remaining_points);
+        if (typeof data?.hint_tokens === "number") setHintTokens(data.hint_tokens);
       }
     };
 
@@ -267,7 +276,7 @@ export function RoomChat({
     };
 
     const handleRefresh = () => {
-      void syncSeatPoints();
+      void syncSeatData();
       void syncPersonalPoints();
     };
 
@@ -280,12 +289,11 @@ export function RoomChat({
           table: "room_seats",
           filter: `id=eq.${activeSeatId}`,
         }, (payload) => {
-          const updated = payload.new as { remaining_points?: number };
-          if (typeof updated.remaining_points === "number") {
-            setSeatPoints(updated.remaining_points);
-          }
+          const updated = payload.new as { remaining_points?: number; hint_tokens?: number };
+          if (typeof updated.remaining_points === "number") setSeatPoints(updated.remaining_points);
+          if (typeof updated.hint_tokens === "number") setHintTokens(updated.hint_tokens);
         })
-        .subscribe(() => { void syncSeatPoints(); });
+        .subscribe(() => { void syncSeatData(); });
       channels.push(ch);
     }
 
@@ -349,9 +357,7 @@ export function RoomChat({
     };
   }, []);
 
-  // 当前题目的事实总结发生变化时（新消息到达或题目切换），广播给题目面板展示。
-  // 提示也以陈述句形式归入同一份事实总结，不再单独维护一份提示列表。
-  // 题目面板也可以主动请求一次当前数据（避免双方挂载顺序不同导致错过首次广播）。
+  // 当前题目的事实总结发生变化时广播给题目面板展示
   useEffect(() => {
     if (currentPuzzleId === null) return;
 
@@ -403,11 +409,12 @@ export function RoomChat({
       else setSeatPoints((p) => p - cost);
     }
 
-    // 立即把消息本身展示出来，不等待 AI 回复；ask/hint/reason 模式下方再叠加
-    // 一行"回复中..."状态，收到结果后用真实回复替换，失败则改为失败提示。
+    // 提示模式乐观扣除提示机会
+    if (msgMode === "hint") setHintTokens((t) => t - 1);
+    // 推理/提问模式乐观更新提示机会（推理+1；提问每3次+1，这里简化为只在服务端更新后通过Realtime同步）
+
     const seatForMessage = activeSeatId ?? "";
     const tempId = -(++tempIdRef.current);
-    const key = pendingKey(seatForMessage, msgMode, text);
     const optimisticMessage: RoomMessage = {
       id: tempId,
       room_id: roomId,
@@ -424,9 +431,6 @@ export function RoomChat({
 
     setMessages((cur) => mergeMessages(cur, [optimisticMessage]));
     setContent("");
-    if (msgMode !== "chat") {
-      setPendingSends((cur) => ({ ...cur, [key]: "waiting" }));
-    }
 
     const endpoint =
       msgMode === "chat" ? `/rooms/${roomCode}/messages` : `/rooms/${roomCode}/ask`;
@@ -435,6 +439,10 @@ export function RoomChat({
       if (cost === 0) return;
       if (usePersonal) setPersonalPoints((p) => p + cost);
       else setSeatPoints((p) => p + cost);
+    };
+
+    const rollbackHintToken = () => {
+      if (msgMode === "hint") setHintTokens((t) => t + 1);
     };
 
     try {
@@ -457,8 +465,10 @@ export function RoomChat({
 
       if (!response.ok || !result.message) {
         rollbackPoints();
+        rollbackHintToken();
         if (msgMode !== "chat") {
-          setPendingSends((cur) => ({ ...cur, [key]: "failed" }));
+          // 用 tempId 标记失败：失败的临时消息保持可见（不被真实消息替换）
+          setPendingSends((cur) => ({ ...cur, [tempId]: "failed" }));
           setErrorNotice(result.error ?? "AI 主持暂时没有回应，请稍后重试");
           if (responseStatus === 409) {
             window.dispatchEvent(new CustomEvent("room-puzzle-refresh"));
@@ -480,17 +490,16 @@ export function RoomChat({
           [result.message!, result.aiMessage].filter(Boolean) as RoomMessage[],
         ),
       );
-      if (msgMode !== "chat") {
-        setPendingSends((cur) => {
-          const next = { ...cur };
-          delete next[key];
-          return next;
-        });
-      }
+      setPendingSends((cur) => {
+        const next = { ...cur };
+        delete next[tempId];
+        return next;
+      });
     } catch {
       rollbackPoints();
+      rollbackHintToken();
       if (msgMode !== "chat") {
-        setPendingSends((cur) => ({ ...cur, [key]: "failed" }));
+        setPendingSends((cur) => ({ ...cur, [tempId]: "failed" }));
       } else {
         setMessages((cur) => cur.filter((m) => m.id !== tempId));
         setErrorNotice("消息发送失败，请稍后重试");
@@ -535,17 +544,28 @@ export function RoomChat({
     seatPoints >= currentMode.cost ||
     (!!currentUserId && personalPoints >= currentMode.cost);
 
-  // 真实消息到达（轮询/Realtime 或本次请求自身的响应）后，隐藏内容相同的临时
-  // 占位消息，避免同一条消息短暂重复展示两次。
+  // 真实消息到达后，隐藏内容相同的非失败临时占位消息，避免重复展示。
+  // 已失败的临时消息（pendingSends[id] = "failed"）保持可见并隐藏对应真实消息，
+  // 防止失败状态丢失，同时阻止"回复中"指示器误触发。
   const visibleMessages = useMemo(() => {
-    const realKeys = new Set(
-      messages.filter((m) => m.id > 0).map((m) => messageKey(m)),
+    const failedTempKeys = new Set(
+      messages
+        .filter((m) => m.id < 0 && pendingSends[m.id] === "failed")
+        .map((m) => messageKey(m)),
     );
-    return messages.filter((m) => m.id > 0 || !realKeys.has(messageKey(m)));
-  }, [messages]);
+    const realKeys = new Set(
+      messages
+        .filter((m) => m.id > 0 && !failedTempKeys.has(messageKey(m)))
+        .map((m) => messageKey(m)),
+    );
+    return messages.filter((m) => {
+      if (m.id > 0) return !failedTempKeys.has(messageKey(m));
+      return !realKeys.has(messageKey(m));
+    });
+  }, [messages, pendingSends]);
 
-  // 同一房间的 AI 请求严格按顺序处理，所以一条询问消息之后最先出现的 AI 消息
-  // 必定是它的回复，据此把回答类型映射回询问消息本身，用于给问题气泡上色。
+  // 同一房间的 AI 请求严格顺序处理，所以 ask/hint/reason 消息之后
+  // 第一个 AI 消息必定是它的回复，据此把回答类型映射回询问消息本身。
   const askAnswerColorByMessageId = useMemo(() => {
     const map = new Map<number, string>();
     let pendingAskId: number | null = null;
@@ -566,6 +586,38 @@ export function RoomChat({
     return map;
   }, [visibleMessages]);
 
+  // tickTime 每 10 秒推进一次，驱动超时判断重算
+  useEffect(() => {
+    const timer = window.setInterval(() => setTickTime(new Date().getTime()), 10_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  // 找出最后一条尚未收到 AI 回复的 ask/hint/reason 消息（房间所有人共享此状态）。
+  // 排除已标记为失败的本地临时消息，避免失败后仍显示"回复中"。
+  // 超过 PENDING_AI_TIMEOUT_MS 的旧消息也不再显示，防止永久挂起。
+  const pendingAiAfterMessageId = useMemo(() => {
+    let lastAiRelatedId: number | null = null;
+    let hasFollowingAi = false;
+
+    for (const msg of visibleMessages) {
+      if (msg.message_type === "chat" && msg.message_mode !== "chat") {
+        if (msg.id < 0 && pendingSends[msg.id] === "failed") continue;
+        lastAiRelatedId = msg.id;
+        hasFollowingAi = false;
+      } else if (msg.message_type === "ai" && lastAiRelatedId !== null) {
+        hasFollowingAi = true;
+      }
+    }
+
+    if (lastAiRelatedId === null || hasFollowingAi) return null;
+
+    const lastMsg = visibleMessages.find((m) => m.id === lastAiRelatedId);
+    if (!lastMsg) return null;
+    if (tickTime - new Date(lastMsg.created_at).getTime() > PENDING_AI_TIMEOUT_MS) return null;
+
+    return lastAiRelatedId;
+  }, [visibleMessages, pendingSends, tickTime]);
+
   return (
     <section className="room-chat">
       <div className="room-chat-heading">
@@ -576,71 +628,88 @@ export function RoomChat({
         {visibleMessages.length === 0 ? (
           <div className="empty-chat">还没有消息，来打个招呼吧。</div>
         ) : (
-          visibleMessages.map((message) =>
-            message.message_type === "system" ? (
-              <div className="system-message" key={message.id}>
-                <span>{getSystemMessageContent(message)}</span>
-                <time dateTime={message.created_at}>
-                  {timeFormatter.format(new Date(message.created_at))}
-                </time>
-              </div>
-            ) : (
-              <article
-                className={`chat-message${message.message_type === "ai" ? " ai-message" : ""}${
-                  askAnswerColorByMessageId.has(message.id)
-                    ? ` ${askAnswerColorByMessageId.get(message.id)}`
-                    : ""
-                }`}
-                key={message.id}
-              >
-                <div className="chat-message-meta">
-                  <strong>{message.sender_name}</strong>
-                  {message.message_type !== "ai" && (
-                    <>
-                      <span>[{message.sender_seat_number}]</span>
-                      <span>[{message.sender_type === "registered" ? "已注册" : "访客"}]</span>
-                      {message.message_mode !== "chat" && (
-                        <span className="chat-mode-badge">
-                          {MODE_LABEL[message.message_mode]}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </div>
-                <div className="chat-message-body">
-                  {message.message_type === "ai" && parseAiMessageContent(message.content) ? (
-                    <div className="ai-message-content">
-                      {(() => {
-                        const parsed = parseAiMessageContent(message.content)!;
-                        return (
-                          <p>
-                            <span className="ai-message-label">
-                              {getAiLabel(parsed.kind)}
-                            </span>
-                            {parsed.text}
-                          </p>
-                        );
-                      })()}
-                    </div>
-                  ) : (
-                    <p>{message.content}</p>
-                  )}
+          visibleMessages.flatMap((message) => {
+            const items: ReactNode[] = [];
+
+            if (message.message_type === "system") {
+              items.push(
+                <div className="system-message" key={message.id}>
+                  <span>{getSystemMessageContent(message)}</span>
                   <time dateTime={message.created_at}>
                     {timeFormatter.format(new Date(message.created_at))}
                   </time>
                 </div>
-                {message.message_type === "chat" && message.message_mode !== "chat" && (() => {
-                  const status = pendingSends[messageKey(message)];
-                  if (!status) return null;
-                  return (
-                    <p className={`ai-pending-status${status === "failed" ? " failed" : ""}`}>
-                      {status === "failed" ? "发送消息失败，已退还积分" : "回复中..."}
-                    </p>
-                  );
-                })()}
-              </article>
-            ),
-          )
+              );
+            } else {
+              items.push(
+                <article
+                  className={`chat-message${message.message_type === "ai" ? " ai-message" : ""}${
+                    askAnswerColorByMessageId.has(message.id)
+                      ? ` ${askAnswerColorByMessageId.get(message.id)}`
+                      : ""
+                  }`}
+                  key={message.id}
+                >
+                  <div className="chat-message-meta">
+                    <strong>{message.sender_name}</strong>
+                    {message.message_type !== "ai" && (
+                      <>
+                        <span>[{message.sender_seat_number}]</span>
+                        <span>[{message.sender_type === "registered" ? "已注册" : "访客"}]</span>
+                        {message.message_mode !== "chat" && (
+                          <span className="chat-mode-badge">
+                            {MODE_LABEL[message.message_mode]}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <div className="chat-message-body">
+                    {message.message_type === "ai" && parseAiMessageContent(message.content) ? (
+                      <div className="ai-message-content">
+                        {(() => {
+                          const parsed = parseAiMessageContent(message.content)!;
+                          return (
+                            <p>
+                              <span className="ai-message-label">
+                                {getAiLabel(parsed.kind)}
+                              </span>
+                              {parsed.text}
+                            </p>
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      <p>{message.content}</p>
+                    )}
+                    <time dateTime={message.created_at}>
+                      {timeFormatter.format(new Date(message.created_at))}
+                    </time>
+                  </div>
+                  {/* 仅对发送失败的本地临时消息显示失败提示 */}
+                  {message.id < 0 && pendingSends[message.id] === "failed" && (
+                    <p className="ai-pending-status failed">发送失败，已退还积分</p>
+                  )}
+                </article>
+              );
+            }
+
+            // 在待回复消息后插入动态"回复中"指示器（所有房间成员共享）
+            if (message.id === pendingAiAfterMessageId) {
+              items.push(
+                <div className="pending-ai-indicator" key={`pending-${message.id}`}>
+                  <span className="pending-ai-label">AI主持</span>
+                  <span className="pending-ai-dots" aria-label="回复中">
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                </div>
+              );
+            }
+
+            return items;
+          })
         )}
       </div>
 
@@ -723,7 +792,14 @@ export function RoomChat({
         {/* Mode tabs */}
         <div className="chat-mode-tabs">
           {MODES.map((m) => {
-            const locked = m.key !== "chat" && !hasPuzzle;
+            const noPuzzleLocked = m.key !== "chat" && !hasPuzzle;
+            const noTokenLocked = m.key === "hint" && hasPuzzle && hintTokens < 1;
+            const locked = noPuzzleLocked || noTokenLocked;
+            const title = noPuzzleLocked
+              ? "需要先选择题目才能使用"
+              : noTokenLocked
+                ? "提问 3 次或完成一次推理可获得提示机会"
+                : undefined;
             return (
               <button
                 key={m.key}
@@ -734,11 +810,14 @@ export function RoomChat({
                   setMode(m.key);
                   setContent("");
                 }}
-                title={locked ? "需要先选择题目才能使用" : undefined}
+                title={title}
                 type="button"
               >
                 {m.label}
                 {m.cost > 0 && <span className="chat-mode-cost">{m.cost}pt</span>}
+                {m.key === "hint" && hintTokens > 0 && (
+                  <span className="hint-token-badge">{hintTokens}</span>
+                )}
               </button>
             );
           })}

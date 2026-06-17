@@ -54,7 +54,7 @@ function aiErrorResponse(error: { message: string }) {
         ? 410
         : msg.includes("invalid_message")
           ? 400
-          : msg.includes("insufficient_seat_points") || msg.includes("insufficient_points")
+          : msg.includes("insufficient_seat_points") || msg.includes("insufficient_points") || msg.includes("insufficient_hint_tokens")
             ? 402
             : msg.includes("rate_limited") || msg.includes("room_ai_busy")
               ? 429
@@ -67,7 +67,7 @@ function aiErrorResponse(error: { message: string }) {
     : status === 404 ? "没有找到这个房间"
     : status === 410 ? "房间已经关闭"
     : status === 400 ? "消息内容超出该模式的字数限制"
-    : status === 402 ? "积分不足，无法发送"
+    : status === 402 ? (msg.includes("insufficient_hint_tokens") ? "没有可用的提示机会，提问 3 次或完成一次推理可获得" : "积分不足，无法发送")
     : status === 429 ? "AI 主持正在处理，请稍后再试"
     : status === 409 ? "需要先开始题目才能询问 AI"
     : "AI 主持暂时不可用";

@@ -22,6 +22,7 @@ export type RoomSeat = {
   nickname: string | null;
   user_id: string | null;
   remaining_points: number;
+  hint_tokens: number;
   occupied_at: string | null;
 };
 
