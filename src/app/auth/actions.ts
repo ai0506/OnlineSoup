@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { redirectWithFlash } from "@/lib/flash";
+import { getSiteOrigin } from "@/lib/site-url";
 import { loginSchema, signupSchema } from "@/lib/validation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -62,9 +63,7 @@ export async function signup(formData: FormData) {
     return await redirectLoginWithFlash("error", "username_taken");
   }
 
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-    "http://localhost:3000";
+  const siteUrl = await getSiteOrigin();
 
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,

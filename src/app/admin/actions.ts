@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { requireAdmin } from "@/lib/admin";
 import { redirectWithFlash } from "@/lib/flash";
+import { getSiteOrigin } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { usernameSchema } from "@/lib/validation";
 
@@ -224,9 +225,7 @@ export async function sendPasswordReset(formData: FormData) {
     return await redirectAdminResult("error", "password_reset_failed");
   }
 
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-    "http://localhost:3000";
+  const siteUrl = await getSiteOrigin();
   const { error } = await admin.auth.resetPasswordForEmail(data.user.email, {
     redirectTo: `${siteUrl}/auth/callback?next=/reset-password`,
   });
