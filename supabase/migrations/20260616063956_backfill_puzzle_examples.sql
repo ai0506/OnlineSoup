@@ -1,0 +1,36 @@
+-- Backfill puzzle example Q&A from questions.json without touching puzzle text or key_points.
+update public.puzzles
+set examples = '[{"question":"男人是不是遇到了海难？","answer":"是","reason":"汤底中明确提到男人曾是海难幸存者，被困在荒岛上","summary":"男人曾遭遇海难，被困荒岛。"},{"question":"男人在餐厅喝的是真正的海龟汤吗？","answer":"是","reason":"汤底中提到他在餐厅喝到了真正的海龟汤，发现味道与之前不同","summary":"男人在餐厅喝到了真正的海龟汤。"},{"question":"男人是因为食物中毒而自杀的吗？","answer":"否","reason":"汤底中明确说明男人自杀是因为发现当年吃的是人肉，而不是因为食物中毒","summary":"男人不是因为食物中毒而自杀的。"},{"question":"男人之前吃过海龟汤吗？","answer":"是","reason":"汤底中提到男人在荒岛上吃过被称为海龟汤的食物","summary":"男人之前吃过被称为海龟汤的食物。"},{"question":"男人是因为生意失败而自杀的吗？","answer":"与此无关","reason":"汤底中没有提到任何关于男人生意的信息","summary":null},{"question":"海龟汤好喝吗？","answer":"模糊问题","reason":"这个问题无法用是/否回答，属于个人感受问题","summary":null}]'::jsonb
+where id = 1;
+
+update public.puzzles
+set examples = '[{"question":"爸爸是不是去世了？","answer":"是","reason":"汤底中明确提到小男孩的爸爸在一次比赛中意外去世","summary":"爸爸在意外中去世了。"},{"question":"足球是不是用爸爸的头做成的？","answer":"是","reason":"汤底中明确提到妈妈把爸爸的头做成了一个足球","summary":"足球是用爸爸的头做成的。"},{"question":"爸爸是不是足球运动员？","answer":"是","reason":"汤底中明确提到小男孩的爸爸是一名足球运动员","summary":"爸爸是一名足球运动员。"},{"question":"小男孩是不是因为输了比赛而哭泣？","answer":"否","reason":"汤底中说明小男孩哭泣是因为知道足球是用爸爸的头做成的，而不是因为输了比赛","summary":"小男孩不是因为输了比赛而哭泣的。"},{"question":"足球是不是新的？","answer":"与此无关","reason":"汤底中没有提到足球的新旧程度","summary":null},{"question":"足球是什么颜色的？","answer":"与此无关","reason":"汤底中没有提到足球的颜色","summary":null}]'::jsonb
+where id = 2;
+
+update public.puzzles
+set examples = '[{"question":"男人是不是身材矮小？","answer":"是","reason":"汤底中明确提到男人是一个侏儒（身材矮小的人）","summary":"男人身材矮小（侏儒）。"},{"question":"男人是不是够不到10楼的按钮？","answer":"是","reason":"汤底中明确提到他太矮了，够不到10楼的按钮","summary":"男人够不到10楼的按钮。"},{"question":"下雨天男人是不是用雨伞按按钮？","answer":"是","reason":"汤底中明确提到下雨天他可以用雨伞按按钮","summary":"下雨天男人用雨伞按按钮。"},{"question":"男人是不是因为不喜欢坐电梯而走楼梯？","answer":"否","reason":"汤底中说明男人走楼梯是因为够不到10楼的按钮，而不是因为不喜欢坐电梯","summary":"男人不是因为不喜欢坐电梯而走楼梯的。"},{"question":"男人是不是住在7楼？","answer":"否","reason":"汤底中明确提到男人住在10楼，只是因为够不到按钮才在7楼下车","summary":"男人不是住在7楼的。"},{"question":"电梯是不是坏了？","answer":"否","reason":"汤底中没有提到电梯坏了，而是因为男人够不到按钮","summary":"电梯没有坏。"}]'::jsonb
+where id = 3;
+
+update public.puzzles
+set examples = '[{"question":"你们是不是三角函数？","answer":"是","reason":"汤底中明确提到我们三兄弟是sin，cos和tan","summary":"我们是三角函数。"},{"question":"你是不是cos？","answer":"是","reason":"汤底中明确提到我是cos","summary":"我是cos。"},{"question":"你是不是误入了漫展？","answer":"是","reason":"汤底中明确提到我进去后没想到误入了漫展","summary":"我误入了漫展。"},{"question":"海报上是不是写着cosplay？","answer":"是","reason":"汤底中明确提到我看到门口的海报上写着cosplay","summary":"海报上写着cosplay。"},{"question":"你们是不是从数学世界穿越过来的？","answer":"是","reason":"汤底中明确提到我们从数学世界穿越到了人类世界","summary":"我们从数学世界穿越到了人类世界。"},{"question":"你们是不是外星人？","answer":"否","reason":"汤底中说明我们是从数学世界穿越过来的三角函数，而不是外星人","summary":"我们不是外星人。"}]'::jsonb
+where id = 4;
+
+update public.puzzles
+set examples = '[{"question":"asw是不是打错字了？","answer":"是","reason":"汤底中明确提到asw打字打快了，把\"两\"打成了\"李盎\"","summary":"asw打错字了。"},{"question":"asw是不是把\"两\"打成了\"李盎\"？","answer":"是","reason":"汤底中明确提到asw打字打快了，把\"两\"打成了\"李盎\"","summary":"asw把\"两\"打成了\"李盎\"。"},{"question":"行人是不是被海报上的内容吓跑了？","answer":"是","reason":"汤底中明确提到路过的行人看到海报，非但没进店，反而纷纷被吓跑了","summary":"行人被海报上的内容吓跑了。"},{"question":"奶茶是不是有问题？","answer":"否","reason":"汤底中说明行人被吓跑是因为asw打错字，而不是因为奶茶有问题","summary":"奶茶没有问题。"},{"question":"asw是不是故意打错字吸引顾客？","answer":"否","reason":"汤底中明确提到asw打字打快了才打错的，不是故意的","summary":"asw不是故意打错字的。"},{"question":"奶茶店是不是倒闭了？","answer":"与此无关","reason":"汤底中没有提到奶茶店是否倒闭","summary":null}]'::jsonb
+where id = 5;
+
+update public.puzzles
+set examples = '[{"question":"\"太阳之子\"是不是公鸡？","answer":"是","reason":"汤底中明确提到\"太阳之子\"其实就是一只普通的公鸡","summary":"\"太阳之子\"是公鸡。"},{"question":"它是不是会打鸣？","answer":"是","reason":"汤底中明确提到它每天凌晨太早打鸣","summary":"它会打鸣。"},{"question":"村民是不是把它杀了吃掉了？","answer":"是","reason":"汤底中明确提到众人便借机把这只公鸡杀了做成菜吃掉","summary":"村民把它杀了吃掉了。"},{"question":"它是不是真的能唤来太阳？","answer":"否","reason":"汤底中明确提到只有主人阿良觉得它能唤来太阳，其实它只是一只普通的公鸡","summary":"它不能真的唤来太阳。"},{"question":"村民是不是因为它是神物而敬畏它？","answer":"否","reason":"汤底中说明村民们都厌恶它每天凌晨太早打鸣，吵得所有人无法安睡，早就想除掉它","summary":"村民不是因为它是神物而敬畏它。"},{"question":"阿良是不是很伤心？","answer":"与此无关","reason":"汤底中没有提到阿良的感受","summary":null}]'::jsonb
+where id = 6;
+
+update public.puzzles
+set examples = '[{"question":"死者是不是鱼？","answer":"是","reason":"汤底中明确提到死者是一条鱼","summary":"死者是鱼。"},{"question":"玻璃碎片是不是鱼缸打破了？","answer":"是","reason":"汤底中明确提到鱼缸被打破了，地上是碎玻璃和水","summary":"玻璃碎片是鱼缸打破了。"},{"question":"鱼是不是因为缺水而死亡？","answer":"是","reason":"汤底中明确提到鱼缺水死亡","summary":"鱼因为缺水而死亡。"},{"question":"死者是不是人？","answer":"否","reason":"汤底中明确提到死者是一条鱼，不是人","summary":"死者不是人。"},{"question":"是不是有人谋杀了死者？","answer":"否","reason":"汤底中说明鱼是因为鱼缸打破缺水死亡，不是被谋杀的","summary":"没有人谋杀死者。"},{"question":"鱼缸是不是被猫打破的？","answer":"与此无关","reason":"汤底中没有提到鱼缸是被什么打破的","summary":null}]'::jsonb
+where id = 7;
+
+update public.puzzles
+set examples = '[{"question":"你是不是三次函数？","answer":"是","reason":"汤底中明确提到我是x^3-x^2，这是一个三次函数","summary":"我是三次函数。"},{"question":"你的三次项系数是不是1？","answer":"是","reason":"汤底中明确提到我是x^3-x^2，三次项系数为1","summary":"我的三次项系数是1。"},{"question":"你的二次项系数是不是-1？","answer":"是","reason":"汤底中明确提到我是x^3-x^2，二次项系数为-1","summary":"我的二次项系数是-1。"},{"question":"你是不是二次函数？","answer":"否","reason":"汤底中明确提到我是x^3-x^2，这是一个三次函数，不是二次函数","summary":"我不是二次函数。"},{"question":"你是不是奇函数？","answer":"否","reason":"f(-x) = (-x)^3 - (-x)^2 = -x^3 - x^2，不等于 -f(x)，所以不是奇函数","summary":"我不是奇函数。"},{"question":"你在x=1处的值是不是0？","answer":"是","reason":"f(1) = 1^3 - 1^2 = 1 - 1 = 0","summary":"我在x=1处的值是0。"}]'::jsonb
+where id = 8;
+
+update public.puzzles
+set examples = '[{"question":"是不是上体育课？","answer":"是","reason":"汤底中明确提到上的体育课","summary":"是上体育课。"},{"question":"人是不是都在操场上？","answer":"是","reason":"汤底中明确提到人都在操场上","summary":"人都在操场上。"},{"question":"是不是放假了？","answer":"否","reason":"汤底中说明是上课铃响了，上的体育课，不是放假","summary":"不是放假了。"},{"question":"是不是教室坏了？","answer":"否","reason":"汤底中说明是上体育课，人都在操场上，不是因为教室坏了","summary":"不是教室坏了。"},{"question":"是不是发生了地震？","answer":"否","reason":"汤底中说明是上体育课，人都在操场上，不是因为地震","summary":"不是发生了地震。"},{"question":"是不是数学课？","answer":"否","reason":"汤底中明确提到是上体育课，不是数学课","summary":"不是数学课。"}]'::jsonb
+where id = 9;
