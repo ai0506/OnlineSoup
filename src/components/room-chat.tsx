@@ -744,11 +744,9 @@ export function RoomChat({
           })}
         </div>
 
-        {!hasPuzzle && (
-          <p className="chat-mode-locked-hint muted">
-            房主开始题目后，才能使用询问 / 提示 / 尝试推理
-          </p>
-        )}
+        <p className={`chat-mode-locked-hint muted${hasPuzzle ? " chat-mode-locked-hint--hidden" : ""}`}>
+          房主开始题目后，才能使用询问 / 提示 / 尝试推理
+        </p>
 
         <textarea
           aria-label={currentMode.label}

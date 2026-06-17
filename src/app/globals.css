@@ -1253,6 +1253,12 @@ textarea:focus {
 .chat-mode-locked-hint {
   margin: -2px 0 8px;
   font-size: 0.78rem;
+  /* always occupies space so the textarea doesn't jump */
+}
+
+.chat-mode-locked-hint--hidden {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .chat-mode-badge {
@@ -1350,7 +1356,8 @@ textarea:focus {
 .room-details-content {
   display: flex;
   flex-direction: column;
-  max-height: min(52dvh, 520px);
+  /* fixed height: prevents the chat panel below from jumping when tab content differs */
+  height: min(52dvh, 520px);
   padding: 18px clamp(16px, 2.5vw, 22px) 22px;
   overflow-y: auto;
 }
@@ -2114,7 +2121,7 @@ textarea:focus {
   }
 
   .room-details-content {
-    max-height: min(46dvh, 420px);
+    height: min(46dvh, 420px);
     padding-top: 14px;
     padding-bottom: 16px;
   }
@@ -2268,6 +2275,7 @@ textarea:focus {
   }
 
   .room-details-content {
+    height: auto;
     max-height: none;
     min-height: 0;
     border-top: 1px solid var(--line);
