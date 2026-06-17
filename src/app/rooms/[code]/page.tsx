@@ -41,7 +41,12 @@ export default async function RoomPage({
     },
   );
 
-  if (exitReasonError) {
+  if (
+    exitReasonError &&
+    (exitReasonError.code === "PGRST202" ||
+      exitReasonError.message.includes("function public.get_room_exit_reason") ||
+      exitReasonError.message.includes("Could not find the function get_room_exit_reason"))
+  ) {
     const legacyResult = await supabase.rpc("get_room_exit_reason", {
       room_code: code,
       guest_token: guestToken || null,
