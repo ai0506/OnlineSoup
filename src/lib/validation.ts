@@ -13,6 +13,27 @@ export const loginSchema = z.object({
   password: z.string().min(6, "密码至少需要 6 位"),
 });
 
+// Accepts either an email address or a username (3-8 alphanumeric/underscore chars)
+export const loginIdentitySchema = z.object({
+  identity: z
+    .string()
+    .trim()
+    .min(1, "请输入邮箱或用户名")
+    .refine(
+      (v) => v.includes("@") ? z.email().safeParse(v).success : /^[A-Za-z0-9_]{3,8}$/.test(v),
+      "请输入有效邮箱，或 3 到 8 位英数字下划线的用户名",
+    ),
+  password: z.string().min(6, "密码至少需要 6 位"),
+});
+
+export const adminPasswordSchema = z.string().min(6, "密码至少需要 6 位").max(72, "密码最多 72 位");
+
+export const adminCreateUserSchema = z.object({
+  username: usernameSchema,
+  password: adminPasswordSchema,
+  points: z.coerce.number().int().min(0).max(1_000_000_000),
+});
+
 export const signupSchema = loginSchema.extend({
   username: usernameSchema,
 });

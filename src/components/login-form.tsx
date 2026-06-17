@@ -52,14 +52,13 @@ export function LoginForm({
       {mode === "login" ? (
         <form action={login} className="form-card form-grid">
           <label>
-            邮箱
+            邮箱或用户名
             <input
               autoComplete="email"
               disabled={!configured}
               name="email"
-              placeholder="you@example.com"
+              placeholder="you@example.com 或 Username"
               required
-              type="email"
             />
           </label>
           <label>

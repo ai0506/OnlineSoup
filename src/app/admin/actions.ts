@@ -7,7 +7,9 @@ import { requireAdmin } from "@/lib/admin";
 import { redirectWithFlash } from "@/lib/flash";
 import { getSiteOrigin } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { usernameSchema } from "@/lib/validation";
+import { adminCreateUserSchema, adminPasswordSchema, usernameSchema } from "@/lib/validation";
+
+const NOEMAIL_DOMAIN = "@noemail.internal";
 
 const userIdSchema = z.uuid();
 const roomIdSchema = z.uuid();
@@ -258,6 +260,74 @@ export async function sendPasswordReset(formData: FormData) {
   }
 
   return await redirectAdminResult("message", "password_reset_sent");
+}
+
+export async function createAdminUser(formData: FormData) {
+  await requireAdmin();
+
+  const parsed = adminCreateUserSchema.safeParse({
+    username: formData.get("username"),
+    password: formData.get("password"),
+    points: formData.get("points"),
+  });
+
+  if (!parsed.success) {
+    return await redirectAdminResult("error", "invalid_create_user");
+  }
+
+  const { username, password, points } = parsed.data;
+  const internalEmail = username.toLowerCase() + NOEMAIL_DOMAIN;
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.createUser({
+    email: internalEmail,
+    password,
+    email_confirm: true,
+    user_metadata: {
+      username,
+      initial_points: points,
+    },
+  });
+
+  if (error) {
+    console.error("Admin create user failed", {
+      code: error.code,
+      message: error.message,
+    });
+    const code = error.message.includes("username_taken")
+      ? "username_taken"
+      : error.message.includes("already been registered") ||
+          error.message.includes("already exists")
+        ? "username_taken"
+        : "create_user_failed";
+    return await redirectAdminResult("error", code);
+  }
+
+  revalidatePath("/admin");
+  return await redirectAdminResult("message", "user_created");
+}
+
+export async function updateUserPassword(formData: FormData) {
+  await requireAdmin();
+
+  const userId = userIdSchema.safeParse(formData.get("userId"));
+  const password = adminPasswordSchema.safeParse(formData.get("password"));
+
+  if (!userId.success || !password.success) {
+    return await redirectAdminResult("error", "invalid_password");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(userId.data, {
+    password: password.data,
+  });
+
+  if (error) {
+    console.error("Admin password update failed", error);
+    return await redirectAdminResult("error", "password_update_failed");
+  }
+
+  return await redirectAdminResult("message", "password_updated");
 }
 
 export async function createPuzzle(formData: FormData) {
