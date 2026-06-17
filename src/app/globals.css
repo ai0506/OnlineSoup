@@ -1328,6 +1328,12 @@ textarea:focus {
   font-weight: 600;
 }
 
+.chat-hint-tokens-info {
+  font-size: 0.78rem;
+  color: #166534;
+  font-weight: 500;
+}
+
 .chat-points-info {
   font-size: 0.78rem;
   color: var(--muted);
