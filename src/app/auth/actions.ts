@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { redirectWithFlash } from "@/lib/flash";
 import { getSiteOrigin } from "@/lib/site-url";
 import { loginIdentitySchema, signupSchema } from "@/lib/validation";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 async function redirectLoginWithFlash(
@@ -18,8 +19,6 @@ async function redirectLoginWithFlash(
   });
 }
 
-const NOEMAIL_DOMAIN = "@noemail.internal";
-
 export async function login(formData: FormData) {
   const parsed = loginIdentitySchema.safeParse({
     identity: formData.get("email"),
@@ -31,9 +30,31 @@ export async function login(formData: FormData) {
   }
 
   const { identity, password } = parsed.data;
-  const email = identity.includes("@")
-    ? identity
-    : identity.toLowerCase() + NOEMAIL_DOMAIN;
+
+  let email: string;
+  if (identity.includes("@")) {
+    email = identity;
+  } else {
+    // Username login: look up the actual email via admin API so it works
+    // for both email accounts and no-email accounts.
+    const admin = createAdminClient();
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("id")
+      .ilike("username", identity)
+      .single();
+
+    if (!profile) {
+      return await redirectLoginWithFlash("error", "invalid_credentials");
+    }
+
+    const { data: userData } = await admin.auth.admin.getUserById(profile.id);
+    if (!userData?.user?.email) {
+      return await redirectLoginWithFlash("error", "invalid_credentials");
+    }
+
+    email = userData.user.email;
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
