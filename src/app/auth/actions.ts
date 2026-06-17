@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { redirectWithFlash } from "@/lib/flash";
 import { getSiteOrigin } from "@/lib/site-url";
-import { loginSchema, signupSchema } from "@/lib/validation";
+import { loginIdentitySchema, signupSchema } from "@/lib/validation";
 import { createClient } from "@/lib/supabase/server";
 
 async function redirectLoginWithFlash(
@@ -18,9 +18,11 @@ async function redirectLoginWithFlash(
   });
 }
 
+const NOEMAIL_DOMAIN = "@noemail.internal";
+
 export async function login(formData: FormData) {
-  const parsed = loginSchema.safeParse({
-    email: formData.get("email"),
+  const parsed = loginIdentitySchema.safeParse({
+    identity: formData.get("email"),
     password: formData.get("password"),
   });
 
@@ -28,8 +30,13 @@ export async function login(formData: FormData) {
     return await redirectLoginWithFlash("error", "invalid_credentials_form");
   }
 
+  const { identity, password } = parsed.data;
+  const email = identity.includes("@")
+    ? identity
+    : identity.toLowerCase() + NOEMAIL_DOMAIN;
+
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     return await redirectLoginWithFlash("error", "invalid_credentials");
