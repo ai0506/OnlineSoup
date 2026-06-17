@@ -51,3 +51,4 @@
 [CodeX][260617145922] 修复推理模式可通过 JSON 输出指令诱导 AI 判定全覆盖的问题，并转义玩家输入防止 prompt 围栏逃逸。
 [CodeX][260617150746] Removed BOM from .env.local and expanded Git ignore rules for safe GitHub upload
 [CodeX][260617150946] Added Git attributes and prepared repository for GitHub commit
+[CodeX][260617151318] Removed accidental TurtleSoup branch and prepared OnlineSoup GitHub upload
