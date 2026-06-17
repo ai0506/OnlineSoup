@@ -110,6 +110,8 @@ const errors: Record<string, string> = {
   points_update_failed: "积分修改失败，请稍后重试。",
   invalid_user: "账户信息无效。",
   password_reset_failed: "重置邮件发送失败，请稍后重试。",
+  password_reset_rate_limited:
+    "重置邮件发送太频繁，已触发 Supabase 内置邮件额度限制。请稍后再试，或在 Supabase 配置自定义 SMTP。",
   invalid_username: "用户名需要 3 到 8 位，只能使用英文字母、数字和下划线。",
   username_taken: "这个用户名已经被使用。",
   username_active_room: "该用户仍在活动房间中，暂时不能修改用户名。",

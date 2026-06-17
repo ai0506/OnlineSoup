@@ -144,6 +144,26 @@ function puzzleErrorCode(error: { message: string }) {
   return "puzzle_update_failed";
 }
 
+function passwordResetErrorCode(error: {
+  code?: string;
+  message?: string;
+  status?: number;
+}) {
+  const message = error.message?.toLowerCase() ?? "";
+  const code = error.code?.toLowerCase() ?? "";
+
+  if (
+    error.status === 429 ||
+    code.includes("rate") ||
+    message.includes("rate") ||
+    message.includes("too many")
+  ) {
+    return "password_reset_rate_limited";
+  }
+
+  return "password_reset_failed";
+}
+
 export async function updateUserPoints(formData: FormData) {
   await requireAdmin();
 
@@ -231,8 +251,10 @@ export async function sendPasswordReset(formData: FormData) {
   });
 
   if (error) {
-    console.error("Admin password reset email failed", error);
-    return await redirectAdminResult("error", "password_reset_failed");
+    console.error(
+      `Admin password reset email failed: code=${error.code ?? "unknown"} status=${error.status ?? "unknown"} message=${error.message}`,
+    );
+    return await redirectAdminResult("error", passwordResetErrorCode(error));
   }
 
   return await redirectAdminResult("message", "password_reset_sent");
