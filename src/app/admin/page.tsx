@@ -333,6 +333,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     params.senderType === "registered" || params.senderType === "guest"
       ? params.senderType
       : "";
+  const messageExportParams = new URLSearchParams();
+  if (roomCodeFilter) messageExportParams.set("roomCode", roomCodeFilter);
+  if (modeFilter) messageExportParams.set("mode", modeFilter);
+  if (senderFilter) messageExportParams.set("sender", senderFilter);
+  if (senderTypeFilter) messageExportParams.set("senderType", senderTypeFilter);
+  const messageExportHref = `/admin/messages/export${
+    messageExportParams.size ? `?${messageExportParams.toString()}` : ""
+  }`;
   const admin = createAdminClient();
 
   let adminMessagesQuery = admin
@@ -541,6 +549,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <button className="button secondary" type="submit">
             筛选
           </button>
+          <a className="button secondary" href={messageExportHref}>
+            导出 CSV
+          </a>
           <a className="button ghost" href="/admin?tab=messages">
             清空
           </a>
