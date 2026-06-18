@@ -2167,6 +2167,18 @@ textarea:focus {
   font-weight: 800;
 }
 
+.admin-subform-example-group {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.admin-subform-heading + .admin-subform-example-group {
+  padding-top: 0;
+  border-top: 0;
+}
+
 .admin-subform-card {
   display: grid;
   gap: 10px;

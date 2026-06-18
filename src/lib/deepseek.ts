@@ -46,6 +46,7 @@ const puzzlePointSchema = z.object({
 });
 
 const puzzleExampleSchema = z.object({
+  model: z.enum(["fact", "inferential"]).optional().default("fact"),
   question: z.string().trim().min(1),
   answer: z.enum(["是", "否", "与此无关", "模糊问题"]),
   reason: z.string().trim().optional(),
@@ -197,6 +198,14 @@ function formatExamples(examples: ReturnType<typeof getPuzzleExamples>) {
     .join("\n");
 }
 
+function getExamplesForVariant(
+  examples: ReturnType<typeof getPuzzleExamples>,
+  variant: AskVariant,
+) {
+  const model = variant === "strict" ? "fact" : "inferential";
+  return examples.filter((example) => example.model === model);
+}
+
 /**
  * Static cacheable prefix: puzzle content, game rules, and anti-injection fence.
  * Identical for every call about the same puzzle, so DeepSeek can cache it as a prefix.
@@ -232,11 +241,16 @@ function buildDynamicContext(puzzleMessages: PuzzleMessage[]) {
   return `\nKnown facts already discovered by the player:\n${formatList(knownFacts)}\n\nRecent room messages:\n${getRecentContext(puzzleMessages)}`;
 }
 
-const askCommonRules = `- HIGHEST PRIORITY: if the player's question is identical to, or an obvious rephrasing of, one of the example questions listed above, you MUST answer with that example's exact answer_type and reuse its summary (adjust only the wording, never the meaning). Do not re-derive a different answer_type for a question the examples already settled.
-- "yes": the judgment stated in the question is clearly and directly supported by the true answer or the authoritative implicit facts above.
-- "no": the judgment stated in the question clearly and directly conflicts with the true answer or the authoritative implicit facts above.
-- "irrelevant": the question cannot be answered yes or no from the true answer, the authoritative implicit facts, or the known facts already confirmed above — and the subject of the question plays no role in the story at all. Do not use "irrelevant" when the answer is derivable from any established fact, even through a single logical step.
-- "ambiguous": the question cannot be reliably answered with a single yes/no. Use this when the question is too subjective (asks for opinion/feeling rather than fact), too broad or compound (asks about multiple things at once, or "why"/"how" instead of a checkable claim), there is not enough information in the true answer to judge either way, or the message is not really a yes/no question at all (e.g. small talk, a request, an open-ended question).
+function buildAskCommonRules(hasExamples: boolean) {
+  const exampleRule = hasExamples
+    ? `- HIGHEST PRIORITY: if the player's question is identical to, or an obvious rephrasing of, one of the example questions listed above for this reading, you MUST answer with that example's exact answer and reuse its summary (adjust only the wording, never the meaning). Do not re-derive a different answer_type for a question the examples already settled.`
+    : `- There are no example questions for this reading. Derive the answer from the true answer, authoritative implicit facts, and known facts.`;
+
+  return `${exampleRule}
+- "yes": The player's question can be converted into one clear factual proposition, and that proposition is supported by the true answer, authoritative implicit facts, or confirmed known facts.
+- "no": The player's question can be converted into one clear factual proposition, and that proposition conflicts with the true answer, authoritative implicit facts, or confirmed known facts.
+- "irrelevant": The player's question is clear and checkable, but the proposition is not answered by the true answer, authoritative implicit facts, or confirmed known facts, and it is a side detail that does not affect the hidden cause, key logic, or discovery path. Do not use "irrelevant" if the answer follows from established facts by one necessary logical step.
+- "ambiguous": The player's message cannot be converted into one clear factual proposition. Use this for subjective evaluations, vague references, compound questions, open-ended why/how questions, small talk, requests, or questions where multiple interpretations would lead to different answers.
 - For "yes" and "no", summary must restate ONLY the exact proposition the player asked about, as a minimal declarative sentence. Copy only the subject and predicate from the player's question; do not add any adjectives, roles, relationships, parenthetical clarifications, or elaborations that the player did not include. Example: if asked "有没有第三人", summary is "有第三人。" — NOT "有第三人（同伴）。" or "有一名同伴。" or "有另一个人在场。"
 - summary must NEVER add a reason, cause, role label, character description, or any detail that the question did not explicitly ask about, even if that detail appears in the true answer. This includes parenthetical additions like "（同伴）", "（男性）", "（医生）" etc. Do not use phrases like "而是" / "实际上是" / "真正原因是" to reveal extra truth the player has not yet uncovered.
 - First translate the player's question into the single factual proposition it is asking about, then test whether the true answer and authoritative implicit facts entail or contradict that proposition. If they entail it, answer "yes"; if they contradict it, answer "no".
@@ -244,6 +258,7 @@ const askCommonRules = `- HIGHEST PRIORITY: if the player's question is identica
 - Use "irrelevant" only for side details whose truth would not change the story logic, the hidden cause, or any key discovery path.
 - Use null for irrelevant or ambiguous.
 - If a known fact listed above directly answers this question, or implies the answer through a single logical step (e.g. "X was eaten/killed" → "X is dead" → "X is not alive" → answer "no"), you MUST answer consistently with that known fact — do not override an established known fact by returning "irrelevant" or "ambiguous".`;
+}
 
 /**
  * Builds one of two deliberately different ask-mode prompts so the two readings can be
@@ -258,7 +273,7 @@ function buildAskPrompt(
   puzzleMessages: PuzzleMessage[],
 ) {
   const { base } = buildStaticBase(puzzle);
-  const examples = getPuzzleExamples(puzzle.examples);
+  const examples = getExamplesForVariant(getPuzzleExamples(puzzle.examples), variant);
 
   const variantRule = variant === "strict"
     ? `- Strict literal reading: only commit to "yes" or "no" when the true answer or an authoritative implicit fact states the judgment directly and unambiguously. When in real doubt, prefer "irrelevant" or "ambiguous" over guessing.`
@@ -268,7 +283,7 @@ function buildAskPrompt(
   return {
     system: `${base}
 
-Example questions and answers for this exact puzzle:
+Example questions and answers for this exact puzzle and this reading:
 ${formatExamples(examples)}
 
 Reply with JSON only using this schema:
@@ -278,7 +293,7 @@ Reply with JSON only using this schema:
 }
 
 Rules:
-${askCommonRules}
+${buildAskCommonRules(examples.length > 0)}
 ${variantRule}
 ${buildDynamicContext(puzzleMessages)}`,
     user: `Player question: <player_input>${escapePromptText(content)}</player_input>`,
@@ -315,7 +330,7 @@ Rules:
 - You may agree with Reading A, agree with Reading B, or choose a different answer_type if both are wrong.
 - If you still genuinely cannot decide between "yes" and "no" with confidence, choose "ambiguous" instead of guessing — it is safer to ask the player to rephrase than to state a wrong fact.
 - For "yes" and "no", summary must restate ONLY the judgment asked about, nothing more. Use null for irrelevant or ambiguous.
-${askCommonRules}
+${buildAskCommonRules(false)}
 ${buildDynamicContext(puzzleMessages)}
 
 Reading A (strict literal): answer_type=${candidates.strict.answer_type}, summary=${candidates.strict.summary ?? "null"}

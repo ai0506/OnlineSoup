@@ -40,6 +40,7 @@ const importKeyPointSchema = z.object({
 });
 
 const importExampleSchema = z.object({
+  model: z.enum(["fact", "inferential"]).optional().default("fact"),
   question: z.string().trim().min(1),
   answer: z.enum(["是", "否", "与此无关", "模糊问题"]),
   reason: z.string().trim().optional().default(""),
@@ -113,14 +114,17 @@ function parseKeyPoints(formData: FormData) {
 }
 
 function parseExamples(formData: FormData) {
+  const models = formData.getAll("exampleModel");
   const questions = formData.getAll("exampleQuestion");
   const answers = formData.getAll("exampleAnswer");
   const reasons = formData.getAll("exampleReason");
   const summaries = formData.getAll("exampleSummary");
   const validAnswers = new Set(["是", "否", "与此无关", "模糊问题"]);
+  const validModels = new Set(["fact", "inferential"]);
 
   return questions
     .map((value, index) => ({
+      model: String(models[index] ?? "fact").trim(),
       question: String(value ?? "").trim(),
       answer: String(answers[index] ?? "").trim(),
       reason: String(reasons[index] ?? "").trim(),
@@ -131,10 +135,17 @@ function parseExamples(formData: FormData) {
         example.question || example.answer || example.reason || example.summary,
     )
     .map((example) => {
-      if (!example.question || !validAnswers.has(example.answer)) {
+      if (
+        !example.question ||
+        !validAnswers.has(example.answer) ||
+        !validModels.has(example.model)
+      ) {
         throw new Error("invalid_examples");
       }
-      return example;
+      return {
+        ...example,
+        model: example.model as "fact" | "inferential",
+      };
     });
 }
 

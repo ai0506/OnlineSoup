@@ -6,6 +6,7 @@ import { SubmitButton } from "@/components/submit-button";
 
 type PuzzleDifficulty = "简单" | "中等" | "困难" | "抽象";
 type ExampleAnswer = "是" | "否" | "与此无关" | "模糊问题";
+type ExampleModel = "fact" | "inferential";
 
 export type AdminPuzzleFormValue = {
   id?: number;
@@ -20,6 +21,7 @@ export type AdminPuzzleFormValue = {
     accept?: string[];
   }> | null;
   examples?: Array<{
+    model?: string;
     question?: string;
     answer?: string;
     reason?: string;
@@ -35,6 +37,7 @@ type DraftPoint = {
 
 type DraftExample = {
   key: string;
+  model: ExampleModel;
   question: string;
   answer: ExampleAnswer;
   reason: string;
@@ -67,6 +70,7 @@ function normalizePoints(puzzle?: AdminPuzzleFormValue): DraftPoint[] {
 function normalizeExamples(puzzle?: AdminPuzzleFormValue): DraftExample[] {
   return (puzzle?.examples ?? []).map((example, index) => ({
     key: `example-${index}`,
+    model: example.model === "inferential" ? "inferential" : "fact",
     question: example.question ?? "",
     answer: exampleAnswers.includes(example.answer as ExampleAnswer)
       ? (example.answer as ExampleAnswer)
@@ -87,6 +91,94 @@ export function AdminPuzzleForm({
   const initialExamples = useMemo(() => normalizeExamples(puzzle), [puzzle]);
   const [points, setPoints] = useState<DraftPoint[]>(initialPoints);
   const [examples, setExamples] = useState<DraftExample[]>(initialExamples);
+  const factExamples = examples.filter((example) => example.model === "fact");
+  const inferentialExamples = examples.filter(
+    (example) => example.model === "inferential",
+  );
+
+  const renderExampleSection = (
+    title: string,
+    model: ExampleModel,
+    items: DraftExample[],
+  ) => (
+    <div className="admin-subform-example-group">
+      <div className="admin-subform-heading">
+        <span>{title}</span>
+      </div>
+
+      {items.map((example, index) => (
+        <div className="admin-subform-card" key={example.key}>
+          <input name="exampleModel" type="hidden" value={example.model} />
+          <div className="admin-subform-title">
+            <strong>示例问题 {index + 1}</strong>
+            <button
+              className="button danger-text small"
+              onClick={() =>
+                setExamples((current) =>
+                  current.filter((item) => item.key !== example.key),
+                )
+              }
+              type="button"
+            >
+              删除
+            </button>
+          </div>
+          <div className="admin-subform-row">
+            <label>
+              问题
+              <input
+                defaultValue={example.question}
+                name="exampleQuestion"
+                placeholder="例如：男人遇到过海难吗？"
+              />
+            </label>
+            <label>
+              选项
+              <select name="exampleAnswer" defaultValue={example.answer}>
+                {exampleAnswers.map((answer) => (
+                  <option key={answer} value={answer}>
+                    {answer}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label>
+            原因
+            <textarea
+              defaultValue={example.reason}
+              name="exampleReason"
+              rows={2}
+            />
+          </label>
+          <label>
+            总结
+            <input defaultValue={example.summary} name="exampleSummary" />
+          </label>
+        </div>
+      ))}
+
+      <button
+        className="button secondary small admin-subform-add"
+        onClick={() =>
+          setExamples((current) => [
+            ...current,
+            {
+              key: newKey("example"),
+              model,
+              question: "",
+              answer: "是",
+              reason: "",
+              summary: "",
+            },
+          ])
+        }
+        type="button"
+      >
+        新增{title}
+      </button>
+    </div>
+  );
 
   return (
     <form action={action} className={className}>
@@ -198,75 +290,8 @@ export function AdminPuzzleForm({
           <span>示例问题</span>
         </div>
 
-        {examples.map((example, index) => (
-          <div className="admin-subform-card" key={example.key}>
-            <div className="admin-subform-title">
-              <strong>示例问题 {index + 1}</strong>
-              <button
-                className="button danger-text small"
-                onClick={() =>
-                  setExamples((items) =>
-                    items.filter((item) => item.key !== example.key),
-                  )
-                }
-                type="button"
-              >
-                删除
-              </button>
-            </div>
-            <div className="admin-subform-row">
-              <label>
-                问题
-                <input
-                  defaultValue={example.question}
-                  name="exampleQuestion"
-                  placeholder="例如：男人遇到过海难吗？"
-                />
-              </label>
-              <label>
-                选项
-                <select name="exampleAnswer" defaultValue={example.answer}>
-                  {exampleAnswers.map((answer) => (
-                    <option key={answer} value={answer}>
-                      {answer}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <label>
-              原因
-              <textarea
-                defaultValue={example.reason}
-                name="exampleReason"
-                rows={2}
-              />
-            </label>
-            <label>
-              总结
-              <input defaultValue={example.summary} name="exampleSummary" />
-            </label>
-          </div>
-        ))}
-
-        <button
-          className="button secondary small admin-subform-add"
-          onClick={() =>
-            setExamples((items) => [
-              ...items,
-              {
-                key: newKey("example"),
-                question: "",
-                answer: "是",
-                reason: "",
-                summary: "",
-              },
-            ])
-          }
-          type="button"
-        >
-          新增示例问题
-        </button>
+        {renderExampleSection("事实模型示例问题", "fact", factExamples)}
+        {renderExampleSection("推断模型示例问题", "inferential", inferentialExamples)}
       </div>
 
       {mode === "edit" && (
