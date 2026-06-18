@@ -86,23 +86,21 @@ export function AdminUserSection({
               </div>
 
               <div className="admin-user-actions">
-                {!emailless && (
-                  <form action={updateUserUsername} className="inline-admin-form">
-                    <input name="userId" type="hidden" value={user.id} />
-                    <label>
-                      用户名
-                      <input
-                        defaultValue={user.username ?? ""}
-                        maxLength={8}
-                        minLength={3}
-                        name="username"
-                        pattern="[A-Za-z0-9_]{3,8}"
-                        required
-                      />
-                    </label>
-                    <SubmitButton pendingText="保存中...">保存用户名</SubmitButton>
-                  </form>
-                )}
+                <form action={updateUserUsername} className="inline-admin-form">
+                  <input name="userId" type="hidden" value={user.id} />
+                  <label>
+                    用户名
+                    <input
+                      defaultValue={user.username ?? ""}
+                      maxLength={8}
+                      minLength={3}
+                      name="username"
+                      pattern="[A-Za-z0-9_]{3,8}"
+                      required
+                    />
+                  </label>
+                  <SubmitButton pendingText="保存中...">保存用户名</SubmitButton>
+                </form>
 
                 <form action={updateUserPoints} className="inline-admin-form">
                   <input name="userId" type="hidden" value={user.id} />
