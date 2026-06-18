@@ -342,10 +342,28 @@ export async function deleteAdminUser(formData: FormData) {
   const id = userId.data;
 
   try {
+    // Nullify room_ai_requests.user_id (no cascade on this FK)
     await admin.from("room_ai_requests").update({ user_id: null }).eq("user_id", id);
+
+    // Delete this user's own transactions
     await admin.from("points_transactions").delete().eq("user_id", id);
+
+    // Delete transactions from other users that reference this user's rooms
+    // (points_transactions.room_id has no cascade, so must be cleared before rooms)
+    const { data: ownedRooms } = await admin
+      .from("rooms")
+      .select("id")
+      .eq("owner_id", id);
+    if (ownedRooms && ownedRooms.length > 0) {
+      const roomIds = ownedRooms.map((r) => r.id);
+      await admin.from("points_transactions").delete().in("room_id", roomIds);
+    }
+
+    // Delete rooms (cascades to room_seats, room_messages, room_ai_requests,
+    // guest_sessions, guest_removals, puzzle_progress)
     await admin.from("rooms").delete().eq("owner_id", id);
 
+    // Delete auth user (cascades to profiles; room_seats.user_id set null by FK)
     const { error } = await admin.auth.admin.deleteUser(id);
     if (error) throw error;
   } catch (err) {
