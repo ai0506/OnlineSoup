@@ -278,8 +278,8 @@ Reply with JSON only using this schema:
 }
 
 Rules:
-${variantRule}
 ${askCommonRules}
+${variantRule}
 ${buildDynamicContext(puzzleMessages)}`,
     user: `Player question: <player_input>${escapePromptText(content)}</player_input>`,
   };
