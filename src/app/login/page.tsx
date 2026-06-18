@@ -22,6 +22,7 @@ const loginErrors: Record<string, string> = {
 
 const loginMessages: Record<string, string> = {
   signup_confirmation_sent: "注册成功，请打开验证邮件后再登录。",
+  password_updated: "密码已更新，请使用新密码登录。",
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
