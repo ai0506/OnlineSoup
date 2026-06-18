@@ -13,8 +13,18 @@ const NOEMAIL_DOMAIN = "@noemail.internal";
 
 const userIdSchema = z.uuid();
 const roomIdSchema = z.uuid();
+const caseIdSchema = z.uuid();
+const messageIdSchema = z.coerce.number().int().positive();
 const pointsSchema = z.coerce.number().int().min(0).max(1_000_000_000);
 const puzzleIdSchema = z.coerce.number().int().positive();
+const aiErrorStatusSchema = z.enum(["open", "reviewed", "fixed", "ignored"]);
+const aiErrorCaseSchema = z.object({
+  correctAnswer: z.string().trim().min(1).max(1000),
+  note: z.string().trim().max(1000).default(""),
+});
+const aiErrorCaseUpdateSchema = aiErrorCaseSchema.extend({
+  status: aiErrorStatusSchema,
+});
 const puzzleSchema = z.object({
   title: z.string().trim().min(1).max(60),
   surface: z.string().trim().min(5).max(1000),
@@ -58,7 +68,7 @@ function normalizeImportItem(item: unknown) {
   return record;
 }
 
-type AdminResultTab = "puzzles" | "messages" | "cleanup";
+type AdminResultTab = "puzzles" | "messages" | "cleanup" | "ai-errors";
 
 async function redirectAdminResult(
   type: "error" | "message",
@@ -535,6 +545,143 @@ export async function deletePuzzle(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/", "layout");
   return await redirectAdminResult("message", "puzzle_deleted", tab);
+}
+
+export async function createAiErrorCase(formData: FormData) {
+  const user = await requireAdmin();
+
+  const aiMessageId = messageIdSchema.safeParse(formData.get("aiMessageId"));
+  const parsed = aiErrorCaseSchema.safeParse({
+    correctAnswer: formData.get("correctAnswer"),
+    note: formData.get("note"),
+  });
+
+  if (!aiMessageId.success || !parsed.success) {
+    return await redirectAdminResult("error", "invalid_ai_error_case", "messages");
+  }
+
+  const admin = createAdminClient();
+  const { data: existingCase, error: existingCaseError } = await admin
+    .from("ai_error_cases")
+    .select("id")
+    .eq("ai_message_id", aiMessageId.data)
+    .maybeSingle();
+
+  if (existingCaseError) {
+    console.error("Admin AI error case duplicate check failed", existingCaseError);
+    return await redirectAdminResult("error", "ai_error_case_failed", "messages");
+  }
+
+  if (existingCase) {
+    return await redirectAdminResult("error", "ai_error_case_exists", "messages");
+  }
+
+  const { data: aiMessage, error: aiMessageError } = await admin
+    .from("room_messages")
+    .select("id, room_id, content, message_type, message_mode, puzzle_id, created_at")
+    .eq("id", aiMessageId.data)
+    .maybeSingle();
+
+  if (
+    aiMessageError ||
+    !aiMessage ||
+    aiMessage.message_type !== "ai" ||
+    aiMessage.message_mode !== "ask" ||
+    aiMessage.puzzle_id == null
+  ) {
+    console.error("Admin AI error case source lookup failed", aiMessageError);
+    return await redirectAdminResult("error", "invalid_ai_error_case_source", "messages");
+  }
+
+  let questionQuery = admin
+    .from("room_messages")
+    .select("id, content")
+    .eq("room_id", aiMessage.room_id)
+    .eq("message_type", "chat")
+    .eq("message_mode", "ask")
+    .lt("id", aiMessage.id)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(1);
+
+  questionQuery = questionQuery.eq("puzzle_id", aiMessage.puzzle_id);
+
+  const { data: questionMessages, error: questionError } = await questionQuery;
+  const questionMessage = questionMessages?.[0];
+
+  if (questionError || !questionMessage) {
+    console.error("Admin AI error case question lookup failed", questionError);
+    return await redirectAdminResult("error", "ai_error_question_not_found", "messages");
+  }
+
+  const { data: puzzle, error: puzzleError } = await admin
+    .from("puzzles")
+    .select("title, surface, bottom")
+    .eq("id", aiMessage.puzzle_id)
+    .maybeSingle();
+
+  if (puzzleError || !puzzle) {
+    console.error("Admin AI error case puzzle lookup failed", puzzleError);
+    return await redirectAdminResult("error", "ai_error_puzzle_not_found", "messages");
+  }
+
+  const { error } = await admin.from("ai_error_cases").insert({
+    room_id: aiMessage.room_id,
+    puzzle_id: aiMessage.puzzle_id,
+    question_message_id: questionMessage.id,
+    ai_message_id: aiMessage.id,
+    question_content: questionMessage.content,
+    ai_content: aiMessage.content,
+    correct_answer: parsed.data.correctAnswer,
+    note: parsed.data.note,
+    puzzle_title: puzzle.title,
+    puzzle_surface: puzzle.surface,
+    puzzle_bottom: puzzle.bottom,
+    created_by: user.id,
+  });
+
+  if (error) {
+    console.error("Admin AI error case create failed", error);
+    const code = error.code === "23505" ? "ai_error_case_exists" : "ai_error_case_failed";
+    return await redirectAdminResult("error", code, "messages");
+  }
+
+  revalidatePath("/admin");
+  return await redirectAdminResult("message", "ai_error_case_created", "ai-errors");
+}
+
+export async function updateAiErrorCase(formData: FormData) {
+  await requireAdmin();
+
+  const caseId = caseIdSchema.safeParse(formData.get("caseId"));
+  const parsed = aiErrorCaseUpdateSchema.safeParse({
+    correctAnswer: formData.get("correctAnswer"),
+    note: formData.get("note"),
+    status: formData.get("status"),
+  });
+
+  if (!caseId.success || !parsed.success) {
+    return await redirectAdminResult("error", "invalid_ai_error_case", "ai-errors");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("ai_error_cases")
+    .update({
+      correct_answer: parsed.data.correctAnswer,
+      note: parsed.data.note,
+      status: parsed.data.status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", caseId.data);
+
+  if (error) {
+    console.error("Admin AI error case update failed", error);
+    return await redirectAdminResult("error", "ai_error_case_failed", "ai-errors");
+  }
+
+  revalidatePath("/admin");
+  return await redirectAdminResult("message", "ai_error_case_updated", "ai-errors");
 }
 
 export async function clearRoomMessages(formData: FormData) {

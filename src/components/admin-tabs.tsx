@@ -3,11 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-type AdminTab = "accounts" | "puzzles" | "messages" | "cleanup";
+type AdminTab = "accounts" | "puzzles" | "messages" | "cleanup" | "ai-errors";
 
 type AdminTabsProps = {
   accountCount: number;
   accountContent: React.ReactNode;
+  aiErrorCaseContent: React.ReactNode;
+  aiErrorCaseCount: number;
   cleanupContent: React.ReactNode;
   cleanupCount: number;
   createPuzzleContent: React.ReactNode;
@@ -22,6 +24,8 @@ type AdminTabsProps = {
 export function AdminTabs({
   accountCount,
   accountContent,
+  aiErrorCaseContent,
+  aiErrorCaseCount,
   cleanupContent,
   cleanupCount,
   createPuzzleContent,
@@ -62,7 +66,7 @@ export function AdminTabs({
   }, [createOpen, importOpen]);
 
   useEffect(() => {
-    if (activeTab !== "messages") return;
+    if (activeTab !== "messages" && activeTab !== "ai-errors") return;
 
     const refreshMessages = () => {
       if (document.visibilityState === "visible") {
@@ -118,6 +122,16 @@ export function AdminTabs({
           房间清理
           <span>{cleanupCount}</span>
         </button>
+        <button
+          aria-selected={activeTab === "ai-errors"}
+          className={`admin-tab${activeTab === "ai-errors" ? " active" : ""}`}
+          onClick={() => selectTab("ai-errors")}
+          role="tab"
+          type="button"
+        >
+          AI 错误案例
+          <span>{aiErrorCaseCount}</span>
+        </button>
       </div>
 
       <section hidden={activeTab !== "accounts"} role="tabpanel">
@@ -159,6 +173,10 @@ export function AdminTabs({
 
       <section hidden={activeTab !== "cleanup"} role="tabpanel">
         {cleanupContent}
+      </section>
+
+      <section hidden={activeTab !== "ai-errors"} role="tabpanel">
+        {aiErrorCaseContent}
       </section>
 
       {importOpen && (

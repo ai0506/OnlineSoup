@@ -1,11 +1,13 @@
 import {
   clearRoomMessages,
+  createAiErrorCase,
   createAdminUser,
   createPuzzle,
   deleteAdminUser,
   deletePuzzle,
   importPuzzles,
   sendPasswordReset,
+  updateAiErrorCase,
   updatePuzzle,
   updateUserPassword,
   updateUserPoints,
@@ -39,6 +41,7 @@ type AdminPageProps = {
     mode?: string;
     sender?: string;
     senderType?: string;
+    caseStatus?: string;
     tab?: string;
   }>;
 };
@@ -50,7 +53,8 @@ type AdminPuzzle = Required<Pick<AdminPuzzleFormValue, "id">> &
     created_at: string;
   };
 
-type AdminTab = "accounts" | "puzzles" | "messages" | "cleanup";
+type AdminTab = "accounts" | "puzzles" | "messages" | "cleanup" | "ai-errors";
+type AiErrorStatus = "open" | "reviewed" | "fixed" | "ignored";
 
 type AdminMessageRoom = {
   code: string;
@@ -84,6 +88,25 @@ type AdminCleanupRoom = {
   last_message_at: string | null;
   message_count: number;
   cleanup_reason: "closed_over_3_days" | "inactive_over_1_day";
+};
+
+type AdminAiErrorCase = {
+  id: string;
+  room_id: string | null;
+  puzzle_id: number | null;
+  question_message_id: number | null;
+  ai_message_id: number | null;
+  question_content: string;
+  ai_content: string;
+  correct_answer: string;
+  note: string;
+  status: AiErrorStatus;
+  puzzle_title: string;
+  puzzle_surface: string;
+  puzzle_bottom: string;
+  created_at: string;
+  updated_at: string;
+  rooms: AdminMessageRoom | null;
 };
 
 type SupabaseResult<T> = PromiseLike<{
@@ -137,6 +160,12 @@ const errors: Record<string, string> = {
   puzzle_update_failed: "题库操作失败，请稍后重试。",
   invalid_room_cleanup: "请先选择要清理的房间。",
   room_cleanup_failed: "房间清理失败，请稍后重试。",
+  invalid_ai_error_case: "AI 错误案例信息不完整，请检查正确答案和备注。",
+  invalid_ai_error_case_source: "只能从 AI 询问回复创建错误案例。",
+  ai_error_case_exists: "这条 AI 回复已经收录过错误案例。",
+  ai_error_question_not_found: "没有找到这条 AI 回复对应的玩家提问。",
+  ai_error_puzzle_not_found: "没有找到这条 AI 回复对应的故事。",
+  ai_error_case_failed: "AI 错误案例保存失败，请稍后重试。",
 };
 
 const messages: Record<string, string> = {
@@ -151,6 +180,8 @@ const messages: Record<string, string> = {
   puzzle_deleted: "题目已从可用题库移除。",
   puzzles_imported: "题库已清空并重新导入。",
   room_cleaned: "房间已关闭，聊天记录已删除。",
+  ai_error_case_created: "AI 错误案例已收录。",
+  ai_error_case_updated: "AI 错误案例已更新。",
 };
 
 const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -164,10 +195,37 @@ const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
 });
 
 function getAdminTab(value?: string): AdminTab {
-  if (value === "puzzles" || value === "messages" || value === "cleanup") {
+  if (
+    value === "puzzles" ||
+    value === "messages" ||
+    value === "cleanup" ||
+    value === "ai-errors"
+  ) {
     return value;
   }
   return "accounts";
+}
+
+function getAiErrorStatusFilter(value?: string) {
+  return value === "open" ||
+    value === "reviewed" ||
+    value === "fixed" ||
+    value === "ignored"
+    ? value
+    : "";
+}
+
+function getAiErrorStatusLabel(value: AiErrorStatus) {
+  switch (value) {
+    case "reviewed":
+      return "已复核";
+    case "fixed":
+      return "已修复";
+    case "ignored":
+      return "忽略";
+    default:
+      return "待处理";
+  }
 }
 
 function formatTime(value?: string | null) {
@@ -333,6 +391,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     params.senderType === "registered" || params.senderType === "guest"
       ? params.senderType
       : "";
+  const aiErrorStatusFilter = getAiErrorStatusFilter(params.caseStatus);
   const messageExportParams = new URLSearchParams();
   if (roomCodeFilter) messageExportParams.set("roomCode", roomCodeFilter);
   if (modeFilter) messageExportParams.set("mode", modeFilter);
@@ -379,12 +438,21 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const cleanupRoomsPromise = admin.rpc(
     "admin_list_room_cleanup_candidates",
   ) as unknown as SupabaseResult<AdminCleanupRoom[]>;
+  const aiErrorCasesPromise = admin
+    .from("ai_error_cases")
+    .select(
+      "id, room_id, puzzle_id, question_message_id, ai_message_id, question_content, ai_content, correct_answer, note, status, puzzle_title, puzzle_surface, puzzle_bottom, created_at, updated_at, rooms(code, name, status)",
+    )
+    .order("created_at", { ascending: false })
+    .limit(500)
+    .returns<AdminAiErrorCase[]>();
 
   const [
     { data: usersData, error: usersError },
     { data: puzzles, error: puzzlesError },
     { data: adminMessages, error: adminMessagesError },
     { data: cleanupRooms, error: cleanupRoomsError },
+    { data: aiErrorCases, error: aiErrorCasesError },
   ] = await Promise.all([
       admin.auth.admin.listUsers({
         page: 1,
@@ -399,6 +467,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         .returns<AdminPuzzle[]>(),
       adminMessagesPromise,
       cleanupRoomsPromise,
+      aiErrorCasesPromise,
     ]);
 
   if (usersError) {
@@ -415,6 +484,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   if (cleanupRoomsError) {
     throw new Error(`读取待清理房间失败：${cleanupRoomsError.message}`);
+  }
+
+  if (aiErrorCasesError) {
+    throw new Error(`读取 AI 错误案例失败：${aiErrorCasesError.message}`);
   }
 
   const users = usersData.users;
@@ -449,6 +522,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       puzzle.bottom?.toLowerCase().includes(query)
     );
   });
+  const markedAiMessageIds = new Set(
+    (aiErrorCases ?? [])
+      .map((item) => item.ai_message_id)
+      .filter((id): id is number => typeof id === "number"),
+  );
+  const visibleAiErrorCases = (aiErrorCases ?? []).filter((item) =>
+    aiErrorStatusFilter ? item.status === aiErrorStatusFilter : true,
+  );
 
   const createPuzzleContent = (
     <AdminPuzzleForm
@@ -626,6 +707,37 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   )}
                 </div>
               )}
+              {askAnswerDetails && (
+                markedAiMessageIds.has(message.id) ? (
+                  <p className="admin-ai-error-marked">已收录为 AI 错误案例</p>
+                ) : (
+                  <form action={createAiErrorCase} className="admin-ai-error-form">
+                    <input name="aiMessageId" type="hidden" value={message.id} />
+                    <label>
+                      正确答案
+                      <textarea
+                        maxLength={1000}
+                        name="correctAnswer"
+                        placeholder="例如：这里应该回答“否”，因为……"
+                        required
+                        rows={2}
+                      />
+                    </label>
+                    <label>
+                      备注
+                      <textarea
+                        maxLength={1000}
+                        name="note"
+                        placeholder="可选：记录为什么判错、希望之后怎么改"
+                        rows={2}
+                      />
+                    </label>
+                    <button className="button secondary" type="submit">
+                      标记错误
+                    </button>
+                  </form>
+                )
+              )}
               <pre className="admin-message-content">{message.content}</pre>
             </article>
           );
@@ -633,6 +745,113 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
         {(adminMessages ?? []).length === 0 && (
           <div className="card muted">没有找到匹配的消息。</div>
+        )}
+      </div>
+    </div>
+  );
+
+  const aiErrorCaseContent = (
+    <div className="admin-section" key="ai-error-cases-section">
+      <div className="admin-section-heading">
+        <h2>AI 错误案例</h2>
+        <p className="muted">
+          收集 AI 询问回答不准确的样本，保留玩家提问、AI 回答和题目故事快照。
+        </p>
+      </div>
+
+      <form className="admin-message-filters">
+        <input name="tab" type="hidden" value="ai-errors" />
+        <label>
+          状态
+          <select defaultValue={aiErrorStatusFilter} name="caseStatus">
+            <option value="">全部</option>
+            <option value="open">待处理</option>
+            <option value="reviewed">已复核</option>
+            <option value="fixed">已修复</option>
+            <option value="ignored">忽略</option>
+          </select>
+        </label>
+        <div className="admin-filter-actions">
+          <button className="button secondary" type="submit">
+            筛选
+          </button>
+          <a className="button ghost" href="/admin?tab=ai-errors">
+            清空
+          </a>
+        </div>
+      </form>
+
+      <div className="admin-ai-error-list">
+        {visibleAiErrorCases.map((item) => (
+          <article className="admin-ai-error-row" key={item.id}>
+            <div className="admin-message-meta">
+              <strong>{item.rooms?.code ?? "房间已删除"}</strong>
+              <span>{item.puzzle_title}</span>
+              <span>{formatTime(item.created_at)}</span>
+              <span>{getAiErrorStatusLabel(item.status)}</span>
+            </div>
+
+            <div className="admin-ai-error-story">
+              <div>
+                <strong>题面</strong>
+                <p>{item.puzzle_surface}</p>
+              </div>
+              <div>
+                <strong>汤底</strong>
+                <p>{item.puzzle_bottom}</p>
+              </div>
+            </div>
+
+            <div className="admin-ai-error-sample">
+              <div>
+                <strong>玩家提问</strong>
+                <p>{item.question_content}</p>
+              </div>
+              <div>
+                <strong>AI 回答</strong>
+                <pre>{item.ai_content}</pre>
+              </div>
+            </div>
+
+            <form action={updateAiErrorCase} className="admin-ai-error-edit">
+              <input name="caseId" type="hidden" value={item.id} />
+              <label>
+                正确答案
+                <textarea
+                  defaultValue={item.correct_answer}
+                  maxLength={1000}
+                  name="correctAnswer"
+                  required
+                  rows={3}
+                />
+              </label>
+              <label>
+                备注
+                <textarea
+                  defaultValue={item.note}
+                  maxLength={1000}
+                  name="note"
+                  rows={3}
+                />
+              </label>
+              <label>
+                状态
+                <select defaultValue={item.status} name="status">
+                  <option value="open">待处理</option>
+                  <option value="reviewed">已复核</option>
+                  <option value="fixed">已修复</option>
+                  <option value="ignored">忽略</option>
+                </select>
+              </label>
+              <button className="button secondary" type="submit">
+                保存案例
+              </button>
+            </form>
+          </article>
+        ))}
+
+        {visibleAiErrorCases.length === 0 && (
+          <div className="card muted">还没有匹配的 AI 错误案例。</div>
         )}
       </div>
     </div>
@@ -697,6 +916,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       <AdminTabs
         accountCount={visibleUsers.length}
         accountContent={accountContent}
+        aiErrorCaseContent={aiErrorCaseContent}
+        aiErrorCaseCount={visibleAiErrorCases.length}
         createPuzzleContent={createPuzzleContent}
         cleanupContent={cleanupContent}
         cleanupCount={cleanupRooms?.length ?? 0}
