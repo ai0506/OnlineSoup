@@ -1900,6 +1900,13 @@ textarea:focus {
   font-size: 0.86rem;
 }
 
+.admin-user-summary-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 .points-badge {
   flex: 0 0 auto;
   padding: 6px 12px;
