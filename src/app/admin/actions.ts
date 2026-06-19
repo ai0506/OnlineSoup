@@ -268,7 +268,7 @@ export async function sendPasswordReset(formData: FormData) {
 
   const siteUrl = await getSiteOrigin();
   const { error } = await admin.auth.resetPasswordForEmail(data.user.email, {
-    redirectTo: `${siteUrl}/auth/callback?next=/reset-password`,
+    redirectTo: `${siteUrl}/reset-password`,
   });
 
   if (error) {

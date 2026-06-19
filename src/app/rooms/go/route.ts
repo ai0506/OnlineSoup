@@ -6,6 +6,8 @@ import { hasSupabaseEnv } from "@/lib/env";
 import { FLASH_COOKIE_NAME, encodeFlashMessage, flashCookieOptions } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 
+const roomCodePattern = /^[A-Z0-9]{6}$/;
+
 function redirectTo(path: string) {
   return new NextResponse(null, {
     status: 307,
@@ -19,7 +21,7 @@ export async function GET(request: NextRequest) {
     ?.trim()
     .toUpperCase();
 
-  if (!code || !/^[A-Z0-9]{6}$/.test(code)) {
+  if (!code || !roomCodePattern.test(code)) {
     const response = redirectTo("/");
     response.cookies.set(
       FLASH_COOKIE_NAME,
@@ -58,7 +60,10 @@ export async function GET(request: NextRequest) {
       const cookieStore = await cookies();
       const guestCookies = cookieStore
         .getAll()
-        .filter((cookie) => cookie.name.startsWith("guest_room_"))
+        .filter((cookie) => (
+          cookie.name.startsWith("guest_room_") &&
+          roomCodePattern.test(cookie.name.slice("guest_room_".length))
+        ))
         .sort((left, right) => {
           const leftCode = left.name.slice("guest_room_".length);
           const rightCode = right.name.slice("guest_room_".length);

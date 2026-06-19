@@ -10,6 +10,8 @@ type HomePageProps = {
   searchParams: Promise<{ error?: string; notice?: string }>;
 };
 
+const roomCodePattern = /^[A-Z0-9]{6}$/;
+
 const homeErrors: Record<string, string> = {
   invalid_room_code: "请输入正确的 6 位房间码",
 };
@@ -51,7 +53,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     const cookieStore = await cookies();
     const guestCookie = cookieStore
       .getAll()
-      .find((c) => c.name.startsWith("guest_room_"));
+      .find((c) => {
+        if (!c.name.startsWith("guest_room_")) {
+          return false;
+        }
+
+        return roomCodePattern.test(c.name.slice("guest_room_".length));
+      });
     if (guestCookie) {
       guestRoomCode = guestCookie.name.slice("guest_room_".length);
     }

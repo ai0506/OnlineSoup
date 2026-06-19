@@ -33,10 +33,25 @@ export async function updateSession(request: NextRequest) {
       .select("username")
       .eq("id", userId)
       .maybeSingle();
+
+    // profile === null（无行，非字段缺失）说明账号已被删除
+    if (!error && profile === null) {
+      const { error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        await supabase.auth.signOut();
+        const signOutResponse = NextResponse.redirect(new URL("/login", request.url));
+        response.cookies.getAll().forEach((cookie) => {
+          signOutResponse.cookies.set(cookie);
+        });
+        return signOutResponse;
+      }
+    }
+
     const pathname = request.nextUrl.pathname;
     const allowedWithoutUsername =
       pathname === "/account/username" ||
       pathname === "/login" ||
+      pathname === "/tutorial" ||
       pathname.startsWith("/auth/") ||
       pathname.startsWith("/reset-password");
 
