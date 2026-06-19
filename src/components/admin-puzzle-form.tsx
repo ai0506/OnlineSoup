@@ -96,89 +96,199 @@ export function AdminPuzzleForm({
     (example) => example.model === "inferential",
   );
 
+  const updateExample = (
+    key: string,
+    patch: Partial<Omit<DraftExample, "key">>,
+  ) => {
+    setExamples((current) =>
+      current.map((example) =>
+        example.key === key ? { ...example, ...patch } : example,
+      ),
+    );
+  };
+
+  const moveExampleWithinModel = (
+    key: string,
+    model: ExampleModel,
+    direction: -1 | 1,
+  ) => {
+    setExamples((current) => {
+      const modelItems = current.filter((example) => example.model === model);
+      const index = modelItems.findIndex((example) => example.key === key);
+      const targetIndex = index + direction;
+
+      if (index < 0 || targetIndex < 0 || targetIndex >= modelItems.length) {
+        return current;
+      }
+
+      const orderedModelItems = [...modelItems];
+      const [moved] = orderedModelItems.splice(index, 1);
+      orderedModelItems.splice(targetIndex, 0, moved);
+
+      let nextModelIndex = 0;
+      return current.map((example) =>
+        example.model === model ? orderedModelItems[nextModelIndex++] : example,
+      );
+    });
+  };
+
+  const moveExampleToModel = (key: string, targetModel: ExampleModel) => {
+    setExamples((current) => {
+      const moving = current.find((example) => example.key === key);
+      if (!moving || moving.model === targetModel) return current;
+
+      const withoutMoving = current.filter((example) => example.key !== key);
+      const moved = { ...moving, model: targetModel };
+      const lastTargetIndex = withoutMoving.reduce(
+        (lastIndex, example, index) =>
+          example.model === targetModel ? index : lastIndex,
+        -1,
+      );
+
+      if (lastTargetIndex < 0) return [...withoutMoving, moved];
+
+      return [
+        ...withoutMoving.slice(0, lastTargetIndex + 1),
+        moved,
+        ...withoutMoving.slice(lastTargetIndex + 1),
+      ];
+    });
+  };
+
   const renderExampleSection = (
     title: string,
     model: ExampleModel,
     items: DraftExample[],
-  ) => (
-    <div className="admin-subform-example-group">
-      <div className="admin-subform-heading">
-        <span>{title}</span>
-      </div>
+  ) => {
+    const targetModel = model === "fact" ? "inferential" : "fact";
+    const targetTitle =
+      targetModel === "fact" ? "事实模型示例问题" : "推断模型示例问题";
 
-      {items.map((example, index) => (
-        <div className="admin-subform-card" key={example.key}>
-          <input name="exampleModel" type="hidden" value={example.model} />
-          <div className="admin-subform-title">
-            <strong>示例问题 {index + 1}</strong>
-            <button
-              className="button danger-text small"
-              onClick={() =>
-                setExamples((current) =>
-                  current.filter((item) => item.key !== example.key),
-                )
-              }
-              type="button"
-            >
-              删除
-            </button>
-          </div>
-          <div className="admin-subform-row">
+    return (
+      <div className="admin-subform-example-group">
+        <div className="admin-subform-heading">
+          <span>{title}</span>
+        </div>
+
+        {items.map((example, index) => (
+          <div className="admin-subform-card" key={example.key}>
+            <input name="exampleModel" type="hidden" value={example.model} />
+            <div className="admin-subform-title">
+              <strong>示例问题 {index + 1}</strong>
+              <div className="admin-example-actions">
+                <button
+                  className="button secondary small"
+                  disabled={index === 0}
+                  onClick={() => moveExampleWithinModel(example.key, model, -1)}
+                  type="button"
+                >
+                  上移
+                </button>
+                <button
+                  className="button secondary small"
+                  disabled={index === items.length - 1}
+                  onClick={() => moveExampleWithinModel(example.key, model, 1)}
+                  type="button"
+                >
+                  下移
+                </button>
+                <button
+                  className="button secondary small"
+                  onClick={() => moveExampleToModel(example.key, targetModel)}
+                  type="button"
+                >
+                  移动到{targetTitle}
+                </button>
+                <button
+                  className="button danger-text small"
+                  onClick={() =>
+                    setExamples((current) =>
+                      current.filter((item) => item.key !== example.key),
+                    )
+                  }
+                  type="button"
+                >
+                  删除
+                </button>
+              </div>
+            </div>
+            <div className="admin-subform-row">
+              <label>
+                问题
+                <input
+                  name="exampleQuestion"
+                  onChange={(event) =>
+                    updateExample(example.key, { question: event.target.value })
+                  }
+                  placeholder="例如：男人遇到过海难吗？"
+                  value={example.question}
+                />
+              </label>
+              <label>
+                选项
+                <select
+                  name="exampleAnswer"
+                  onChange={(event) =>
+                    updateExample(example.key, {
+                      answer: event.target.value as ExampleAnswer,
+                    })
+                  }
+                  value={example.answer}
+                >
+                  {exampleAnswers.map((answer) => (
+                    <option key={answer} value={answer}>
+                      {answer}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <label>
-              问题
-              <input
-                defaultValue={example.question}
-                name="exampleQuestion"
-                placeholder="例如：男人遇到过海难吗？"
+              原因
+              <textarea
+                name="exampleReason"
+                onChange={(event) =>
+                  updateExample(example.key, { reason: event.target.value })
+                }
+                rows={2}
+                value={example.reason}
               />
             </label>
             <label>
-              选项
-              <select name="exampleAnswer" defaultValue={example.answer}>
-                {exampleAnswers.map((answer) => (
-                  <option key={answer} value={answer}>
-                    {answer}
-                  </option>
-                ))}
-              </select>
+              总结
+              <input
+                name="exampleSummary"
+                onChange={(event) =>
+                  updateExample(example.key, { summary: event.target.value })
+                }
+                value={example.summary}
+              />
             </label>
           </div>
-          <label>
-            原因
-            <textarea
-              defaultValue={example.reason}
-              name="exampleReason"
-              rows={2}
-            />
-          </label>
-          <label>
-            总结
-            <input defaultValue={example.summary} name="exampleSummary" />
-          </label>
-        </div>
-      ))}
+        ))}
 
-      <button
-        className="button secondary small admin-subform-add"
-        onClick={() =>
-          setExamples((current) => [
-            ...current,
-            {
-              key: newKey("example"),
-              model,
-              question: "",
-              answer: "是",
-              reason: "",
-              summary: "",
-            },
-          ])
-        }
-        type="button"
-      >
-        新增{title}
-      </button>
-    </div>
-  );
+        <button
+          className="button secondary small admin-subform-add"
+          onClick={() =>
+            setExamples((current) => [
+              ...current,
+              {
+                key: newKey("example"),
+                model,
+                question: "",
+                answer: "是",
+                reason: "",
+                summary: "",
+              },
+            ])
+          }
+          type="button"
+        >
+          新增{title}
+        </button>
+      </div>
+    );
+  };
 
   return (
     <form action={action} className={className}>

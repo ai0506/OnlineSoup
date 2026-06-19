@@ -2198,6 +2198,13 @@ textarea:focus {
   font-size: 0.94rem;
 }
 
+.admin-example-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .admin-subform-add {
   justify-self: start;
 }
