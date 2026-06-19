@@ -31,6 +31,7 @@ import {
 } from "@/components/admin-room-overview-list";
 import { AdminTabs } from "@/components/admin-tabs";
 import { AdminAiErrorForm } from "@/components/admin-ai-error-form";
+import { AdminAiErrorEditForm } from "@/components/admin-ai-error-edit-form";
 import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
 import { requireAdmin } from "@/lib/admin";
 import { getFlashMessage } from "@/lib/flash";
@@ -1091,40 +1092,19 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </div>
             </div>
 
-            <form action={updateAiErrorCase} className="admin-ai-error-edit">
-              <input name="caseId" type="hidden" value={item.id} />
-              <label>
-                正确答案
-                <textarea
-                  defaultValue={item.correct_answer}
-                  maxLength={1000}
-                  name="correctAnswer"
-                  required
-                  rows={3}
-                />
-              </label>
-              <label>
-                备注
-                <textarea
-                  defaultValue={item.note}
-                  maxLength={1000}
-                  name="note"
-                  rows={3}
-                />
-              </label>
-              <label>
-                状态
-                <select defaultValue={item.status} name="status">
-                  <option value="open">待处理</option>
-                  <option value="reviewed">已复核</option>
-                  <option value="fixed">已修复</option>
-                  <option value="ignored">忽略</option>
-                </select>
-              </label>
-              <button className="button secondary" type="submit">
-                保存案例
-              </button>
-            </form>
+            {item.correct_answer && (
+              <p className="admin-ai-error-answer-preview">
+                <strong>正确答案：</strong>{item.correct_answer}
+              </p>
+            )}
+
+            <AdminAiErrorEditForm
+              action={updateAiErrorCase}
+              caseId={item.id}
+              correctAnswer={item.correct_answer}
+              note={item.note}
+              status={item.status}
+            />
           </article>
         ))}
 
