@@ -1829,6 +1829,7 @@ textarea:focus {
 
 .admin-ai-error-trigger {
   align-self: start;
+  width: fit-content;
   font-size: 0.78rem;
   padding: 3px 8px;
   line-height: 1.4;
