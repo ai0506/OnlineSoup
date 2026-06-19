@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 
 import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
@@ -7,7 +8,7 @@ import { getFlashMessage } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 
 type HomePageProps = {
-  searchParams: Promise<{ error?: string; notice?: string }>;
+  searchParams: Promise<{ error?: string; notice?: string; code?: string }>;
 };
 
 const roomCodePattern = /^[A-Z0-9]{6}$/;
@@ -23,7 +24,10 @@ const homeNotices: Record<string, string> = {
 };
 
 export default async function HomePage({ searchParams }: HomePageProps) {
-  const { error, notice } = await searchParams;
+  const { error, notice, code } = await searchParams;
+  if (code) {
+    redirect(`/auth/callback?code=${encodeURIComponent(code)}`);
+  }
   const flash = await getFlashMessage("home");
   const errorCode = flash?.kind === "error" ? flash.code : error;
   const noticeCode = flash?.kind === "notice" ? flash.code : notice;
