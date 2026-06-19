@@ -25,7 +25,6 @@ export type AdminPuzzleFormValue = {
     question?: string;
     answer?: string;
     reason?: string;
-    summary?: string | null;
   }> | null;
 };
 
@@ -41,7 +40,6 @@ type DraftExample = {
   question: string;
   answer: ExampleAnswer;
   reason: string;
-  summary: string;
 };
 
 type AdminPuzzleFormProps = {
@@ -76,7 +74,6 @@ function normalizeExamples(puzzle?: AdminPuzzleFormValue): DraftExample[] {
       ? (example.answer as ExampleAnswer)
       : "是",
     reason: example.reason ?? "",
-    summary: example.summary ?? "",
   }));
 }
 
@@ -254,16 +251,6 @@ export function AdminPuzzleForm({
                 value={example.reason}
               />
             </label>
-            <label>
-              总结
-              <input
-                name="exampleSummary"
-                onChange={(event) =>
-                  updateExample(example.key, { summary: event.target.value })
-                }
-                value={example.summary}
-              />
-            </label>
           </div>
         ))}
 
@@ -278,7 +265,6 @@ export function AdminPuzzleForm({
                 question: "",
                 answer: "是",
                 reason: "",
-                summary: "",
               },
             ])
           }

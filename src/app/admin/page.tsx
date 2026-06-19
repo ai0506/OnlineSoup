@@ -169,9 +169,12 @@ type AskAuditEntry = {
   factSummary: string | null;
 };
 
+type FactSummarySource = "glm" | "deepseek" | "unknown";
+
 type AskAnswerDetails = {
   text: string;
   factSummary: string | null;
+  factSummarySource: FactSummarySource;
   auditEntries: AskAuditEntry[];
   usedArbitration: boolean;
 };
@@ -332,6 +335,17 @@ function getModeLabel(value: AdminMessage["message_mode"]) {
   }
 }
 
+function getFactSummarySourceLabel(source: FactSummarySource) {
+  switch (source) {
+    case "glm":
+      return "GLM";
+    case "deepseek":
+      return "DeepSeek";
+    default:
+      return "历史消息";
+  }
+}
+
 function getModeFilter(value?: string) {
   return value === "chat" ||
     value === "ask" ||
@@ -388,6 +402,7 @@ function getAskAnswerDetails(message: AdminMessage): AskAnswerDetails | null {
       kind?: unknown;
       text?: unknown;
       fact_summary?: unknown;
+      fact_summary_source?: unknown;
       ask_audit?: unknown;
     };
     if (parsed.kind !== "answer" || typeof parsed.text !== "string") {
@@ -396,11 +411,16 @@ function getAskAnswerDetails(message: AdminMessage): AskAnswerDetails | null {
 
     const factSummary =
       typeof parsed.fact_summary === "string" ? parsed.fact_summary : null;
+    const factSummarySource: FactSummarySource =
+      parsed.fact_summary_source === "glm" || parsed.fact_summary_source === "deepseek"
+        ? parsed.fact_summary_source
+        : "unknown";
 
     if (typeof parsed.ask_audit !== "object" || parsed.ask_audit === null) {
       return {
         text: parsed.text,
         factSummary,
+        factSummarySource,
         auditEntries: [],
         usedArbitration: false,
       };
@@ -440,6 +460,7 @@ function getAskAnswerDetails(message: AdminMessage): AskAnswerDetails | null {
     return {
       text: parsed.text,
       factSummary,
+      factSummarySource,
       auditEntries,
       usedArbitration: auditEntries.some((item) => item.label === "仲裁"),
     };
@@ -969,6 +990,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   {askAnswerDetails.factSummary && (
                     <p className="admin-ask-fact">
                       事实总结：{askAnswerDetails.factSummary}
+                      {" · 来源："}
+                      {getFactSummarySourceLabel(askAnswerDetails.factSummarySource)}
                     </p>
                   )}
                   {askAnswerDetails.auditEntries.length > 0 && (

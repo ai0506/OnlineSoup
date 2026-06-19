@@ -118,7 +118,6 @@ function parseExamples(formData: FormData) {
   const questions = formData.getAll("exampleQuestion");
   const answers = formData.getAll("exampleAnswer");
   const reasons = formData.getAll("exampleReason");
-  const summaries = formData.getAll("exampleSummary");
   const validAnswers = new Set(["是", "否", "与此无关", "模糊问题"]);
   const validModels = new Set(["fact", "inferential"]);
 
@@ -128,11 +127,10 @@ function parseExamples(formData: FormData) {
       question: String(value ?? "").trim(),
       answer: String(answers[index] ?? "").trim(),
       reason: String(reasons[index] ?? "").trim(),
-      summary: String(summaries[index] ?? "").trim() || null,
     }))
     .filter(
       (example) =>
-        example.question || example.answer || example.reason || example.summary,
+        example.question || example.answer || example.reason,
     )
     .map((example) => {
       if (
