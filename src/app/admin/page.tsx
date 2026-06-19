@@ -85,6 +85,7 @@ type AdminMessage = {
   message_mode: "chat" | "ask" | "hint" | "reason";
   content: string;
   puzzle_id: number | null;
+  reply_to_id: number | null;
   created_at: string;
   rooms: AdminMessageRoom | null;
 };
@@ -482,7 +483,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   let adminMessagesQuery = admin
     .from("room_messages")
     .select(
-      "id, room_id, seat_id, sender_name, sender_seat_number, sender_type, message_type, message_mode, content, puzzle_id, created_at, rooms!inner(code, name, status)",
+      "id, room_id, seat_id, sender_name, sender_seat_number, sender_type, message_type, message_mode, content, puzzle_id, reply_to_id, created_at, rooms!inner(code, name, status)",
     );
 
   if (roomCodeFilter) {
@@ -616,6 +617,30 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   if (ptTxnsError) {
     throw new Error(`读取积分流水失败：${ptTxnsError.message}`);
+  }
+
+  // Fetch question messages referenced by AI messages via reply_to_id
+  const replyToIds = [
+    ...new Set(
+      (adminMessages ?? [])
+        .map((m) => m.reply_to_id)
+        .filter((id): id is number => typeof id === "number"),
+    ),
+  ];
+  type QuestionMessage = Pick<
+    AdminMessage,
+    "id" | "sender_name" | "sender_seat_number" | "sender_type" | "content" | "message_mode" | "created_at"
+  >;
+  const questionById = new Map<number, QuestionMessage>();
+  if (replyToIds.length > 0) {
+    const { data: questionMessages } = await admin
+      .from("room_messages")
+      .select("id, sender_name, sender_seat_number, sender_type, content, message_mode, created_at")
+      .in("id", replyToIds)
+      .returns<QuestionMessage[]>();
+    for (const q of questionMessages ?? []) {
+      questionById.set(q.id, q);
+    }
   }
 
   const users = usersData.users;
@@ -884,6 +909,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         {(adminMessages ?? []).map((message) => {
           const reasoningCoverage = getReasoningCoverage(message);
           const askAnswerDetails = getAskAnswerDetails(message);
+          const questionMessage = message.reply_to_id
+            ? questionById.get(message.reply_to_id)
+            : undefined;
 
           return (
             <article className="admin-message-row" key={message.id}>
@@ -901,6 +929,16 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 </span>
                 {message.puzzle_id && <span>题目 #{message.puzzle_id}</span>}
               </div>
+              {questionMessage && (
+                <div className="admin-question-row">
+                  <span className="admin-question-label">
+                    {questionMessage.sender_name} [{questionMessage.sender_seat_number}]
+                    {" · "}{getModeLabel(questionMessage.message_mode)}
+                    {" · "}{formatTime(questionMessage.created_at)}
+                  </span>
+                  <p className="admin-question-content">{questionMessage.content}</p>
+                </div>
+              )}
               {reasoningCoverage.length > 0 && (
                 <div className="admin-reasoning-coverage">
                   {reasoningCoverage.map((item) => (

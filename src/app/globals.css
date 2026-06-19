@@ -1718,6 +1718,29 @@ textarea:focus {
   gap: 8px;
 }
 
+.admin-question-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+}
+
+.admin-question-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.admin-question-content {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.45;
+}
+
 .admin-ask-answer {
   display: grid;
   gap: 8px;
