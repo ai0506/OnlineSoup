@@ -1,4 +1,4 @@
-import {
+﻿import {
   clearRoomMessages,
   createAiErrorCase,
   createAdminUser,
@@ -30,6 +30,7 @@ import {
   type AdminActiveRoom,
 } from "@/components/admin-room-overview-list";
 import { AdminTabs } from "@/components/admin-tabs";
+import { AdminAiErrorForm } from "@/components/admin-ai-error-form";
 import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
 import { requireAdmin } from "@/lib/admin";
 import { getFlashMessage } from "@/lib/flash";
@@ -951,31 +952,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 markedAiMessageIds.has(message.id) ? (
                   <p className="admin-ai-error-marked">已收录为 AI 错误案例</p>
                 ) : (
-                  <form action={createAiErrorCase} className="admin-ai-error-form">
-                    <input name="aiMessageId" type="hidden" value={message.id} />
-                    <label>
-                      正确答案
-                      <textarea
-                        maxLength={1000}
-                        name="correctAnswer"
-                        placeholder="例如：这里应该回答“否”，因为……"
-                        required
-                        rows={2}
-                      />
-                    </label>
-                    <label>
-                      备注
-                      <textarea
-                        maxLength={1000}
-                        name="note"
-                        placeholder="可选：记录为什么判错、希望之后怎么改"
-                        rows={2}
-                      />
-                    </label>
-                    <button className="button secondary" type="submit">
-                      标记错误
-                    </button>
-                  </form>
+                  <AdminAiErrorForm action={createAiErrorCase} aiMessageId={message.id} />
                 )
               )}
               <pre className="admin-message-content">{message.content}</pre>

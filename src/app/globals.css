@@ -1804,6 +1804,60 @@ textarea:focus {
   font-weight: 700;
 }
 
+.admin-ai-error-trigger {
+  align-self: start;
+  font-size: 0.82rem;
+}
+
+.admin-ai-error-dialog {
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 4px 24px rgba(17, 24, 39, 0.18);
+  background: var(--paper);
+  width: min(480px, 94vw);
+}
+
+.admin-ai-error-dialog::backdrop {
+  background: rgba(17, 24, 39, 0.38);
+}
+
+.admin-ai-error-dialog .dialog-panel {
+  width: 100%;
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.dialog-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.icon-button {
+  padding: 2px 6px;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
 .admin-ai-error-form,
 .admin-ai-error-edit {
   display: grid;
