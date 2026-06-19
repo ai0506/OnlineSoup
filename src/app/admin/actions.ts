@@ -69,7 +69,7 @@ function normalizeImportItem(item: unknown) {
   return record;
 }
 
-type AdminResultTab = "puzzles" | "messages" | "cleanup" | "ai-errors";
+type AdminResultTab = "puzzles" | "messages" | "cleanup" | "ai-errors" | "rooms" | "points";
 
 async function redirectAdminResult(
   type: "error" | "message",
@@ -693,6 +693,29 @@ export async function updateAiErrorCase(formData: FormData) {
 
   revalidatePath("/admin");
   return await redirectAdminResult("message", "ai_error_case_updated", "ai-errors");
+}
+
+export async function forceCloseRoom(formData: FormData) {
+  await requireAdmin();
+
+  const roomId = roomIdSchema.safeParse(formData.get("roomId"));
+
+  if (!roomId.success) {
+    return await redirectAdminResult("error", "invalid_room_cleanup", "rooms");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.rpc("admin_force_close_and_clear_room", {
+    p_room_id: roomId.data,
+  });
+
+  if (error) {
+    console.error("Admin room force-close failed", error);
+    return await redirectAdminResult("error", "room_cleanup_failed", "rooms");
+  }
+
+  revalidatePath("/admin");
+  return await redirectAdminResult("message", "room_cleaned", "rooms");
 }
 
 export async function clearRoomMessages(formData: FormData) {

@@ -32,6 +32,7 @@ export async function SiteHeader() {
       </Link>
       <nav>
         <Link href="/">大厅</Link>
+        <Link href="/tutorial">教程</Link>
         {email ? (
           <>
             <Link href="/rooms/new">创建房间</Link>

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-type AdminTab = "accounts" | "puzzles" | "messages" | "cleanup" | "ai-errors";
+type AdminTab = "accounts" | "puzzles" | "messages" | "cleanup" | "ai-errors" | "rooms" | "points";
 
 type AdminTabsProps = {
   accountCount: number;
@@ -19,6 +19,10 @@ type AdminTabsProps = {
   messageCount: number;
   puzzleContent: React.ReactNode;
   puzzleCount: number;
+  roomsContent: React.ReactNode;
+  roomsCount: number;
+  pointsContent: React.ReactNode;
+  pointsCount: number;
 };
 
 export function AdminTabs({
@@ -35,6 +39,10 @@ export function AdminTabs({
   messageCount,
   puzzleContent,
   puzzleCount,
+  roomsContent,
+  roomsCount,
+  pointsContent,
+  pointsCount,
 }: AdminTabsProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<AdminTab>(initialTab);
@@ -66,7 +74,12 @@ export function AdminTabs({
   }, [createOpen, importOpen]);
 
   useEffect(() => {
-    if (activeTab !== "messages" && activeTab !== "ai-errors") return;
+    if (
+      activeTab !== "messages" &&
+      activeTab !== "ai-errors" &&
+      activeTab !== "rooms"
+    )
+      return;
 
     const refreshMessages = () => {
       if (document.visibilityState === "visible") {
@@ -132,6 +145,26 @@ export function AdminTabs({
           AI 错误案例
           <span>{aiErrorCaseCount}</span>
         </button>
+        <button
+          aria-selected={activeTab === "rooms"}
+          className={`admin-tab${activeTab === "rooms" ? " active" : ""}`}
+          onClick={() => selectTab("rooms")}
+          role="tab"
+          type="button"
+        >
+          房间总览
+          <span>{roomsCount}</span>
+        </button>
+        <button
+          aria-selected={activeTab === "points"}
+          className={`admin-tab${activeTab === "points" ? " active" : ""}`}
+          onClick={() => selectTab("points")}
+          role="tab"
+          type="button"
+        >
+          积分流水
+          <span>{pointsCount}</span>
+        </button>
       </div>
 
       <section hidden={activeTab !== "accounts"} role="tabpanel">
@@ -177,6 +210,14 @@ export function AdminTabs({
 
       <section hidden={activeTab !== "ai-errors"} role="tabpanel">
         {aiErrorCaseContent}
+      </section>
+
+      <section hidden={activeTab !== "rooms"} role="tabpanel">
+        {roomsContent}
+      </section>
+
+      <section hidden={activeTab !== "points"} role="tabpanel">
+        {pointsContent}
       </section>
 
       {importOpen && (

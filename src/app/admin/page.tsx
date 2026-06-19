@@ -5,6 +5,7 @@ import {
   createPuzzle,
   deleteAdminUser,
   deletePuzzle,
+  forceCloseRoom,
   importPuzzles,
   sendPasswordReset,
   updateAiErrorCase,
@@ -24,6 +25,10 @@ import {
 import { AdminPuzzleImport } from "@/components/admin-puzzle-import";
 import { AdminPuzzleList } from "@/components/admin-puzzle-list";
 import { AdminRoomCleanupList } from "@/components/admin-room-cleanup-list";
+import {
+  AdminRoomOverviewList,
+  type AdminActiveRoom,
+} from "@/components/admin-room-overview-list";
 import { AdminTabs } from "@/components/admin-tabs";
 import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
 import { requireAdmin } from "@/lib/admin";
@@ -43,6 +48,12 @@ type AdminPageProps = {
     senderType?: string;
     caseStatus?: string;
     tab?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    ptUser?: string;
+    ptType?: string;
+    ptDateFrom?: string;
+    ptDateTo?: string;
   }>;
 };
 
@@ -53,7 +64,7 @@ type AdminPuzzle = Required<Pick<AdminPuzzleFormValue, "id">> &
     created_at: string;
   };
 
-type AdminTab = "accounts" | "puzzles" | "messages" | "cleanup" | "ai-errors";
+type AdminTab = "accounts" | "puzzles" | "messages" | "cleanup" | "ai-errors" | "rooms" | "points";
 type AiErrorStatus = "open" | "reviewed" | "fixed" | "ignored";
 
 type AdminMessageRoom = {
@@ -88,6 +99,35 @@ type AdminCleanupRoom = {
   last_message_at: string | null;
   message_count: number;
   cleanup_reason: "closed_over_3_days" | "inactive_over_1_day";
+};
+
+type AdminActiveRoomRaw = {
+  id: string;
+  code: string;
+  name: string;
+  status: "waiting" | "playing";
+  max_members: number;
+  points_per_seat: number;
+  created_at: string;
+  owner_id: string;
+  current_puzzle_id: number | null;
+};
+
+type PointsTransactionType =
+  | "signup_bonus"
+  | "room_reservation"
+  | "room_refund"
+  | "gift_sent"
+  | "seat_query";
+
+type AdminPointsTransaction = {
+  id: number;
+  user_id: string;
+  room_id: string | null;
+  type: PointsTransactionType;
+  amount: number;
+  balance_after: number;
+  created_at: string;
 };
 
 type AdminAiErrorCase = {
@@ -199,11 +239,41 @@ function getAdminTab(value?: string): AdminTab {
     value === "puzzles" ||
     value === "messages" ||
     value === "cleanup" ||
-    value === "ai-errors"
+    value === "ai-errors" ||
+    value === "rooms" ||
+    value === "points"
   ) {
     return value;
   }
   return "accounts";
+}
+
+function getPointsTypeLabel(type: PointsTransactionType) {
+  switch (type) {
+    case "signup_bonus":
+      return "注册奖励";
+    case "room_reservation":
+      return "房间预留";
+    case "room_refund":
+      return "房间退还";
+    case "gift_sent":
+      return "赠送积分";
+    case "seat_query":
+      return "AI 查询";
+  }
+}
+
+function getPointsTypeFilter(value?: string): PointsTransactionType | "" {
+  if (
+    value === "signup_bonus" ||
+    value === "room_reservation" ||
+    value === "room_refund" ||
+    value === "gift_sent" ||
+    value === "seat_query"
+  ) {
+    return value;
+  }
+  return "";
 }
 
 function getAiErrorStatusFilter(value?: string) {
@@ -392,6 +462,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       ? params.senderType
       : "";
   const aiErrorStatusFilter = getAiErrorStatusFilter(params.caseStatus);
+  const dateFrom = params.dateFrom?.trim() ?? "";
+  const dateTo = params.dateTo?.trim() ?? "";
+  const ptUserFilter = params.ptUser?.trim() ?? "";
+  const ptTypeFilter = getPointsTypeFilter(params.ptType);
+  const ptDateFrom = params.ptDateFrom?.trim() ?? "";
+  const ptDateTo = params.ptDateTo?.trim() ?? "";
   const messageExportParams = new URLSearchParams();
   if (roomCodeFilter) messageExportParams.set("roomCode", roomCodeFilter);
   if (modeFilter) messageExportParams.set("mode", modeFilter);
@@ -430,6 +506,17 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     adminMessagesQuery = adminMessagesQuery.eq("message_mode", modeFilter);
   }
 
+  if (dateFrom) {
+    adminMessagesQuery = adminMessagesQuery.gte("created_at", dateFrom);
+  }
+
+  if (dateTo) {
+    adminMessagesQuery = adminMessagesQuery.lte(
+      "created_at",
+      dateTo + "T23:59:59.999Z",
+    );
+  }
+
   const adminMessagesPromise = adminMessagesQuery
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
@@ -438,6 +525,34 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const cleanupRoomsPromise = admin.rpc(
     "admin_list_room_cleanup_candidates",
   ) as unknown as SupabaseResult<AdminCleanupRoom[]>;
+
+  const activeRoomsPromise = admin
+    .from("rooms")
+    .select("id, code, name, status, max_members, points_per_seat, created_at, owner_id, current_puzzle_id")
+    .in("status", ["waiting", "playing"])
+    .order("created_at", { ascending: false })
+    .limit(100)
+    .returns<AdminActiveRoomRaw[]>();
+
+  let ptTxnsQuery = admin
+    .from("points_transactions")
+    .select("id, user_id, room_id, type, amount, balance_after, created_at");
+
+  if (ptTypeFilter) {
+    ptTxnsQuery = ptTxnsQuery.eq("type", ptTypeFilter);
+  }
+  if (ptDateFrom) {
+    ptTxnsQuery = ptTxnsQuery.gte("created_at", ptDateFrom);
+  }
+  if (ptDateTo) {
+    ptTxnsQuery = ptTxnsQuery.lte("created_at", ptDateTo + "T23:59:59.999Z");
+  }
+
+  const ptTxnsPromise = ptTxnsQuery
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(300)
+    .returns<AdminPointsTransaction[]>();
   const aiErrorCasesPromise = admin
     .from("ai_error_cases")
     .select(
@@ -453,22 +568,26 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     { data: adminMessages, error: adminMessagesError },
     { data: cleanupRooms, error: cleanupRoomsError },
     { data: aiErrorCases, error: aiErrorCasesError },
+    { data: activeRoomsRaw, error: activeRoomsError },
+    { data: ptTxnsRaw, error: ptTxnsError },
   ] = await Promise.all([
-      admin.auth.admin.listUsers({
-        page: 1,
-        perPage: 1000,
-      }),
-      admin
-        .from("puzzles")
-        .select(
-          "id, title, surface, bottom, difficulty, is_active, key_points, examples, created_at",
-        )
-        .order("id", { ascending: true })
-        .returns<AdminPuzzle[]>(),
-      adminMessagesPromise,
-      cleanupRoomsPromise,
-      aiErrorCasesPromise,
-    ]);
+    admin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    }),
+    admin
+      .from("puzzles")
+      .select(
+        "id, title, surface, bottom, difficulty, is_active, key_points, examples, created_at",
+      )
+      .order("id", { ascending: true })
+      .returns<AdminPuzzle[]>(),
+    adminMessagesPromise,
+    cleanupRoomsPromise,
+    aiErrorCasesPromise,
+    activeRoomsPromise,
+    ptTxnsPromise,
+  ]);
 
   if (usersError) {
     throw new Error(`读取账户失败：${usersError.message}`);
@@ -490,6 +609,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     throw new Error(`读取 AI 错误案例失败：${aiErrorCasesError.message}`);
   }
 
+  if (activeRoomsError) {
+    throw new Error(`读取活跃房间失败：${activeRoomsError.message}`);
+  }
+
+  if (ptTxnsError) {
+    throw new Error(`读取积分流水失败：${ptTxnsError.message}`);
+  }
+
   const users = usersData.users;
   const userIds = users.map((user) => user.id);
   const { data: profiles, error: profilesError } = userIds.length
@@ -506,6 +633,111 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const profileById = new Map(
     profiles?.map((profile) => [profile.id, profile]) ?? [],
   );
+
+  // 活跃房间关联数据
+  const ownerIds = [
+    ...new Set((activeRoomsRaw ?? []).map((r) => r.owner_id)),
+  ];
+  const puzzleIds = [
+    ...new Set(
+      (activeRoomsRaw ?? [])
+        .map((r) => r.current_puzzle_id)
+        .filter((id): id is number => id !== null),
+    ),
+  ];
+  const activeRoomIds = (activeRoomsRaw ?? []).map((r) => r.id);
+
+  const [ownerProfilesResult, activePuzzlesResult, roomSeatsResult] =
+    await Promise.all([
+      ownerIds.length
+        ? admin.from("profiles").select("id, username").in("id", ownerIds)
+        : { data: [] as { id: string; username: string | null }[], error: null },
+      puzzleIds.length
+        ? admin.from("puzzles").select("id, title").in("id", puzzleIds)
+        : { data: [] as { id: number; title: string }[], error: null },
+      activeRoomIds.length
+        ? admin
+            .from("room_seats")
+            .select("room_id")
+            .not("occupied_at", "is", null)
+            .in("room_id", activeRoomIds)
+        : { data: [] as { room_id: string }[], error: null },
+    ]);
+
+  const ownerProfileById = new Map(
+    (ownerProfilesResult.data ?? []).map((p) => [p.id, p]),
+  );
+  const activePuzzleById = new Map(
+    (activePuzzlesResult.data ?? []).map((p) => [p.id, p]),
+  );
+  const occupiedCountByRoom = new Map<string, number>();
+  for (const seat of roomSeatsResult.data ?? []) {
+    occupiedCountByRoom.set(
+      seat.room_id,
+      (occupiedCountByRoom.get(seat.room_id) ?? 0) + 1,
+    );
+  }
+
+  const activeRooms: AdminActiveRoom[] = (activeRoomsRaw ?? []).map((r) => ({
+    id: r.id,
+    code: r.code,
+    name: r.name,
+    status: r.status,
+    max_members: r.max_members,
+    points_per_seat: r.points_per_seat,
+    created_at: r.created_at,
+    owner_username: ownerProfileById.get(r.owner_id)?.username ?? null,
+    puzzle_title: r.current_puzzle_id
+      ? (activePuzzleById.get(r.current_puzzle_id)?.title ?? null)
+      : null,
+    occupied_count: occupiedCountByRoom.get(r.id) ?? 0,
+  }));
+
+  // 积分流水关联数据
+  const txnUserIds = [...new Set((ptTxnsRaw ?? []).map((t) => t.user_id))];
+  const txnRoomIds = [
+    ...new Set(
+      (ptTxnsRaw ?? [])
+        .map((t) => t.room_id)
+        .filter((id): id is string => id !== null),
+    ),
+  ];
+
+  const [txnProfilesResult, txnRoomsResult] = await Promise.all([
+    txnUserIds.length
+      ? admin.from("profiles").select("id, username").in("id", txnUserIds)
+      : { data: [] as { id: string; username: string | null }[], error: null },
+    txnRoomIds.length
+      ? admin.from("rooms").select("id, code").in("id", txnRoomIds)
+      : { data: [] as { id: string; code: string }[], error: null },
+  ]);
+
+  const txnProfileById = new Map(
+    (txnProfilesResult.data ?? []).map((p) => [p.id, p]),
+  );
+  const txnRoomById = new Map(
+    (txnRoomsResult.data ?? []).map((r) => [r.id, r]),
+  );
+
+  type EnrichedTransaction = AdminPointsTransaction & {
+    username: string | null;
+    room_code: string | null;
+  };
+
+  const allEnrichedTxns: EnrichedTransaction[] = (ptTxnsRaw ?? []).map(
+    (t) => ({
+      ...t,
+      username: txnProfileById.get(t.user_id)?.username ?? null,
+      room_code: t.room_id ? (txnRoomById.get(t.room_id)?.code ?? null) : null,
+    }),
+  );
+
+  const visibleTxns = allEnrichedTxns.filter((t) =>
+    ptUserFilter
+      ? t.username?.toLowerCase().includes(ptUserFilter.toLowerCase())
+      : true,
+  );
+
   const visibleUsers = users.filter((user) => {
     if (!query) return true;
     const profile = profileById.get(user.id);
@@ -625,6 +857,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <option value="registered">仅注册用户</option>
             <option value="guest">仅访客</option>
           </select>
+        </label>
+        <label>
+          开始日期
+          <input defaultValue={dateFrom} name="dateFrom" type="date" />
+        </label>
+        <label>
+          结束日期
+          <input defaultValue={dateTo} name="dateTo" type="date" />
         </label>
         <div className="admin-filter-actions">
           <button className="button secondary" type="submit">
@@ -857,6 +1097,94 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     </div>
   );
 
+  const roomsContent = (
+    <div className="admin-section" key="rooms-section">
+      <div className="admin-section-heading">
+        <h2>房间总览</h2>
+        <p className="muted">
+          显示当前所有等待中和游戏中的房间，可强制关闭并清除消息记录。
+        </p>
+      </div>
+      <AdminRoomOverviewList action={forceCloseRoom} rooms={activeRooms} />
+    </div>
+  );
+
+  const pointsContent = (
+    <div className="admin-section" key="points-section">
+      <div className="admin-section-heading">
+        <h2>积分流水</h2>
+        <p className="muted">最近 300 条积分变动记录，按类型和日期范围筛选。</p>
+      </div>
+
+      <form className="admin-message-filters">
+        <input name="tab" type="hidden" value="points" />
+        <label>
+          用户名
+          <input
+            defaultValue={ptUserFilter}
+            maxLength={20}
+            name="ptUser"
+            placeholder="用户名"
+          />
+        </label>
+        <label>
+          类型
+          <select defaultValue={ptTypeFilter} name="ptType">
+            <option value="">全部</option>
+            <option value="signup_bonus">注册奖励</option>
+            <option value="room_reservation">房间预留</option>
+            <option value="room_refund">房间退还</option>
+            <option value="gift_sent">赠送积分</option>
+            <option value="seat_query">AI 查询</option>
+          </select>
+        </label>
+        <label>
+          开始日期
+          <input defaultValue={ptDateFrom} name="ptDateFrom" type="date" />
+        </label>
+        <label>
+          结束日期
+          <input defaultValue={ptDateTo} name="ptDateTo" type="date" />
+        </label>
+        <div className="admin-filter-actions">
+          <button className="button secondary" type="submit">
+            筛选
+          </button>
+          <a className="button ghost" href="/admin?tab=points">
+            清空
+          </a>
+        </div>
+      </form>
+
+      <div className="admin-points-list">
+        {visibleTxns.map((txn) => (
+          <div className="admin-points-row" key={txn.id}>
+            <div className="admin-message-meta">
+              <strong>{txn.username ?? txn.user_id.slice(0, 8)}</strong>
+              {txn.room_code && <span>房间 {txn.room_code}</span>}
+              <span>{formatTime(txn.created_at)}</span>
+            </div>
+            <div className="admin-message-badges">
+              <span className={`admin-points-type ${txn.type}`}>
+                {getPointsTypeLabel(txn.type)}
+              </span>
+              <span
+                className={`admin-points-amount ${txn.amount >= 0 ? "positive" : "negative"}`}
+              >
+                {txn.amount >= 0 ? "+" : ""}
+                {txn.amount} pt
+              </span>
+              <span>余额 {txn.balance_after} pt</span>
+            </div>
+          </div>
+        ))}
+        {visibleTxns.length === 0 && (
+          <div className="card muted">没有找到匹配的积分记录。</div>
+        )}
+      </div>
+    </div>
+  );
+
   const cleanupContent = (
     <div className="admin-section" key="cleanup-section">
       <div className="admin-section-heading">
@@ -882,7 +1210,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <h1>后台管理</h1>
           <p className="lead">
             共 {users.length} 个账户，{puzzles?.length ?? 0} 道题目，
-            {(adminMessages ?? []).length} 条消息，{cleanupRooms?.length ?? 0} 个待清理房间。
+            {(adminMessages ?? []).length} 条消息，{cleanupRooms?.length ?? 0}{" "}
+            个待清理房间，{activeRooms.length} 个活跃房间。
           </p>
         </div>
         {(activeTab === "accounts" || activeTab === "puzzles") && (
@@ -927,6 +1256,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         messageCount={adminMessages?.length ?? 0}
         puzzleContent={puzzleContent}
         puzzleCount={visiblePuzzles.length}
+        roomsContent={roomsContent}
+        roomsCount={activeRooms.length}
+        pointsContent={pointsContent}
+        pointsCount={visibleTxns.length}
       />
     </section>
   );
