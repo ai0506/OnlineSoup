@@ -168,9 +168,8 @@ export function RoomChat({
   const [hintTokens, setHintTokens] = useState(initialHintTokens);
   const [activeSeatId, setActiveSeatId] = useState(seatId);
   const [currentPuzzleId, setCurrentPuzzleId] = useState<number | null>(initialPuzzleId);
-  // pendingSends: keyed by tempId (negative number); value is "failed" only
-  // "waiting" is no longer stored here — shown globally via pendingAiAfterMessageId
-  const [pendingSends, setPendingSends] = useState<Record<number, "failed">>({});
+  // pendingSends: keyed by tempId (negative number); stores failed message info for retry
+  const [pendingSends, setPendingSends] = useState<Record<number, { content: string; mode: MessageMode }>>({});
   // tickTime 每 10 秒更新一次（毫秒时间戳），驱动 pendingAiAfterMessageId 重新检查超时
   const [tickTime, setTickTime] = useState(() => new Date().getTime());
   const messageListRef = useRef<HTMLDivElement>(null);
@@ -475,8 +474,7 @@ export function RoomChat({
         rollbackPoints();
         rollbackHintToken();
         if (msgMode !== "chat") {
-          // 用 tempId 标记失败：失败的临时消息保持可见（不被真实消息替换）
-          setPendingSends((cur) => ({ ...cur, [tempId]: "failed" }));
+          setPendingSends((cur) => ({ ...cur, [tempId]: { content: text, mode: msgMode } }));
           setErrorNotice(result.error ?? "AI 主持暂时没有回应，请稍后重试");
           if (responseStatus === 409) {
             window.dispatchEvent(new CustomEvent("room-puzzle-refresh"));
@@ -507,7 +505,7 @@ export function RoomChat({
       rollbackPoints();
       rollbackHintToken();
       if (msgMode !== "chat") {
-        setPendingSends((cur) => ({ ...cur, [tempId]: "failed" }));
+        setPendingSends((cur) => ({ ...cur, [tempId]: { content: text, mode: msgMode } }));
       } else {
         setMessages((cur) => cur.filter((m) => m.id !== tempId));
         setErrorNotice("消息发送失败，请稍后重试");
@@ -518,6 +516,22 @@ export function RoomChat({
       if (usePersonal) {
         window.dispatchEvent(new Event("room-data-refresh"));
       }
+    }
+  }
+
+  async function handleRetry(text: string, msgMode: MessageMode) {
+    if (sending) return;
+    const cost = MODES.find((m) => m.key === msgMode)!.cost;
+    if (seatPoints >= cost) {
+      await doSend(text, msgMode, false);
+    } else if (currentUserId && personalPoints >= cost) {
+      if (skipPersonalPointsConfirm) {
+        await doSend(text, msgMode, true);
+      } else {
+        setConfirmState({ content: text, mode: msgMode });
+      }
+    } else {
+      setShowInsufficientNotice(true);
     }
   }
 
@@ -562,7 +576,7 @@ export function RoomChat({
   const visibleMessages = useMemo(() => {
     const failedTempKeys = new Set(
       messages
-        .filter((m) => m.id < 0 && pendingSends[m.id] === "failed")
+        .filter((m) => m.id < 0 && !!pendingSends[m.id])
         .map((m) => messageKey(m)),
     );
     const realKeys = new Set(
@@ -613,7 +627,7 @@ export function RoomChat({
 
     for (const msg of visibleMessages) {
       if (msg.message_type === "chat" && msg.message_mode !== "chat") {
-        if (msg.id < 0 && pendingSends[msg.id] === "failed") continue;
+        if (msg.id < 0 && !!pendingSends[msg.id]) continue;
         lastAiRelatedId = msg.id;
         hasFollowingAi = false;
       } else if (msg.message_type === "ai" && lastAiRelatedId !== null) {
@@ -699,8 +713,22 @@ export function RoomChat({
                     </time>
                   </div>
                   {/* 仅对发送失败的本地临时消息显示失败提示 */}
-                  {message.id < 0 && pendingSends[message.id] === "failed" && (
-                    <p className="ai-pending-status failed">发送失败，已退还积分</p>
+                  {message.id < 0 && !!pendingSends[message.id] && (
+                    <p className="ai-pending-status failed">
+                      发送失败，已退还积分
+                      <button
+                        className="retry-button"
+                        disabled={sending}
+                        onClick={() => {
+                          const info = pendingSends[message.id];
+                          if (info) void handleRetry(info.content, info.mode);
+                        }}
+                        title="重试"
+                        type="button"
+                      >
+                        ↺
+                      </button>
+                    </p>
                   )}
                 </article>
               );
