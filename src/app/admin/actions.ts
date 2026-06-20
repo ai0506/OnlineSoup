@@ -20,7 +20,7 @@ const adjustNoteSchema = z.string().trim().max(200).default("");
 const puzzleIdSchema = z.coerce.number().int().positive();
 const aiErrorStatusSchema = z.enum(["open", "reviewed", "fixed", "ignored"]);
 const aiErrorCaseSchema = z.object({
-  correctAnswer: z.string().trim().min(1).max(1000),
+  correctAnswer: z.string().trim().min(1).max(2000),
   note: z.string().trim().max(1000).default(""),
 });
 const aiErrorCaseUpdateSchema = aiErrorCaseSchema.extend({
@@ -610,7 +610,7 @@ export async function createAiErrorCase(formData: FormData) {
 
   const { data: aiMessage, error: aiMessageError } = await admin
     .from("room_messages")
-    .select("id, room_id, content, message_type, message_mode, puzzle_id, created_at")
+    .select("id, room_id, content, message_type, message_mode, puzzle_id, reply_to_id, created_at")
     .eq("id", aiMessageId.data)
     .maybeSingle();
 
@@ -618,31 +618,66 @@ export async function createAiErrorCase(formData: FormData) {
     aiMessageError ||
     !aiMessage ||
     aiMessage.message_type !== "ai" ||
-    aiMessage.message_mode !== "ask" ||
+    (aiMessage.message_mode !== "ask" && aiMessage.message_mode !== "reason") ||
     aiMessage.puzzle_id == null
   ) {
     console.error("Admin AI error case source lookup failed", aiMessageError);
     return await redirectAdminResult("error", "invalid_ai_error_case_source", "messages");
   }
 
-  let questionQuery = admin
-    .from("room_messages")
-    .select("id, content")
-    .eq("room_id", aiMessage.room_id)
-    .eq("message_type", "chat")
-    .eq("message_mode", "ask")
-    .lt("id", aiMessage.id)
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(1);
+  type QuestionRow = { id: number; content: string };
+  let questionMessage: QuestionRow | null = null;
 
-  questionQuery = questionQuery.eq("puzzle_id", aiMessage.puzzle_id);
+  if (aiMessage.message_mode === "reason") {
+    if (aiMessage.reply_to_id != null) {
+      const { data: replyMsg, error: replyError } = await admin
+        .from("room_messages")
+        .select("id, content")
+        .eq("id", aiMessage.reply_to_id)
+        .maybeSingle();
+      if (replyError || !replyMsg) {
+        console.error("Admin AI error case reason question lookup failed", replyError);
+        return await redirectAdminResult("error", "ai_error_question_not_found", "messages");
+      }
+      questionMessage = replyMsg;
+    } else {
+      const { data: reasonMsgs, error: reasonError } = await admin
+        .from("room_messages")
+        .select("id, content")
+        .eq("room_id", aiMessage.room_id)
+        .eq("message_type", "chat")
+        .eq("message_mode", "reason")
+        .eq("puzzle_id", aiMessage.puzzle_id)
+        .lt("id", aiMessage.id)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(1);
+      if (reasonError || !reasonMsgs?.[0]) {
+        console.error("Admin AI error case reason question fallback failed", reasonError);
+        return await redirectAdminResult("error", "ai_error_question_not_found", "messages");
+      }
+      questionMessage = reasonMsgs[0];
+    }
+  } else {
+    const { data: questionMessages, error: questionError } = await admin
+      .from("room_messages")
+      .select("id, content")
+      .eq("room_id", aiMessage.room_id)
+      .eq("message_type", "chat")
+      .eq("message_mode", "ask")
+      .eq("puzzle_id", aiMessage.puzzle_id)
+      .lt("id", aiMessage.id)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(1);
+    if (questionError || !questionMessages?.[0]) {
+      console.error("Admin AI error case question lookup failed", questionError);
+      return await redirectAdminResult("error", "ai_error_question_not_found", "messages");
+    }
+    questionMessage = questionMessages[0];
+  }
 
-  const { data: questionMessages, error: questionError } = await questionQuery;
-  const questionMessage = questionMessages?.[0];
-
-  if (questionError || !questionMessage) {
-    console.error("Admin AI error case question lookup failed", questionError);
+  if (!questionMessage) {
     return await redirectAdminResult("error", "ai_error_question_not_found", "messages");
   }
 

@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 
 type AdminTab = "accounts" | "puzzles" | "messages" | "rooms" | "points";
 
+type MessageSubTab = "audit" | "errors";
+
 type AdminTabsProps = {
   accountCount: number;
   accountContent: React.ReactNode;
@@ -14,6 +16,7 @@ type AdminTabsProps = {
   cleanupCount: number;
   createPuzzleContent: React.ReactNode;
   initialTab?: AdminTab;
+  initialMessageSubTab?: MessageSubTab;
   importPuzzleContent: React.ReactNode;
   messageContent: React.ReactNode;
   messageCount: number;
@@ -34,6 +37,7 @@ export function AdminTabs({
   cleanupCount,
   createPuzzleContent,
   initialTab = "accounts",
+  initialMessageSubTab = "audit",
   importPuzzleContent,
   messageContent,
   messageCount,
@@ -46,6 +50,7 @@ export function AdminTabs({
 }: AdminTabsProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<AdminTab>(initialTab);
+  const [msgSubTab, setMsgSubTab] = useState<MessageSubTab>(initialMessageSubTab);
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
@@ -57,6 +62,13 @@ export function AdminTabs({
     } else {
       url.searchParams.set("tab", tab);
     }
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }
+
+  function selectMsgSubTab(sub: MessageSubTab) {
+    setMsgSubTab(sub);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", sub === "errors" ? "ai-errors" : "messages");
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }
 
@@ -176,11 +188,30 @@ export function AdminTabs({
       </section>
 
       <section hidden={activeTab !== "messages"} role="tabpanel">
-        {messageContent}
-        <div className="admin-tab-divider">
-          <span>AI 错误案例 · {aiErrorCaseCount} 条</span>
+        <div className="admin-subtabs" role="tablist" aria-label="消息子分类">
+          <button
+            aria-selected={msgSubTab === "audit"}
+            className={`admin-subtab${msgSubTab === "audit" ? " active" : ""}`}
+            onClick={() => selectMsgSubTab("audit")}
+            role="tab"
+            type="button"
+          >
+            消息审计
+            <span>{messageCount}</span>
+          </button>
+          <button
+            aria-selected={msgSubTab === "errors"}
+            className={`admin-subtab${msgSubTab === "errors" ? " active" : ""}`}
+            onClick={() => selectMsgSubTab("errors")}
+            role="tab"
+            type="button"
+          >
+            AI 错误案例
+            <span>{aiErrorCaseCount}</span>
+          </button>
         </div>
-        {aiErrorCaseContent}
+        <div hidden={msgSubTab !== "audit"}>{messageContent}</div>
+        <div hidden={msgSubTab !== "errors"}>{aiErrorCaseContent}</div>
       </section>
 
       <section hidden={activeTab !== "rooms"} role="tabpanel">

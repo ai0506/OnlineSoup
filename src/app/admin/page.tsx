@@ -483,6 +483,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const messageCode = flash?.kind === "notice" ? flash.code : params.message;
   const query = params.q?.trim().toLowerCase() ?? "";
   const activeTab = getAdminTab(params.tab);
+  const initialMessageSubTab = params.tab === "ai-errors" ? "errors" as const : "audit" as const;
   const roomCodeFilter = params.roomCode?.trim().toUpperCase() ?? "";
   const modeFilter = getModeFilter(params.mode);
   const senderFilter = params.sender?.trim() ?? "";
@@ -968,21 +969,37 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 </div>
               )}
               {reasoningCoverage.length > 0 && (
-                <details className="admin-collapsible">
-                  <summary>覆盖率详情（{reasoningCoverage.filter(i => i.covered).length}/{reasoningCoverage.length} 已覆盖）</summary>
-                  <div className="admin-reasoning-coverage">
-                    {reasoningCoverage.map((item) => (
-                      <div
-                        className={`admin-coverage-item${item.covered ? " covered" : ""}`}
-                        key={item.id}
-                      >
-                        <strong>#{item.id}</strong>
-                        <span>{item.covered ? "已覆盖" : "未覆盖"}</span>
-                        {item.text && <p>{item.text}</p>}
-                      </div>
-                    ))}
+                <div className="admin-reasoning-section">
+                  <div className="admin-reasoning-section-header">
+                    <span className="admin-reasoning-coverage-label">
+                      覆盖率 {reasoningCoverage.filter(i => i.covered).length}/{reasoningCoverage.length} 已覆盖
+                    </span>
+                    {markedAiMessageIds.has(message.id) ? (
+                      <span className="admin-ai-error-marked-badge">已收录</span>
+                    ) : (
+                      <AdminAiErrorForm
+                        action={createAiErrorCase}
+                        aiMessageId={message.id}
+                        reasoningCoverage={reasoningCoverage}
+                      />
+                    )}
                   </div>
-                </details>
+                  <details className="admin-collapsible">
+                    <summary>查看覆盖率详情</summary>
+                    <div className="admin-reasoning-coverage">
+                      {reasoningCoverage.map((item) => (
+                        <div
+                          className={`admin-coverage-item${item.covered ? " covered" : ""}`}
+                          key={item.id}
+                        >
+                          <strong>#{item.id}</strong>
+                          <span>{item.covered ? "已覆盖" : "未覆盖"}</span>
+                          {item.text && <p>{item.text}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                </div>
               )}
               {askAnswerDetails && (
                 <div className="admin-ask-answer">
@@ -996,6 +1013,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                         ? "已触发仲裁"
                         : "两路一致"}
                     </span>
+                    {markedAiMessageIds.has(message.id) ? (
+                      <span className="admin-ai-error-marked-badge">已收录</span>
+                    ) : (
+                      <AdminAiErrorForm action={createAiErrorCase} aiMessageId={message.id} />
+                    )}
                   </div>
                   {askAnswerDetails.factSummary && (
                     <p className="admin-ask-fact">
@@ -1021,13 +1043,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     </details>
                   )}
                 </div>
-              )}
-              {askAnswerDetails && (
-                markedAiMessageIds.has(message.id) ? (
-                  <p className="admin-ai-error-marked">已收录为 AI 错误案例</p>
-                ) : (
-                  <AdminAiErrorForm action={createAiErrorCase} aiMessageId={message.id} />
-                )
               )}
               <details className="admin-collapsible">
                 <summary>原始内容</summary>
@@ -1293,6 +1308,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         cleanupContent={cleanupContent}
         cleanupCount={cleanupRooms?.length ?? 0}
         initialTab={activeTab}
+        initialMessageSubTab={initialMessageSubTab}
         importPuzzleContent={importPuzzleContent}
         messageContent={messageContent}
         messageCount={adminMessages?.length ?? 0}
