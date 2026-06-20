@@ -798,3 +798,31 @@ export async function clearRoomMessages(formData: FormData) {
   revalidatePath("/admin");
   return await redirectAdminResult("message", "room_cleaned", "cleanup");
 }
+
+export async function batchUpdateAiErrorCaseStatus(formData: FormData) {
+  await requireAdmin();
+
+  const ids = z
+    .array(z.uuid())
+    .min(1)
+    .safeParse(formData.getAll("caseIds").map(String));
+  const status = aiErrorStatusSchema.safeParse(formData.get("status"));
+
+  if (!ids.success || !status.success) {
+    return await redirectAdminResult("error", "invalid_ai_error_case", "ai-errors");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("ai_error_cases")
+    .update({ status: status.data, updated_at: new Date().toISOString() })
+    .in("id", ids.data);
+
+  if (error) {
+    console.error("Admin AI error cases batch update failed", error);
+    return await redirectAdminResult("error", "ai_error_case_failed", "ai-errors");
+  }
+
+  revalidatePath("/admin");
+  return await redirectAdminResult("message", "ai_error_cases_updated", "ai-errors");
+}

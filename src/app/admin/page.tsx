@@ -9,6 +9,7 @@
   importPuzzles,
   sendPasswordReset,
   updateAiErrorCase,
+  batchUpdateAiErrorCaseStatus,
   updatePuzzle,
   updateUserPassword,
   adjustUserPoints,
@@ -31,7 +32,7 @@ import {
 } from "@/components/admin-room-overview-list";
 import { AdminTabs } from "@/components/admin-tabs";
 import { AdminAiErrorForm } from "@/components/admin-ai-error-form";
-import { AdminAiErrorEditForm } from "@/components/admin-ai-error-edit-form";
+import { AdminAiErrorCaseList } from "@/components/admin-ai-error-case-list";
 import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
 import { requireAdmin } from "@/lib/admin";
 import { getFlashMessage } from "@/lib/flash";
@@ -234,6 +235,7 @@ const messages: Record<string, string> = {
   room_cleaned: "房间已关闭，聊天记录已删除。",
   ai_error_case_created: "AI 错误案例已收录。",
   ai_error_case_updated: "AI 错误案例已更新。",
+  ai_error_cases_updated: "AI 错误案例已批量更新。",
 };
 
 const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -296,18 +298,6 @@ function getAiErrorStatusFilter(value?: string) {
     : "";
 }
 
-function getAiErrorStatusLabel(value: AiErrorStatus) {
-  switch (value) {
-    case "reviewed":
-      return "已复核";
-    case "fixed":
-      return "已修复";
-    case "ignored":
-      return "忽略";
-    default:
-      return "待处理";
-  }
-}
 
 function formatTime(value?: string | null) {
   return value ? timeFormatter.format(new Date(value)) : "无消息";
@@ -1090,58 +1080,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </div>
       </form>
 
-      <div className="admin-ai-error-list">
-        {visibleAiErrorCases.map((item) => (
-          <article className="admin-ai-error-row" key={item.id}>
-            <div className="admin-message-meta">
-              <strong>{item.rooms?.code ?? "房间已删除"}</strong>
-              <span>{item.puzzle_title}</span>
-              <span>{formatTime(item.created_at)}</span>
-              <span>{getAiErrorStatusLabel(item.status)}</span>
-            </div>
-
-            <div className="admin-ai-error-story">
-              <div>
-                <strong>题面</strong>
-                <p>{item.puzzle_surface}</p>
-              </div>
-              <div>
-                <strong>汤底</strong>
-                <p>{item.puzzle_bottom}</p>
-              </div>
-            </div>
-
-            <div className="admin-ai-error-sample">
-              <div>
-                <strong>玩家提问</strong>
-                <p>{item.question_content}</p>
-              </div>
-              <div>
-                <strong>AI 回答</strong>
-                <pre>{item.ai_content}</pre>
-              </div>
-            </div>
-
-            {item.correct_answer && (
-              <p className="admin-ai-error-answer-preview">
-                <strong>正确答案：</strong>{item.correct_answer}
-              </p>
-            )}
-
-            <AdminAiErrorEditForm
-              action={updateAiErrorCase}
-              caseId={item.id}
-              correctAnswer={item.correct_answer}
-              note={item.note}
-              status={item.status}
-            />
-          </article>
-        ))}
-
-        {visibleAiErrorCases.length === 0 && (
-          <div className="card muted">还没有匹配的 AI 错误案例。</div>
-        )}
-      </div>
+      <AdminAiErrorCaseList
+        batchUpdateAction={batchUpdateAiErrorCaseStatus}
+        cases={visibleAiErrorCases}
+        exportHref="/admin/ai-errors/export"
+        updateAction={updateAiErrorCase}
+      />
     </div>
   );
 
