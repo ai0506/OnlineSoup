@@ -3676,6 +3676,16 @@ textarea:focus {
   gap: 8px;
 }
 
+.profile-card-actions .button.secondary {
+  color: var(--navy);
+  background: var(--paper);
+  border-color: rgba(255, 255, 255, 0.42);
+}
+
+.profile-card-actions .button.secondary:hover {
+  background: white;
+}
+
 .profile-section {
   padding: 22px;
   background: var(--paper);
