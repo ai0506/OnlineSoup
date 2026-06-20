@@ -28,6 +28,32 @@ type AdminTabsProps = {
   pointsCount: number;
 };
 
+const TAB_PARAMS: Record<AdminTab, string[]> = {
+  accounts: ["q"],
+  puzzles: ["q"],
+  messages: [
+    "roomCode",
+    "sender",
+    "senderType",
+    "mode",
+    "dateFrom",
+    "dateTo",
+    "caseStatus",
+  ],
+  rooms: [],
+  points: ["ptUser", "ptType", "ptDateFrom", "ptDateTo"],
+};
+
+function cleanUrlForTab(url: URL, tab: AdminTab) {
+  const allowedParams = new Set(["tab", ...TAB_PARAMS[tab]]);
+
+  for (const key of Array.from(url.searchParams.keys())) {
+    if (!allowedParams.has(key) || !url.searchParams.get(key)?.trim()) {
+      url.searchParams.delete(key);
+    }
+  }
+}
+
 export function AdminTabs({
   accountCount,
   accountContent,
@@ -62,6 +88,7 @@ export function AdminTabs({
     } else {
       url.searchParams.set("tab", tab);
     }
+    cleanUrlForTab(url, tab);
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }
 
@@ -69,6 +96,7 @@ export function AdminTabs({
     setMsgSubTab(sub);
     const url = new URL(window.location.href);
     url.searchParams.set("tab", sub === "errors" ? "ai-errors" : "messages");
+    cleanUrlForTab(url, "messages");
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }
 

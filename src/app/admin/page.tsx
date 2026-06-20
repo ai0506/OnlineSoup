@@ -33,6 +33,7 @@ import {
 import { AdminTabs } from "@/components/admin-tabs";
 import { AdminAiErrorForm } from "@/components/admin-ai-error-form";
 import { AdminAiErrorCaseList } from "@/components/admin-ai-error-case-list";
+import { AdminFilterForm } from "@/components/admin-filter-form";
 import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
 import { requireAdmin } from "@/lib/admin";
 import { getFlashMessage } from "@/lib/flash";
@@ -864,7 +865,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </p>
       </div>
 
-      <form className="admin-message-filters">
+      <AdminFilterForm className="admin-message-filters">
         <input name="tab" type="hidden" value="messages" />
         <label>
           房间号
@@ -922,7 +923,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             清空
           </a>
         </div>
-      </form>
+      </AdminFilterForm>
 
       <div className="admin-message-list">
         {(adminMessages ?? []).map((message) => {
@@ -1058,7 +1059,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </p>
       </div>
 
-      <form className="admin-message-filters">
+      <AdminFilterForm className="admin-message-filters">
         <input name="tab" type="hidden" value="ai-errors" />
         <label>
           状态
@@ -1078,7 +1079,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             清空
           </a>
         </div>
-      </form>
+      </AdminFilterForm>
 
       <AdminAiErrorCaseList
         batchUpdateAction={batchUpdateAiErrorCaseStatus}
@@ -1108,7 +1109,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <p className="muted">最近 300 条积分变动记录，按类型和日期范围筛选。</p>
       </div>
 
-      <form className="admin-message-filters">
+      <AdminFilterForm className="admin-message-filters">
         <input name="tab" type="hidden" value="points" />
         <label>
           用户名
@@ -1147,7 +1148,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             清空
           </a>
         </div>
-      </form>
+      </AdminFilterForm>
 
       <div className="admin-points-list">
         {visibleTxns.map((txn) => (
