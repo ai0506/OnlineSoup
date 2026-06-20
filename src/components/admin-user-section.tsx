@@ -21,7 +21,7 @@ type AdminUserSectionProps = {
   users: AdminUserEntry[];
   createAdminUser: (formData: FormData) => Promise<void>;
   updateUserUsername: (formData: FormData) => Promise<void>;
-  updateUserPoints: (formData: FormData) => Promise<void>;
+  adjustUserPoints: (formData: FormData) => Promise<void>;
   updateUserPassword: (formData: FormData) => Promise<void>;
   sendPasswordReset: (formData: FormData) => Promise<void>;
   deleteAdminUser: (formData: FormData) => Promise<void>;
@@ -31,13 +31,15 @@ export function AdminUserSection({
   users,
   createAdminUser,
   updateUserUsername,
-  updateUserPoints,
+  adjustUserPoints,
   updateUserPassword,
   sendPasswordReset,
   deleteAdminUser,
 }: AdminUserSectionProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [adjustingUser, setAdjustingUser] = useState<AdminUserEntry | null>(null);
+  const [adjustDirection, setAdjustDirection] = useState<"add" | "subtract">("add");
 
   const deletingUser = deletingUserId
     ? users.find((u) => u.id === deletingUserId)
@@ -48,7 +50,7 @@ export function AdminUserSection({
       <div className="admin-section-heading">
         <div>
           <h2>账户管理</h2>
-          <p className="muted">创建账户，或修改积分、密码。</p>
+          <p className="muted">创建账户，或修改用户名、密码、积分。</p>
         </div>
         <button
           className="button"
@@ -76,6 +78,16 @@ export function AdminUserSection({
                 <div className="admin-user-summary-right">
                   <div className="points-badge">{user.points} 积分</div>
                   <button
+                    className="button secondary small"
+                    onClick={() => {
+                      setAdjustDirection("add");
+                      setAdjustingUser(user);
+                    }}
+                    type="button"
+                  >
+                    调整积分
+                  </button>
+                  <button
                     className="button danger small"
                     onClick={() => setDeletingUserId(user.id)}
                     type="button"
@@ -100,22 +112,6 @@ export function AdminUserSection({
                     />
                   </label>
                   <SubmitButton pendingText="保存中...">保存用户名</SubmitButton>
-                </form>
-
-                <form action={updateUserPoints} className="inline-admin-form">
-                  <input name="userId" type="hidden" value={user.id} />
-                  <label>
-                    新积分
-                    <input
-                      defaultValue={user.points}
-                      max={1_000_000_000}
-                      min={0}
-                      name="points"
-                      required
-                      type="number"
-                    />
-                  </label>
-                  <SubmitButton pendingText="保存中...">保存积分</SubmitButton>
                 </form>
 
                 <form action={updateUserPassword} className="inline-admin-form">
@@ -154,6 +150,80 @@ export function AdminUserSection({
           <div className="card muted">没有找到匹配的账户。</div>
         )}
       </div>
+
+      {/* Adjust points modal */}
+      {adjustingUser && (
+        <div
+          aria-label="调整用户积分"
+          aria-modal="true"
+          className="dialog-backdrop"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setAdjustingUser(null);
+          }}
+          role="dialog"
+        >
+          <div className="dialog-panel">
+            <h2>调整积分</h2>
+            <p className="muted">
+              {adjustingUser.username ?? adjustingUser.email ?? adjustingUser.id}
+              &nbsp;·&nbsp;当前 {adjustingUser.points} 积分
+            </p>
+            <form action={adjustUserPoints} className="form-grid" onSubmit={() => setAdjustingUser(null)}>
+              <input name="userId" type="hidden" value={adjustingUser.id} />
+              <label>
+                操作
+                <select
+                  name="_direction"
+                  value={adjustDirection}
+                  onChange={(e) =>
+                    setAdjustDirection(e.target.value as "add" | "subtract")
+                  }
+                >
+                  <option value="add">赠送积分</option>
+                  <option value="subtract">扣除积分</option>
+                </select>
+              </label>
+              <label>
+                数量
+                <input
+                  key={adjustDirection}
+                  max={1_000_000_000}
+                  min={1}
+                  name="_quantity"
+                  placeholder="请输入正整数"
+                  required
+                  type="number"
+                />
+              </label>
+              <label>
+                备注（可选）
+                <input
+                  maxLength={200}
+                  name="note"
+                  placeholder="调整原因，最多 200 字"
+                />
+              </label>
+              {/* 将方向和数量合并为有符号 amount */}
+              <AdjustAmountInput direction={adjustDirection} />
+              <div className="dialog-actions">
+                <button
+                  className="button secondary"
+                  onClick={() => setAdjustingUser(null)}
+                  type="button"
+                >
+                  取消
+                </button>
+                <SubmitButton
+                  className={adjustDirection === "subtract" ? "button danger" : "button"}
+                  pendingText="提交中..."
+                >
+                  {adjustDirection === "add" ? "赠送" : "扣除"}
+                </SubmitButton>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Create account modal */}
       {createOpen && (
@@ -257,5 +327,28 @@ export function AdminUserSection({
         </div>
       )}
     </>
+  );
+}
+
+// 把方向 select + 数量 input 合并成一个有符号 hidden input 供 Server Action 读取
+function AdjustAmountInput({ direction }: { direction: "add" | "subtract" }) {
+  return (
+    <input
+      name="amount"
+      type="hidden"
+      // 值由表单提交时动态计算，这里设占位符；实际值通过 formData 事件注入
+      data-direction={direction}
+      ref={(el) => {
+        if (!el) return;
+        const form = el.closest("form");
+        if (!form) return;
+        const handler = () => {
+          const qty = Number((form.querySelector("[name='_quantity']") as HTMLInputElement)?.value ?? 0);
+          el.value = String(direction === "subtract" ? -qty : qty);
+        };
+        form.removeEventListener("submit", handler);
+        form.addEventListener("submit", handler);
+      }}
+    />
   );
 }
