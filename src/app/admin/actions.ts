@@ -15,7 +15,8 @@ const userIdSchema = z.uuid();
 const roomIdSchema = z.uuid();
 const caseIdSchema = z.uuid();
 const messageIdSchema = z.coerce.number().int().positive();
-const pointsSchema = z.coerce.number().int().min(0).max(1_000_000_000);
+const adjustAmountSchema = z.coerce.number().int().min(-1_000_000_000).max(1_000_000_000).refine((v) => v !== 0, "amount must not be zero");
+const adjustNoteSchema = z.string().trim().max(200).default("");
 const puzzleIdSchema = z.coerce.number().int().positive();
 const aiErrorStatusSchema = z.enum(["open", "reviewed", "fixed", "ignored"]);
 const aiErrorCaseSchema = z.object({
@@ -185,24 +186,29 @@ function passwordResetErrorCode(error: {
   return "password_reset_failed";
 }
 
-export async function updateUserPoints(formData: FormData) {
+export async function adjustUserPoints(formData: FormData) {
   await requireAdmin();
 
   const userId = userIdSchema.safeParse(formData.get("userId"));
-  const points = pointsSchema.safeParse(formData.get("points"));
+  const amount = adjustAmountSchema.safeParse(formData.get("amount"));
+  const note = adjustNoteSchema.safeParse(formData.get("note"));
 
-  if (!userId.success || !points.success) {
+  if (!userId.success || !amount.success) {
     return await redirectAdminResult("error", "invalid_points");
   }
 
   const admin = createAdminClient();
-  const { error } = await admin
-    .from("profiles")
-    .update({ points: points.data, updated_at: new Date().toISOString() })
-    .eq("id", userId.data);
+  const { error } = await admin.rpc("admin_adjust_user_points", {
+    p_user_id: userId.data,
+    p_amount: amount.data,
+    p_note: note.success && note.data ? note.data : null,
+  });
 
   if (error) {
-    console.error("Admin points update failed", error);
+    console.error("Admin points adjust failed", error);
+    if (error.message.includes("insufficient points")) {
+      return await redirectAdminResult("error", "points_insufficient");
+    }
     return await redirectAdminResult("error", "points_update_failed");
   }
 

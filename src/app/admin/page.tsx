@@ -11,7 +11,7 @@
   updateAiErrorCase,
   updatePuzzle,
   updateUserPassword,
-  updateUserPoints,
+  adjustUserPoints,
   updateUserUsername,
 } from "@/app/admin/actions";
 import {
@@ -121,7 +121,8 @@ type PointsTransactionType =
   | "room_reservation"
   | "room_refund"
   | "gift_sent"
-  | "seat_query";
+  | "seat_query"
+  | "admin_adjustment";
 
 type AdminPointsTransaction = {
   id: number;
@@ -130,6 +131,7 @@ type AdminPointsTransaction = {
   type: PointsTransactionType;
   amount: number;
   balance_after: number;
+  note: string | null;
   created_at: string;
 };
 
@@ -181,8 +183,9 @@ type AskAnswerDetails = {
 };
 
 const errors: Record<string, string> = {
-  invalid_points: "积分必须是 0 到 10 亿之间的整数。",
-  points_update_failed: "积分修改失败，请稍后重试。",
+  invalid_points: "调整数量必须是非零整数。",
+  points_insufficient: "积分不足，无法扣除。",
+  points_update_failed: "积分调整失败，请稍后重试。",
   invalid_user: "账户信息无效。",
   password_reset_failed: "重置邮件发送失败，请稍后重试。",
   password_reset_rate_limited:
@@ -215,7 +218,7 @@ const errors: Record<string, string> = {
 };
 
 const messages: Record<string, string> = {
-  points_updated: "积分已更新。",
+  points_updated: "积分已调整。",
   password_reset_sent: "密码重置邮件已发送。",
   password_updated: "密码已修改。",
   user_created: "账户已创建。",
@@ -266,6 +269,8 @@ function getPointsTypeLabel(type: PointsTransactionType) {
       return "赠送积分";
     case "seat_query":
       return "AI 查询";
+    case "admin_adjustment":
+      return "管理员调整";
   }
 }
 
@@ -275,7 +280,8 @@ function getPointsTypeFilter(value?: string): PointsTransactionType | "" {
     value === "room_reservation" ||
     value === "room_refund" ||
     value === "gift_sent" ||
-    value === "seat_query"
+    value === "seat_query" ||
+    value === "admin_adjustment"
   ) {
     return value;
   }
@@ -560,7 +566,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   let ptTxnsQuery = admin
     .from("points_transactions")
-    .select("id, user_id, room_id, type, amount, balance_after, created_at");
+    .select("id, user_id, room_id, type, amount, balance_after, note, created_at");
 
   if (ptTypeFilter) {
     ptTxnsQuery = ptTxnsQuery.eq("type", ptTypeFilter);
@@ -770,6 +776,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   type EnrichedTransaction = AdminPointsTransaction & {
     username: string | null;
     room_code: string | null;
+    note: string | null;
   };
 
   const allEnrichedTxns: EnrichedTransaction[] = (ptTxnsRaw ?? []).map(
@@ -851,7 +858,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         deleteAdminUser={deleteAdminUser}
         sendPasswordReset={sendPasswordReset}
         updateUserPassword={updateUserPassword}
-        updateUserPoints={updateUserPoints}
+        adjustUserPoints={adjustUserPoints}
         updateUserUsername={updateUserUsername}
         users={accountUsers}
       />
@@ -1154,6 +1161,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <option value="room_refund">房间退还</option>
             <option value="gift_sent">赠送积分</option>
             <option value="seat_query">AI 查询</option>
+            <option value="admin_adjustment">管理员调整</option>
           </select>
         </label>
         <label>
@@ -1194,6 +1202,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </span>
               <span>余额 {txn.balance_after} pt</span>
             </div>
+            {txn.note && <p className="admin-points-note">{txn.note}</p>}
           </div>
         ))}
         {visibleTxns.length === 0 && (
