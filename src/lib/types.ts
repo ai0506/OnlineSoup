@@ -64,3 +64,42 @@ export type CurrentPuzzle = {
   difficulty: string;
   solved: boolean;
 };
+
+export type PointsTransactionType =
+  | "signup_bonus"
+  | "room_reservation"
+  | "room_refund"
+  | "gift_sent"
+  | "seat_query"
+  | "admin_adjustment";
+
+export type PointsTransaction = {
+  id: number;
+  type: PointsTransactionType;
+  amount: number;
+  balance_after: number;
+  created_at: string;
+  room_name: string | null;
+};
+
+export type SolvedPuzzle = {
+  id: number;
+  title: string;
+  difficulty: string;
+  solved_at: string;
+};
+
+export type ProfilePageData = {
+  profile: {
+    username: string | null;
+    display_name: string;
+    points: number;
+    created_at: string;
+  };
+  stats: {
+    ask_count: number;
+    hint_count: number;
+    reason_count: number;
+  };
+  solved_puzzles: SolvedPuzzle[];
+};

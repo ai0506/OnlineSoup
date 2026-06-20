@@ -39,7 +39,9 @@ export async function SiteHeader() {
             {points !== undefined && (
               <span className="user-points">{points} 积分</span>
             )}
-            <Link href="/account/username">{username ?? "设置用户名"}</Link>
+            <Link href={username ? "/profile" : "/account/username"}>
+              {username ?? "设置用户名"}
+            </Link>
             <LogoutButton />
           </>
         ) : (
