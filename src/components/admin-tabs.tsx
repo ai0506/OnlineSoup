@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-type AdminTab = "accounts" | "puzzles" | "messages" | "cleanup" | "ai-errors" | "rooms" | "points";
+type AdminTab = "accounts" | "puzzles" | "messages" | "rooms" | "points";
 
 type AdminTabsProps = {
   accountCount: number;
@@ -74,12 +74,7 @@ export function AdminTabs({
   }, [createOpen, importOpen]);
 
   useEffect(() => {
-    if (
-      activeTab !== "messages" &&
-      activeTab !== "ai-errors" &&
-      activeTab !== "rooms"
-    )
-      return;
+    if (activeTab !== "messages" && activeTab !== "rooms") return;
 
     const refreshMessages = () => {
       if (document.visibilityState === "visible") {
@@ -122,28 +117,8 @@ export function AdminTabs({
           role="tab"
           type="button"
         >
-          消息审计
-          <span>{messageCount}</span>
-        </button>
-        <button
-          aria-selected={activeTab === "cleanup"}
-          className={`admin-tab${activeTab === "cleanup" ? " active" : ""}`}
-          onClick={() => selectTab("cleanup")}
-          role="tab"
-          type="button"
-        >
-          房间清理
-          <span>{cleanupCount}</span>
-        </button>
-        <button
-          aria-selected={activeTab === "ai-errors"}
-          className={`admin-tab${activeTab === "ai-errors" ? " active" : ""}`}
-          onClick={() => selectTab("ai-errors")}
-          role="tab"
-          type="button"
-        >
-          AI 错误案例
-          <span>{aiErrorCaseCount}</span>
+          消息 &amp; 案例
+          <span>{messageCount + aiErrorCaseCount}</span>
         </button>
         <button
           aria-selected={activeTab === "rooms"}
@@ -152,8 +127,8 @@ export function AdminTabs({
           role="tab"
           type="button"
         >
-          房间总览
-          <span>{roomsCount}</span>
+          房间管理
+          <span>{roomsCount + cleanupCount}</span>
         </button>
         <button
           aria-selected={activeTab === "points"}
@@ -202,18 +177,18 @@ export function AdminTabs({
 
       <section hidden={activeTab !== "messages"} role="tabpanel">
         {messageContent}
-      </section>
-
-      <section hidden={activeTab !== "cleanup"} role="tabpanel">
-        {cleanupContent}
-      </section>
-
-      <section hidden={activeTab !== "ai-errors"} role="tabpanel">
+        <div className="admin-tab-divider">
+          <span>AI 错误案例 · {aiErrorCaseCount} 条</span>
+        </div>
         {aiErrorCaseContent}
       </section>
 
       <section hidden={activeTab !== "rooms"} role="tabpanel">
         {roomsContent}
+        <div className="admin-tab-divider">
+          <span>待清理房间 · {cleanupCount} 个</span>
+        </div>
+        {cleanupContent}
       </section>
 
       <section hidden={activeTab !== "points"} role="tabpanel">

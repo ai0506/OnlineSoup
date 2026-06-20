@@ -1720,6 +1720,54 @@ textarea:focus {
   font-weight: 700;
 }
 
+.admin-tab-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 32px 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.admin-tab-divider::before,
+.admin-tab-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.admin-collapsible {
+  margin-top: 8px;
+}
+
+.admin-collapsible > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted);
+  user-select: none;
+  padding: 4px 0;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-collapsible > summary::before {
+  content: "▶";
+  font-size: 9px;
+  transition: transform 0.15s;
+}
+
+.admin-collapsible[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.admin-collapsible[open] > summary {
+  color: var(--navy);
+  margin-bottom: 6px;
+}
+
 .admin-message-content {
   max-height: 220px;
   overflow: auto;
@@ -2520,7 +2568,7 @@ textarea:focus {
   }
 
   .message-list {
-    padding: 12px 16px;
+    padding: 10px 12px;
   }
 
   .room-layout {
@@ -2533,6 +2581,22 @@ textarea:focus {
   }
 
   .room-chat-panel {
+    grid-row: 2;
+  }
+
+  .room-chat {
+    grid-template-rows: minmax(0, 1fr) max-content;
+  }
+
+  .room-chat-heading {
+    display: none;
+  }
+
+  .message-list {
+    grid-row: 1;
+  }
+
+  .chat-form {
     grid-row: 2;
   }
 
@@ -2568,33 +2632,113 @@ textarea:focus {
   }
 
   .chat-form {
-    padding: 10px 16px 12px;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
   }
 
   .chat-mode-tabs {
     margin-bottom: 6px;
-    padding-bottom: 8px;
+    padding-bottom: 6px;
+    gap: 4px;
+    scrollbar-width: none;
+  }
+
+  .chat-mode-tabs::-webkit-scrollbar {
+    display: none;
   }
 
   .chat-mode-tab {
-    padding: 6px 9px;
+    min-height: 32px;
+    padding: 5px 8px;
+    font-size: 0.78rem;
+  }
+
+  .chat-mode-cost {
+    padding: 0 4px;
+    font-size: 0.68rem;
+  }
+
+  .chat-mode-locked-hint {
+    margin: -2px 0 6px;
+    line-height: 1.35;
+  }
+
+  .chat-mode-locked-hint--hidden {
+    display: none;
   }
 
   .chat-form textarea {
-    min-height: 74px;
+    min-height: 58px;
+    font-size: 0.86rem;
+    line-height: 1.45;
   }
 
   .chat-form-footer {
     grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 8px;
+    gap: 6px;
+    margin-top: 6px;
+    font-size: 0.76rem;
+  }
+
+  .chat-footer-center {
+    gap: 4px 6px;
+    justify-content: flex-end;
+  }
+
+  .chat-form-footer > .button {
+    min-height: 36px;
+    padding: 0 12px;
   }
 
   .chat-message {
+    margin-bottom: 8px;
+    padding: 7px 0 8px;
     max-width: 100%;
   }
 
+  .ai-message,
+  .ask-answer-yes,
+  .ask-answer-no,
+  .ask-answer-irrelevant,
+  .ask-answer-ambiguous {
+    padding: 8px 10px;
+  }
+
+  .chat-message-meta {
+    gap: 4px;
+    margin-bottom: 3px;
+    font-size: 0.76rem;
+  }
+
   .chat-message-body {
-    gap: 8px;
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .chat-message-body p {
+    font-size: 0.88rem;
+    line-height: 1.55;
+  }
+
+  .chat-message-body time {
+    justify-self: end;
+    font-size: 0.68rem;
+  }
+
+  .system-message {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 3px;
+    margin: 4px 0 10px;
+  }
+
+  .system-message span {
+    justify-self: center;
+    max-width: 100%;
+    border-radius: 8px;
+  }
+
+  .system-message time {
+    justify-self: center;
   }
 
   .hero-copy {
@@ -3476,5 +3620,178 @@ textarea:focus {
 
   .tutorial-content h1 {
     font-size: 1.5rem;
+  }
+}
+
+/* ── Profile page ── */
+
+.profile-page {
+  display: grid;
+  gap: 20px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.profile-card {
+  display: grid;
+  gap: 16px;
+}
+
+.profile-card-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.profile-username {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.profile-points-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 18px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.profile-points-badge strong {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.profile-points-badge span {
+  font-size: 0.78rem;
+  opacity: 0.75;
+  margin-top: 2px;
+}
+
+.profile-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.profile-section {
+  padding: 22px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.profile-section h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+/* solved puzzles */
+
+.solved-puzzle-list {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.solved-puzzle-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.solved-puzzle-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.solved-puzzle-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.difficulty-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* points history table */
+
+.points-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.points-history-table th {
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+
+.points-history-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.points-history-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.points-gain {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.points-loss {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.points-history-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+@media (max-width: 600px) {
+  .profile-card-main {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .profile-points-badge {
+    flex-direction: row;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .solved-puzzle-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .points-history-table th:nth-child(3),
+  .points-history-table td:nth-child(3) {
+    display: none;
   }
 }

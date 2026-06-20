@@ -66,7 +66,7 @@ type AdminPuzzle = Required<Pick<AdminPuzzleFormValue, "id">> &
     created_at: string;
   };
 
-type AdminTab = "accounts" | "puzzles" | "messages" | "cleanup" | "ai-errors" | "rooms" | "points";
+type AdminTab = "accounts" | "puzzles" | "messages" | "rooms" | "points";
 type AiErrorStatus = "open" | "reviewed" | "fixed" | "ignored";
 
 type AdminMessageRoom = {
@@ -244,16 +244,12 @@ const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
 });
 
 function getAdminTab(value?: string): AdminTab {
-  if (
-    value === "puzzles" ||
-    value === "messages" ||
-    value === "cleanup" ||
-    value === "ai-errors" ||
-    value === "rooms" ||
-    value === "points"
-  ) {
+  if (value === "puzzles" || value === "messages" || value === "rooms" || value === "points") {
     return value;
   }
+  // 旧 tab 值向后兼容
+  if (value === "cleanup") return "rooms";
+  if (value === "ai-errors") return "messages";
   return "accounts";
 }
 
@@ -969,18 +965,21 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 </div>
               )}
               {reasoningCoverage.length > 0 && (
-                <div className="admin-reasoning-coverage">
-                  {reasoningCoverage.map((item) => (
-                    <div
-                      className={`admin-coverage-item${item.covered ? " covered" : ""}`}
-                      key={item.id}
-                    >
-                      <strong>#{item.id}</strong>
-                      <span>{String(item.covered)}</span>
-                      {item.text && <p>{item.text}</p>}
-                    </div>
-                  ))}
-                </div>
+                <details className="admin-collapsible">
+                  <summary>覆盖率详情（{reasoningCoverage.filter(i => i.covered).length}/{reasoningCoverage.length} 已覆盖）</summary>
+                  <div className="admin-reasoning-coverage">
+                    {reasoningCoverage.map((item) => (
+                      <div
+                        className={`admin-coverage-item${item.covered ? " covered" : ""}`}
+                        key={item.id}
+                      >
+                        <strong>#{item.id}</strong>
+                        <span>{item.covered ? "已覆盖" : "未覆盖"}</span>
+                        {item.text && <p>{item.text}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </details>
               )}
               {askAnswerDetails && (
                 <div className="admin-ask-answer">
@@ -1003,17 +1002,20 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     </p>
                   )}
                   {askAnswerDetails.auditEntries.length > 0 && (
-                    <div className="admin-ask-audit">
-                      {askAnswerDetails.auditEntries.map((item) => (
-                        <div className="admin-ask-audit-item" key={item.label}>
-                          <strong>{item.label}</strong>
-                          <span>
-                            {item.text} / {item.answerType}
-                          </span>
-                          {item.factSummary && <p>{item.factSummary}</p>}
-                        </div>
-                      ))}
-                    </div>
+                    <details className="admin-collapsible">
+                      <summary>审计详情（{askAnswerDetails.usedArbitration ? "已仲裁" : "两路一致"}）</summary>
+                      <div className="admin-ask-audit">
+                        {askAnswerDetails.auditEntries.map((item) => (
+                          <div className="admin-ask-audit-item" key={item.label}>
+                            <strong>{item.label}</strong>
+                            <span>
+                              {item.text} / {item.answerType}
+                            </span>
+                            {item.factSummary && <p>{item.factSummary}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </details>
                   )}
                 </div>
               )}
@@ -1024,7 +1026,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   <AdminAiErrorForm action={createAiErrorCase} aiMessageId={message.id} />
                 )
               )}
-              <pre className="admin-message-content">{message.content}</pre>
+              <details className="admin-collapsible">
+                <summary>原始内容</summary>
+                <pre className="admin-message-content">{message.content}</pre>
+              </details>
             </article>
           );
         })}
