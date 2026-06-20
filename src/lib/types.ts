@@ -79,6 +79,8 @@ export type PointsTransaction = {
   amount: number;
   balance_after: number;
   created_at: string;
+  login_ip: string | null;
+  login_device: string | null;
   room_name: string | null;
 };
 
@@ -95,6 +97,9 @@ export type ProfilePageData = {
     display_name: string;
     points: number;
     created_at: string;
+    last_login_ip: string | null;
+    last_login_device: string | null;
+    last_login_at: string | null;
   };
   stats: {
     ask_count: number;

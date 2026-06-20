@@ -69,6 +69,9 @@ export function LiveRoomSeats({
   const [wideLayout, setWideLayout] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"manage" | "puzzle">("manage");
+  const [onlineSeatIds, setOnlineSeatIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [openSeatMenuId, setOpenSeatMenuId] = useState<string | null>(null);
   const [seatMenuOpensUpward, setSeatMenuOpensUpward] = useState(false);
   const openSeatMenuRef = useRef<HTMLDivElement>(null);
@@ -329,6 +332,59 @@ export function LiveRoomSeats({
       void supabase.removeChannel(channel);
     };
   }, [currentSeatId, currentUserId, isJoinedGuest, roomCode, roomId]);
+
+  // Realtime Presence: occupied seats currently viewing this room.
+  useEffect(() => {
+    if (!currentSeatId) return;
+
+    const supabase = createClient();
+    const channel = supabase.channel(`room-presence:${roomId}`, {
+      config: {
+        presence: {
+          key: currentSeatId,
+        },
+      },
+    });
+
+    const syncPresence = () => {
+      const state = channel.presenceState() as Record<
+        string,
+        Array<{ seat_id?: string }>
+      >;
+      const nextOnline = new Set<string>();
+
+      Object.entries(state).forEach(([key, presences]) => {
+        if (key) nextOnline.add(key);
+        presences.forEach((presence) => {
+          if (presence.seat_id) nextOnline.add(presence.seat_id);
+        });
+      });
+
+      setOnlineSeatIds(nextOnline);
+    };
+
+    channel
+      .on("presence", { event: "sync" }, syncPresence)
+      .on("presence", { event: "join" }, syncPresence)
+      .on("presence", { event: "leave" }, syncPresence)
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          void channel.track({
+            seat_id: currentSeatId,
+            online_at: new Date().toISOString(),
+          });
+        }
+      });
+
+    return () => {
+      setOnlineSeatIds((current) => {
+        const nextOnline = new Set(current);
+        nextOnline.delete(currentSeatId);
+        return nextOnline;
+      });
+      void supabase.removeChannel(channel);
+    };
+  }, [currentSeatId, roomId]);
 
   // Realtime: personal points (logged-in members only)
   useEffect(() => {
@@ -658,7 +714,10 @@ export function LiveRoomSeats({
           </div>
 
           <div className="seat-grid">
-            {seats.map((seat) => (
+            {seats.map((seat) => {
+              const isSeatOnline = Boolean(seat.nickname && onlineSeatIds.has(seat.id));
+
+              return (
               <div
                 className={`seat ${seat.nickname ? "occupied" : ""}`}
                 key={seat.id}
@@ -743,9 +802,19 @@ export function LiveRoomSeats({
                 )}
                 <span className="seat-number">座位 {seat.seat_number}</span>
                 <strong>{seat.nickname || "等待玩家"}</strong>
-                <span className="muted">{seat.nickname ? "已入座" : "空闲"}</span>
+                <span className="seat-status muted">
+                  {seat.nickname && (
+                    <span
+                      aria-label={isSeatOnline ? "在线" : "离线"}
+                      className={`seat-status-dot ${isSeatOnline ? "online" : "offline"}`}
+                      title={isSeatOnline ? "在线" : "离线"}
+                    />
+                  )}
+                  {seat.nickname ? (isSeatOnline ? "在线" : "离线") : "空闲"}
+                </span>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {manageExtra}

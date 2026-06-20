@@ -583,6 +583,28 @@ textarea:focus {
   font-size: 0.9rem;
 }
 
+.seat-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.seat-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #9ca3af;
+}
+
+.seat-status-dot.online {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+}
+
+.seat-status-dot.offline {
+  background: #9ca3af;
+}
+
 .seat-menu {
   position: absolute;
   top: 6px;
@@ -3674,6 +3696,14 @@ textarea:focus {
 .profile-card-actions {
   display: flex;
   gap: 8px;
+}
+
+.profile-login-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.82rem;
 }
 
 .profile-card-actions .button.secondary {

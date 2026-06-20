@@ -51,6 +51,14 @@ export default async function ProfilePage() {
     "zh-CN",
     { year: "numeric", month: "long", day: "numeric" }
   );
+  const lastLoginAt = data.profile.last_login_at
+    ? new Date(data.profile.last_login_at).toLocaleString("zh-CN", {
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
 
   return (
     <div className="profile-page">
@@ -81,6 +89,11 @@ export default async function ProfilePage() {
             <strong>{data.stats.reason_count}</strong>
             推理次数
           </div>
+        </div>
+        <div className="profile-login-meta">
+          <span>最近登录：{lastLoginAt ?? "暂无记录"}</span>
+          <span>设备：{data.profile.last_login_device ?? "未知"}</span>
+          <span>IP：{data.profile.last_login_ip ?? "未知"}</span>
         </div>
         <div className="profile-card-actions">
           <Link className="button secondary" href="/account/username">

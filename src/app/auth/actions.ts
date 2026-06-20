@@ -1,8 +1,10 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { redirectWithFlash } from "@/lib/flash";
+import { getClientIp, getDeviceLabel } from "@/lib/request-context";
 import { getSiteOrigin } from "@/lib/site-url";
 import { loginIdentitySchema, signupSchema } from "@/lib/validation";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -61,6 +63,19 @@ export async function login(formData: FormData) {
 
   if (error) {
     return await redirectLoginWithFlash("error", "invalid_credentials");
+  }
+
+  const headersList = await headers();
+  const { error: contextError } = await supabase.rpc("record_login_context", {
+    p_ip: getClientIp(headersList),
+    p_device: getDeviceLabel(headersList),
+  });
+
+  if (contextError) {
+    console.error("Record login context failed", {
+      code: contextError.code,
+      message: contextError.message,
+    });
   }
 
   redirect("/");
