@@ -33,6 +33,8 @@ const MODE_COST: Record<MessageMode, number> = { chat: 0, ask: 1, hint: 1, reaso
 
 // 待回复的 AI 请求超时阈值：超过此时间仍无 AI 消息则不再显示"回复中"
 const PENDING_AI_TIMEOUT_MS = 90_000;
+const MESSAGE_FALLBACK_POLL_MS = 8_000;
+const POINTS_FALLBACK_POLL_MS = 15_000;
 
 type RoomChatProps = {
   initialMessages: RoomMessage[];
@@ -313,12 +315,28 @@ export function RoomChat({
   useEffect(() => {
     let disposed = false;
 
+    let refreshing = false;
+    let refreshRequested = false;
+
     const refreshMessages = async () => {
       if (document.visibilityState !== "visible") return;
-      const response = await fetch(`/rooms/${roomCode}/messages`, { cache: "no-store" });
-      if (!response.ok || disposed) return;
-      const result = (await response.json()) as { messages: RoomMessage[] };
-      if (!disposed) setMessages((cur) => mergeMessages(cur, result.messages));
+      if (refreshing) {
+        refreshRequested = true;
+        return;
+      }
+      refreshing = true;
+      try {
+        const response = await fetch(`/rooms/${roomCode}/messages`, { cache: "no-store" });
+        if (!response.ok || disposed) return;
+        const result = (await response.json()) as { messages: RoomMessage[] };
+        if (!disposed) setMessages((cur) => mergeMessages(cur, result.messages));
+      } finally {
+        refreshing = false;
+        if (refreshRequested && !disposed) {
+          refreshRequested = false;
+          void refreshMessages();
+        }
+      }
     };
 
     const handleVisible = () => {
@@ -329,7 +347,7 @@ export function RoomChat({
     window.addEventListener("focus", handleVisible);
     window.addEventListener("online", handleVisible);
     window.addEventListener("room-data-refresh", refreshMessages);
-    const timer = window.setInterval(() => void refreshMessages(), 2000);
+    const timer = window.setInterval(() => void refreshMessages(), MESSAGE_FALLBACK_POLL_MS);
 
     const supabase = createClient();
     const channel = supabase
@@ -424,12 +442,22 @@ export function RoomChat({
       channels.push(ch);
     }
 
+    const handleVisible = () => {
+      if (document.visibilityState === "visible") handleRefresh();
+    };
+
     window.addEventListener("room-data-refresh", handleRefresh);
-    const timer = window.setInterval(handleRefresh, 3000);
+    document.addEventListener("visibilitychange", handleVisible);
+    window.addEventListener("focus", handleRefresh);
+    window.addEventListener("online", handleRefresh);
+    const timer = window.setInterval(handleRefresh, POINTS_FALLBACK_POLL_MS);
 
     return () => {
       disposed = true;
       window.removeEventListener("room-data-refresh", handleRefresh);
+      document.removeEventListener("visibilitychange", handleVisible);
+      window.removeEventListener("focus", handleRefresh);
+      window.removeEventListener("online", handleRefresh);
       window.clearInterval(timer);
       for (const ch of channels) void supabase.removeChannel(ch);
     };
@@ -440,9 +468,11 @@ export function RoomChat({
       const detail = (event as CustomEvent<{
         seatId: string;
         remainingPoints: number;
+        hintTokens?: number;
       }>).detail;
       setActiveSeatId(detail.seatId);
       setSeatPoints(detail.remainingPoints);
+      if (typeof detail.hintTokens === "number") setHintTokens(detail.hintTokens);
     };
 
     window.addEventListener("current-room-seat-changed", handleSeatChanged);

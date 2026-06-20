@@ -22,6 +22,9 @@ const occupiedAtFormatter = new Intl.DateTimeFormat("zh-CN", {
   minute: "2-digit",
 });
 
+const SEATS_FALLBACK_POLL_MS = 10_000;
+const PERSONAL_POINTS_FALLBACK_POLL_MS = 30_000;
+
 type LiveRoomSeatsProps = {
   initialSeats: RoomSeat[];
   isOwner: boolean;
@@ -201,6 +204,7 @@ export function LiveRoomSeats({
       detail: {
         seatId: currentSeat.id,
         remainingPoints: currentSeat.remaining_points,
+        hintTokens: currentSeat.hint_tokens,
       },
     }));
   }, [currentSeatId, currentUserId, seats]);
@@ -220,7 +224,7 @@ export function LiveRoomSeats({
           const [seatResult, roomResult] = await Promise.all([
             supabase
               .from("room_seats")
-              .select("id, seat_number, nickname, user_id, remaining_points, occupied_at")
+              .select("id, seat_number, nickname, user_id, remaining_points, hint_tokens, occupied_at")
               .eq("room_id", roomId)
               .order("seat_number"),
             supabase.from("rooms").select("status").eq("id", roomId).maybeSingle(),
@@ -325,7 +329,7 @@ export function LiveRoomSeats({
     window.addEventListener("focus", syncSeats);
     window.addEventListener("online", syncSeats);
     window.addEventListener("room-data-refresh", syncSeats);
-    const syncTimer = window.setInterval(() => void syncSeats(), 3000);
+    const syncTimer = window.setInterval(() => void syncSeats(), SEATS_FALLBACK_POLL_MS);
     void syncSeats();
 
     return () => {
@@ -432,7 +436,7 @@ export function LiveRoomSeats({
     window.addEventListener("focus", syncPersonalPoints);
     window.addEventListener("online", syncPersonalPoints);
     window.addEventListener("room-data-refresh", syncPersonalPoints);
-    const syncTimer = window.setInterval(() => void syncPersonalPoints(), 5000);
+    const syncTimer = window.setInterval(() => void syncPersonalPoints(), PERSONAL_POINTS_FALLBACK_POLL_MS);
 
     return () => {
       disposed = true;
