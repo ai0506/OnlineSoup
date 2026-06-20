@@ -4,7 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 
 import { flashRedirectPath } from "@/lib/flash";
 import { getSupabaseEnv } from "@/lib/env";
-import { getClientIp, getDeviceLabel } from "@/lib/request-context";
+import { getClientIp, getDeviceLabel, getLocationLabel } from "@/lib/request-context";
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
       const { error: contextError } = await supabase.rpc("record_login_context", {
         p_ip: getClientIp(request.headers),
         p_device: getDeviceLabel(request.headers),
+        p_location: getLocationLabel(request.headers),
       });
       if (contextError) {
         console.error("Record callback login context failed", {

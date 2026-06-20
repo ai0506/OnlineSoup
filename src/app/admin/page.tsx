@@ -132,6 +132,9 @@ type AdminPointsTransaction = {
   amount: number;
   balance_after: number;
   note: string | null;
+  login_ip: string | null;
+  login_device: string | null;
+  login_location: string | null;
   created_at: string;
 };
 
@@ -562,7 +565,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   let ptTxnsQuery = admin
     .from("points_transactions")
-    .select("id, user_id, room_id, type, amount, balance_after, note, created_at");
+    .select("id, user_id, room_id, type, amount, balance_after, note, login_ip, login_device, login_location, created_at");
 
   if (ptTypeFilter) {
     ptTxnsQuery = ptTxnsQuery.eq("type", ptTypeFilter);
@@ -1207,6 +1210,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </span>
               <span>余额 {txn.balance_after} pt</span>
             </div>
+            {(txn.login_location || txn.login_device || txn.login_ip) && (
+              <div className="admin-message-meta">
+                {txn.login_location && <span>地点 {txn.login_location}</span>}
+                {txn.login_device && <span>设备 {txn.login_device}</span>}
+                {txn.login_ip && <span>IP {txn.login_ip}</span>}
+              </div>
+            )}
             {txn.note && <p className="admin-points-note">{txn.note}</p>}
           </div>
         ))}

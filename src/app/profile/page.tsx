@@ -92,8 +92,8 @@ export default async function ProfilePage() {
         </div>
         <div className="profile-login-meta">
           <span>最近登录：{lastLoginAt ?? "暂无记录"}</span>
+          <span>地点：{data.profile.last_login_location ?? "未知地点"}</span>
           <span>设备：{data.profile.last_login_device ?? "未知"}</span>
-          <span>IP：{data.profile.last_login_ip ?? "未知"}</span>
         </div>
         <div className="profile-card-actions">
           <Link className="button secondary" href="/account/username">

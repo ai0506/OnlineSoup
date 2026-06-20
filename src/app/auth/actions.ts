@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { redirectWithFlash } from "@/lib/flash";
-import { getClientIp, getDeviceLabel } from "@/lib/request-context";
+import { getClientIp, getDeviceLabel, getLocationLabel } from "@/lib/request-context";
 import { getSiteOrigin } from "@/lib/site-url";
 import { loginIdentitySchema, signupSchema } from "@/lib/validation";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -69,6 +69,7 @@ export async function login(formData: FormData) {
   const { error: contextError } = await supabase.rpc("record_login_context", {
     p_ip: getClientIp(headersList),
     p_device: getDeviceLabel(headersList),
+    p_location: getLocationLabel(headersList),
   });
 
   if (contextError) {
