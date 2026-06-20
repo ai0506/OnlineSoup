@@ -8,6 +8,13 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "汤局 - 多人海龟汤",
   description: "创建房间，邀请朋友一起推理。",
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png" },
+      { url: "/logo_transparent_bg.png", type: "image/png", sizes: "1254x1254" },
+    ],
+    apple: [{ url: "/logo_transparent_bg.png", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({
