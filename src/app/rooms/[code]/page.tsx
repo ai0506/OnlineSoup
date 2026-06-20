@@ -90,45 +90,22 @@ export default async function RoomPage({
   }
 
   const room = roomData as Room;
-  const { data: seatData } = await supabase
-    .from("room_seats")
-    .select(
-      "id, seat_number, nickname, user_id, remaining_points, hint_tokens, occupied_at",
-    )
-    .eq("room_id", room.id)
-    .order("seat_number");
-  const seats = (seatData || []) as RoomSeat[];
 
-  const { data: claimsData } = await supabase.auth.getClaims();
-  const userId = claimsData?.claims?.sub as string | undefined;
-  const isOwner = userId === room.owner_id;
-  const isRegisteredMember = Boolean(
-    userId && !isOwner && seats.some((seat) => seat.user_id === userId),
-  );
-  let isJoinedGuest = false;
-  let currentUserPoints: number | undefined;
+  // 并行：seats、身份认证、房间密码检查互不依赖，一次发出
+  const [
+    { data: seatData },
+    { data: claimsData },
+    { data: requiresPasswordData, error: passwordCheckError },
+  ] = await Promise.all([
+    supabase
+      .from("room_seats")
+      .select("id, seat_number, nickname, user_id, remaining_points, hint_tokens, occupied_at")
+      .eq("room_id", room.id)
+      .order("seat_number"),
+    supabase.auth.getClaims(),
+    supabase.rpc("room_requires_password", { room_code: code }),
+  ]);
 
-  if (!userId && guestToken) {
-    const { data: membership } = await supabase.rpc("verify_guest_membership", {
-      room_code: code,
-      guest_token: guestToken,
-    });
-    isJoinedGuest = membership === true;
-  }
-
-  if (userId && (isOwner || isRegisteredMember)) {
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("points")
-      .eq("id", userId)
-      .maybeSingle();
-    currentUserPoints = profileData?.points;
-  }
-
-  const { data: requiresPasswordData, error: passwordCheckError } =
-    await supabase.rpc("room_requires_password", {
-      room_code: code,
-    });
   if (passwordCheckError) {
     console.error("room_requires_password RPC failed", {
       code: passwordCheckError.code,
@@ -136,6 +113,30 @@ export default async function RoomPage({
       roomCode: code,
     });
   }
+
+  const seats = (seatData || []) as RoomSeat[];
+  const userId = claimsData?.claims?.sub as string | undefined;
+  const isOwner = userId === room.owner_id;
+  const isRegisteredMember = Boolean(
+    userId && !isOwner && seats.some((seat) => seat.user_id === userId),
+  );
+
+  // 并行：游客验证与登录用户积分查询互不依赖
+  const [membershipResult, profileResult] = await Promise.all([
+    (!userId && guestToken)
+      ? supabase.rpc("verify_guest_membership", { room_code: code, guest_token: guestToken })
+      : Promise.resolve({ data: null }),
+    (userId && (isOwner || isRegisteredMember))
+      ? supabase.from("profiles").select("points").eq("id", userId).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const isJoinedGuest = (!userId && guestToken) ? membershipResult.data === true : false;
+  const currentUserPoints: number | undefined =
+    userId && (isOwner || isRegisteredMember)
+      ? (profileResult.data?.points as number | undefined)
+      : undefined;
+
   const verifiedRoomPassword = cookieStore.get(`room_password_${code}`)?.value;
   const requiresPassword =
     requiresPasswordData === true && !/^\d{6}$/.test(verifiedRoomPassword ?? "");
@@ -157,45 +158,43 @@ export default async function RoomPage({
     );
   }
 
-  let chatBootstrap: RoomChatBootstrap | null = null;
-  if (isOwner || isRegisteredMember || isJoinedGuest) {
-    const { data, error } = await supabase.rpc("get_room_chat_bootstrap", {
-      room_code: code,
-      guest_token: guestToken || null,
-    });
+  // 并行：chat bootstrap、当前题目、题库列表互不依赖
+  const isMember = isOwner || isRegisteredMember || isJoinedGuest;
+  const [chatBootstrapResult, puzzleDataResult, puzzleListResult] = await Promise.all([
+    isMember
+      ? supabase.rpc("get_room_chat_bootstrap", { room_code: code, guest_token: guestToken || null })
+      : Promise.resolve({ data: null, error: null }),
+    isMember
+      ? supabase.rpc("get_room_current_puzzle", { room_code: code, guest_token: guestToken || null })
+      : Promise.resolve({ data: null }),
+    isOwner
+      ? supabase.rpc("get_puzzle_list", { room_code: code })
+      : Promise.resolve({ data: null }),
+  ]);
 
-    if (error) {
-      console.error("get_room_chat_bootstrap RPC failed", {
-        code: error.code,
-        message: error.message,
-        roomCode: code,
-      });
-    } else {
-      chatBootstrap = data as RoomChatBootstrap;
-    }
+  if (chatBootstrapResult.error) {
+    console.error("get_room_chat_bootstrap RPC failed", {
+      code: chatBootstrapResult.error.code,
+      message: chatBootstrapResult.error.message,
+      roomCode: code,
+    });
   }
+
+  const chatBootstrap = chatBootstrapResult.error
+    ? null
+    : (chatBootstrapResult.data as RoomChatBootstrap | null);
 
   const chatSeatId = chatBootstrap?.seat_id ?? null;
   const chatSeat = chatSeatId ? seats.find((s) => s.id === chatSeatId) : null;
   const initialSeatPoints = chatSeat?.remaining_points ?? 0;
   const initialHintTokens = chatSeat?.hint_tokens ?? 0;
 
-  // 题目数据
-  let currentPuzzle: CurrentPuzzle | null = null;
-  let puzzleList: PuzzleListItem[] = [];
-
-  if (isOwner || isRegisteredMember || isJoinedGuest) {
-    const { data: puzzleData } = await supabase.rpc("get_room_current_puzzle", {
-      room_code: code,
-      guest_token: guestToken || null,
-    });
-    currentPuzzle = (puzzleData as CurrentPuzzle | null) ?? null;
-  }
-
-  if (isOwner) {
-    const { data: listData } = await supabase.rpc("get_puzzle_list", { room_code: code });
-    puzzleList = (listData as PuzzleListItem[] | null) ?? [];
-  }
+  const currentPuzzle = isMember
+    ? ((puzzleDataResult.data as CurrentPuzzle | null) ?? null)
+    : null;
+  const puzzleList: PuzzleListItem[] = isOwner
+    ? ((puzzleListResult.data as PuzzleListItem[] | null) ?? [])
+    : [];
 
   return (
     <section className="room-layout">

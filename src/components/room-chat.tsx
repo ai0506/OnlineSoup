@@ -1,8 +1,9 @@
 "use client";
 
 import {
-  type ReactNode,
   FormEvent,
+  memo,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -26,6 +27,9 @@ const MODE_LABEL: Record<MessageMode, string> = {
   hint:   "提示",
   reason: "推理",
 };
+
+// 快速查找各模式积分消耗，避免在 doSend/handleRetry 里重复 Array.find
+const MODE_COST: Record<MessageMode, number> = { chat: 0, ask: 1, hint: 1, reason: 2 };
 
 // 待回复的 AI 请求超时阈值：超过此时间仍无 AI 消息则不再显示"回复中"
 const PENDING_AI_TIMEOUT_MS = 90_000;
@@ -137,6 +141,107 @@ function getAiLabel(kind: AiMessageContent["kind"]) {
     case "reveal": return "汤底";
   }
 }
+
+// ── Memoized message components ──────────────────────────────────────────────
+// 提取为独立 memo 组件，避免输入框内容变化时整个消息列表重渲染
+
+const SystemMessage = memo(function SystemMessage({ message }: { message: RoomMessage }) {
+  return (
+    <div className="system-message">
+      <span>{getSystemMessageContent(message)}</span>
+      <time dateTime={message.created_at}>
+        {timeFormatter.format(new Date(message.created_at))}
+      </time>
+    </div>
+  );
+});
+
+type ChatMessageItemProps = {
+  message: RoomMessage;
+  aiColorClass: string | undefined;
+  pendingSend: { content: string; mode: MessageMode } | undefined;
+  sending: boolean;
+  isPendingAi: boolean;
+  onRetry: (content: string, mode: MessageMode) => void;
+};
+
+const ChatMessageItem = memo(function ChatMessageItem({
+  message,
+  aiColorClass,
+  pendingSend,
+  sending,
+  isPendingAi,
+  onRetry,
+}: ChatMessageItemProps) {
+  // 解析一次，避免条件判断 + 正文渲染各调用一次
+  const aiContent = message.message_type === "ai" ? parseAiMessageContent(message.content) : null;
+
+  return (
+    <>
+      <article
+        className={`chat-message${message.message_type === "ai" ? " ai-message" : ""}${
+          aiColorClass ? ` ${aiColorClass}` : ""
+        }`}
+      >
+        <div className="chat-message-meta">
+          <strong>{message.sender_name}</strong>
+          {message.message_type !== "ai" && (
+            <>
+              <span>[{message.sender_seat_number}]</span>
+              <span>[{message.sender_type === "registered" ? "已注册" : "访客"}]</span>
+              {message.message_mode !== "chat" && (
+                <span className="chat-mode-badge">
+                  {MODE_LABEL[message.message_mode]}
+                </span>
+              )}
+            </>
+          )}
+        </div>
+        <div className="chat-message-body">
+          {aiContent ? (
+            <div className="ai-message-content">
+              <p>
+                <span className="ai-message-label">{getAiLabel(aiContent.kind)}</span>
+                {aiContent.text}
+              </p>
+            </div>
+          ) : (
+            <p>{message.content}</p>
+          )}
+          <time dateTime={message.created_at}>
+            {timeFormatter.format(new Date(message.created_at))}
+          </time>
+        </div>
+        {message.id < 0 && pendingSend && (
+          <p className="ai-pending-status failed">
+            发送失败，已退还积分
+            <button
+              className="retry-button"
+              disabled={sending}
+              onClick={() => onRetry(pendingSend.content, pendingSend.mode)}
+              title="重试"
+              type="button"
+            >
+              ↺
+            </button>
+          </p>
+        )}
+      </article>
+      {isPendingAi && (
+        <div className="pending-ai-indicator">
+          <span className="pending-ai-label">AI主持</span>
+          <span className="pending-ai-dots" aria-label="回复中">
+            <span />
+            <span />
+            <span />
+          </span>
+        </div>
+      )}
+    </>
+  );
+});
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export function RoomChat({
   initialMessages,
@@ -399,7 +504,7 @@ export function RoomChat({
   }, [messages, currentPuzzleId]);
 
   async function doSend(text: string, msgMode: MessageMode, usePersonal: boolean) {
-    const cost = MODES.find((m) => m.key === msgMode)!.cost;
+    const cost = MODE_COST[msgMode];
     if (cost > 0 && currentPuzzleId === null) {
       setErrorNotice("题目已经变化，请刷新后重试");
       return;
@@ -521,7 +626,7 @@ export function RoomChat({
 
   async function handleRetry(text: string, msgMode: MessageMode) {
     if (sending) return;
-    const cost = MODES.find((m) => m.key === msgMode)!.cost;
+    const cost = MODE_COST[msgMode];
     if (seatPoints >= cost) {
       await doSend(text, msgMode, false);
     } else if (currentUserId && personalPoints >= cost) {
@@ -534,6 +639,15 @@ export function RoomChat({
       setShowInsufficientNotice(true);
     }
   }
+
+  // stable ref 包装，确保传给 ChatMessageItem 的 onRetry 引用不变，使 memo 生效
+  const handleRetryRef = useRef(handleRetry);
+  useLayoutEffect(() => {
+    handleRetryRef.current = handleRetry;
+  });
+  const stableOnRetry = useCallback((text: string, msgMode: MessageMode) => {
+    void handleRetryRef.current(text, msgMode);
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -654,101 +768,21 @@ export function RoomChat({
         {visibleMessages.length === 0 ? (
           <div className="empty-chat">还没有消息，来打个招呼吧。</div>
         ) : (
-          visibleMessages.flatMap((message) => {
-            const items: ReactNode[] = [];
-
+          visibleMessages.map((message) => {
             if (message.message_type === "system") {
-              items.push(
-                <div className="system-message" key={message.id}>
-                  <span>{getSystemMessageContent(message)}</span>
-                  <time dateTime={message.created_at}>
-                    {timeFormatter.format(new Date(message.created_at))}
-                  </time>
-                </div>
-              );
-            } else {
-              items.push(
-                <article
-                  className={`chat-message${message.message_type === "ai" ? " ai-message" : ""}${
-                    askAnswerColorByMessageId.has(message.id)
-                      ? ` ${askAnswerColorByMessageId.get(message.id)}`
-                      : ""
-                  }`}
-                  key={message.id}
-                >
-                  <div className="chat-message-meta">
-                    <strong>{message.sender_name}</strong>
-                    {message.message_type !== "ai" && (
-                      <>
-                        <span>[{message.sender_seat_number}]</span>
-                        <span>[{message.sender_type === "registered" ? "已注册" : "访客"}]</span>
-                        {message.message_mode !== "chat" && (
-                          <span className="chat-mode-badge">
-                            {MODE_LABEL[message.message_mode]}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  <div className="chat-message-body">
-                    {message.message_type === "ai" && parseAiMessageContent(message.content) ? (
-                      <div className="ai-message-content">
-                        {(() => {
-                          const parsed = parseAiMessageContent(message.content)!;
-                          return (
-                            <p>
-                              <span className="ai-message-label">
-                                {getAiLabel(parsed.kind)}
-                              </span>
-                              {parsed.text}
-                            </p>
-                          );
-                        })()}
-                      </div>
-                    ) : (
-                      <p>{message.content}</p>
-                    )}
-                    <time dateTime={message.created_at}>
-                      {timeFormatter.format(new Date(message.created_at))}
-                    </time>
-                  </div>
-                  {/* 仅对发送失败的本地临时消息显示失败提示 */}
-                  {message.id < 0 && !!pendingSends[message.id] && (
-                    <p className="ai-pending-status failed">
-                      发送失败，已退还积分
-                      <button
-                        className="retry-button"
-                        disabled={sending}
-                        onClick={() => {
-                          const info = pendingSends[message.id];
-                          if (info) void handleRetry(info.content, info.mode);
-                        }}
-                        title="重试"
-                        type="button"
-                      >
-                        ↺
-                      </button>
-                    </p>
-                  )}
-                </article>
-              );
+              return <SystemMessage key={message.id} message={message} />;
             }
-
-            // 在待回复消息后插入动态"回复中"指示器（所有房间成员共享）
-            if (message.id === pendingAiAfterMessageId) {
-              items.push(
-                <div className="pending-ai-indicator" key={`pending-${message.id}`}>
-                  <span className="pending-ai-label">AI主持</span>
-                  <span className="pending-ai-dots" aria-label="回复中">
-                    <span />
-                    <span />
-                    <span />
-                  </span>
-                </div>
-              );
-            }
-
-            return items;
+            return (
+              <ChatMessageItem
+                key={message.id}
+                message={message}
+                aiColorClass={askAnswerColorByMessageId.get(message.id)}
+                pendingSend={message.id < 0 ? pendingSends[message.id] : undefined}
+                sending={sending}
+                isPendingAi={message.id === pendingAiAfterMessageId}
+                onRetry={stableOnRetry}
+              />
+            );
           })
         )}
       </div>
@@ -761,7 +795,7 @@ export function RoomChat({
             <p>
               座位临时积分不足（剩余 <strong>{seatPoints}</strong> 点），
               是否改用个人积分（剩余 <strong>{personalPoints}</strong> 点）发送此消息？
-              本次消耗 <strong>{MODES.find((m) => m.key === confirmState.mode)!.cost}</strong> 点。
+              本次消耗 <strong>{MODE_COST[confirmState.mode]}</strong> 点。
             </p>
             <label className="checkbox-line">
               <input

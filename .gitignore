@@ -8,6 +8,9 @@ out
 supabase/.temp/
 .agents/
 .claude/
+.codex-pet-runs/
+.vercel/
+screenshots/
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
@@ -19,6 +22,7 @@ questions*.json
 questions*.txt
 original_questions.json
 puzzles-*.json
+*.examples-preview.json
 AGENTS.md
 CLAUDE.md
 prompts_suggestion.md
@@ -28,3 +32,5 @@ updates.md
 多人在线海龟汤聊天室开发设计.md
 多人项目聊天室房间设计.md
 文档索引.md
+使用教程.html
+网站使用教程.md

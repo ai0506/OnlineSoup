@@ -17,6 +17,11 @@ import { RoomActionForm } from "@/components/room-action-form";
 import { createClient } from "@/lib/supabase/client";
 import type { RoomSeat } from "@/lib/types";
 
+const occupiedAtFormatter = new Intl.DateTimeFormat("zh-CN", {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
 type LiveRoomSeatsProps = {
   initialSeats: RoomSeat[];
   isOwner: boolean;
@@ -677,23 +682,6 @@ export function LiveRoomSeats({
         </div>
 
         <div className="room-details-content">
-          <div className="room-tabs">
-            <button
-              className={`room-tab${activeTab === "manage" ? " active" : ""}`}
-              onClick={() => setActiveTab("manage")}
-              type="button"
-            >
-              房间管理
-            </button>
-            <button
-              className={`room-tab${activeTab === "puzzle" ? " active" : ""}`}
-              onClick={() => setActiveTab("puzzle")}
-              type="button"
-            >
-              海龟汤
-            </button>
-          </div>
-
           <div
             className="room-puzzle-tab"
             hidden={activeTab !== "puzzle"}
@@ -752,10 +740,7 @@ export function LiveRoomSeats({
                           <span className="muted">入座时间</span>
                           <strong>
                             {seat.occupied_at
-                              ? new Intl.DateTimeFormat("zh-CN", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                }).format(new Date(seat.occupied_at))
+                              ? occupiedAtFormatter.format(new Date(seat.occupied_at))
                               : "未知"}
                           </strong>
                         </div>
