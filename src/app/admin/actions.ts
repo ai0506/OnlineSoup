@@ -367,47 +367,14 @@ export async function deleteAdminUser(formData: FormData) {
   const id = userId.data;
 
   try {
-    // Nullify room_ai_requests.user_id (no cascade on this FK)
-    const { error: aiReqErr } = await admin
-      .from("room_ai_requests")
-      .update({ user_id: null })
-      .eq("user_id", id);
-    if (aiReqErr) throw aiReqErr;
+    const { error: cleanupError } = await admin.rpc(
+      "admin_cleanup_user_before_delete",
+      { p_user_id: id },
+    );
+    if (cleanupError) throw cleanupError;
 
-    // Delete this user's own transactions
-    const { error: txErr } = await admin
-      .from("points_transactions")
-      .delete()
-      .eq("user_id", id);
-    if (txErr) throw txErr;
-
-    // Delete transactions from other users that reference this user's rooms
-    // (points_transactions.room_id has no cascade, so must be cleared before rooms)
-    const { data: ownedRooms, error: roomsQueryErr } = await admin
-      .from("rooms")
-      .select("id")
-      .eq("owner_id", id);
-    if (roomsQueryErr) throw roomsQueryErr;
-    if (ownedRooms && ownedRooms.length > 0) {
-      const roomIds = ownedRooms.map((r) => r.id);
-      const { error: roomTxErr } = await admin
-        .from("points_transactions")
-        .delete()
-        .in("room_id", roomIds);
-      if (roomTxErr) throw roomTxErr;
-    }
-
-    // Delete rooms (cascades to room_seats, room_messages, room_ai_requests,
-    // guest_sessions, guest_removals, puzzle_progress)
-    const { error: roomsErr } = await admin
-      .from("rooms")
-      .delete()
-      .eq("owner_id", id);
-    if (roomsErr) throw roomsErr;
-
-    // Delete auth user (cascades to profiles; room_seats.user_id set null by FK)
-    const { error } = await admin.auth.admin.deleteUser(id);
-    if (error) throw error;
+    const { error: deleteError } = await admin.auth.admin.deleteUser(id);
+    if (deleteError) throw deleteError;
   } catch (err) {
     console.error("Admin delete user failed", err);
     return await redirectAdminResult("error", "delete_user_failed");
