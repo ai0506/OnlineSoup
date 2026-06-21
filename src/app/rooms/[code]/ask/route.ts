@@ -2,7 +2,16 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { askDeepSeekHost } from "@/lib/deepseek";
+import { askDeepSeekHost, extractKnownFacts, requestFactSummary } from "@/lib/deepseek";
+import {
+  checkCacheHit,
+  fetchPuzzleQaCache,
+  hashKnownFacts,
+  isCacheWorthy,
+  normalizeQuestion,
+  recordCacheHit,
+  saveToPuzzleQaCache,
+} from "@/lib/qa-cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { MessageMode, RoomMessage } from "@/lib/types";
@@ -195,14 +204,76 @@ export async function POST(request: Request, { params }: AskRouteContext) {
     });
   }
 
-  let aiContent: string;
+  const reversedMessages = ((puzzleMessages ?? []) as RecentMessageRow[]).reverse();
+
+  let aiContent = "";
   try {
-    aiContent = await askDeepSeekHost({
-      mode: message_mode,
-      puzzle: puzzle as PuzzleRow,
-      content,
-      puzzleMessages: ((puzzleMessages ?? []) as RecentMessageRow[]).reverse(),
-    });
+    if (message_mode === "ask") {
+      // --- Q&A cache check ---
+      const zhipuKey = process.env.ZHIPU_API_KEY;
+      const normalizedQ = normalizeQuestion(content);
+      const knownFacts = extractKnownFacts(reversedMessages);
+      const factsHash = hashKnownFacts(knownFacts);
+      let cacheHit = false;
+
+      if (zhipuKey) {
+        const cacheEntries = await fetchPuzzleQaCache(admin, requestResult.puzzle_id, factsHash);
+        const hit = cacheEntries.length > 0
+          ? await checkCacheHit(normalizedQ, content, cacheEntries, zhipuKey)
+          : null;
+
+        if (hit) {
+          console.info("[qa-cache] hit", { puzzleId: requestResult.puzzle_id, entryId: hit.id, answerType: hit.answer_type });
+          cacheHit = true;
+          void recordCacheHit(admin, hit.id);
+          const factSummary = (hit.answer_type === "yes" || hit.answer_type === "no")
+            ? await requestFactSummary(process.env.DEEPSEEK_API_KEY!, content, hit.answer_type, knownFacts)
+            : null;
+          const answerLabel: Record<string, string> = { yes: "是", no: "否", irrelevant: "与此无关", ambiguous: "模糊问题" };
+          aiContent = JSON.stringify({
+            kind: "answer",
+            text: answerLabel[hit.answer_type],
+            fact_summary: factSummary?.fact ?? null,
+            fact_summary_source: factSummary ? factSummary.source : null,
+            ask_audit: null,
+            cache_hit: {
+              entry_id: hit.id,
+              question_text: hit.question_text,
+              normalized_question: hit.normalized_question,
+              answer_type: hit.answer_type,
+              match_type: hit.match_type,
+            },
+          });
+        }
+      }
+
+      if (!cacheHit) {
+        // No cache hit — call DeepSeek
+        const result = await askDeepSeekHost({
+          mode: message_mode,
+          puzzle: puzzle as PuzzleRow,
+          content,
+          puzzleMessages: reversedMessages,
+        });
+        if (typeof result === "string") {
+          aiContent = result;
+        } else {
+          aiContent = result.content;
+          // Save to cache only on high-confidence (strict===inferential) answers
+          if (result.cacheEligible && zhipuKey && isCacheWorthy(content, result.answerType)) {
+            void saveToPuzzleQaCache(admin, requestResult.puzzle_id, factsHash, content, normalizedQ, result.answerType);
+          }
+        }
+      }
+    } else {
+      const result = await askDeepSeekHost({
+        mode: message_mode,
+        puzzle: puzzle as PuzzleRow,
+        content,
+        puzzleMessages: reversedMessages,
+      });
+      aiContent = typeof result === "string" ? result : result.content;
+    }
   } catch (err) {
     console.error("DeepSeek host failed", {
       roomCode: code,

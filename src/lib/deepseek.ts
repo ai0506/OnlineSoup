@@ -729,6 +729,13 @@ async function requestFactSummary(
   ) ?? await requestDeepSeekFactSummary(apiKey, question, answerType, knownFacts);
 }
 
+export type AskCrossCheckResult = {
+  content: string;
+  /** true when strict === inferential (high-confidence answer, safe to cache) */
+  cacheEligible: boolean;
+  answerType: AskResult["answer_type"];
+};
+
 /**
  * ask 模式的核心：用两个风格不同的 prompt（严格字面 / 积极推理）并发判断，一致则直接采用，
  * 不一致再触发一次仲裁调用决定最终结果。详见 stateful-rolling-storm 计划。
@@ -738,7 +745,7 @@ async function askWithCrossCheck(
   puzzle: PuzzleContext,
   content: string,
   puzzleMessages: PuzzleMessage[],
-) {
+): Promise<AskCrossCheckResult> {
   const strictPrompt = buildAskPrompt("strict", puzzle, content, puzzleMessages);
   const inferentialPrompt = buildAskPrompt("inferential", puzzle, content, puzzleMessages);
 
@@ -756,10 +763,12 @@ async function askWithCrossCheck(
 
   let finalResult: AskResult;
   let finalAudit: typeof audit & { final?: AskAuditEntry };
+  let cacheEligible: boolean;
 
   if (strict.answer_type === inferential.answer_type) {
     finalResult = strict;
     finalAudit = audit;
+    cacheEligible = true;
   } else {
     const arbitrationPrompt = buildAskArbitrationPrompt(puzzle, content, puzzleMessages, {
       strict,
@@ -774,6 +783,7 @@ async function askWithCrossCheck(
     const final = askSchema.parse(arbitrationRaw);
     finalResult = final;
     finalAudit = { ...audit, final: toAskAuditEntry(final) };
+    cacheEligible = false;
   }
 
   let factSummary: FactSummaryResult | null = null;
@@ -787,14 +797,20 @@ async function askWithCrossCheck(
     );
   }
 
-  return formatAiContent(
-    "ask",
-    finalResult,
-    finalAudit,
-    factSummary?.fact ?? null,
-    factSummary?.source ?? null,
-  );
+  return {
+    content: formatAiContent(
+      "ask",
+      finalResult,
+      finalAudit,
+      factSummary?.fact ?? null,
+      factSummary?.source ?? null,
+    ),
+    cacheEligible,
+    answerType: finalResult.answer_type,
+  };
 }
+
+export { requestFactSummary, extractKnownFacts };
 
 export async function askDeepSeekHost({
   mode,
@@ -806,7 +822,7 @@ export async function askDeepSeekHost({
   puzzle: PuzzleContext;
   content: string;
   puzzleMessages: PuzzleMessage[];
-}) {
+}): Promise<AskCrossCheckResult | string> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
     throw new Error("缺少 DEEPSEEK_API_KEY 环境变量");

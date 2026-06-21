@@ -179,12 +179,21 @@ type AskAuditEntry = {
 
 type FactSummarySource = "glm" | "deepseek" | "unknown";
 
+type AskCacheHitDetails = {
+  entryId: number;
+  questionText: string;
+  normalizedQuestion: string | null;
+  answerType: string;
+  matchType: "exact" | "equivalent" | "unknown";
+};
+
 type AskAnswerDetails = {
   text: string;
   factSummary: string | null;
   factSummarySource: FactSummarySource;
   auditEntries: AskAuditEntry[];
   usedArbitration: boolean;
+  cacheHit: AskCacheHitDetails | null;
 };
 
 const errors: Record<string, string> = {
@@ -343,6 +352,17 @@ function getFactSummarySourceLabel(source: FactSummarySource) {
   }
 }
 
+function getCacheMatchTypeLabel(value: AskCacheHitDetails["matchType"]) {
+  switch (value) {
+    case "exact":
+      return "完全相同";
+    case "equivalent":
+      return "相似等价";
+    default:
+      return "未知";
+  }
+}
+
 function getModeFilter(value?: string) {
   return value === "chat" ||
     value === "ask" ||
@@ -401,6 +421,7 @@ function getAskAnswerDetails(message: AdminMessage): AskAnswerDetails | null {
       fact_summary?: unknown;
       fact_summary_source?: unknown;
       ask_audit?: unknown;
+      cache_hit?: unknown;
     };
     if (parsed.kind !== "answer" || typeof parsed.text !== "string") {
       return null;
@@ -412,6 +433,33 @@ function getAskAnswerDetails(message: AdminMessage): AskAnswerDetails | null {
       parsed.fact_summary_source === "glm" || parsed.fact_summary_source === "deepseek"
         ? parsed.fact_summary_source
         : "unknown";
+    let cacheHit: AskCacheHitDetails | null = null;
+    if (typeof parsed.cache_hit === "object" && parsed.cache_hit !== null) {
+      const record = parsed.cache_hit as Record<string, unknown>;
+      const entryId =
+        typeof record.entry_id === "number"
+          ? record.entry_id
+          : Number.parseInt(String(record.entry_id ?? ""), 10);
+      if (
+        Number.isFinite(entryId) &&
+        typeof record.question_text === "string" &&
+        typeof record.answer_type === "string"
+      ) {
+        cacheHit = {
+          entryId,
+          questionText: record.question_text,
+          normalizedQuestion:
+            typeof record.normalized_question === "string"
+              ? record.normalized_question
+              : null,
+          answerType: record.answer_type,
+          matchType:
+            record.match_type === "exact" || record.match_type === "equivalent"
+              ? record.match_type
+              : "unknown",
+        };
+      }
+    }
 
     if (typeof parsed.ask_audit !== "object" || parsed.ask_audit === null) {
       return {
@@ -420,6 +468,7 @@ function getAskAnswerDetails(message: AdminMessage): AskAnswerDetails | null {
         factSummarySource,
         auditEntries: [],
         usedArbitration: false,
+        cacheHit,
       };
     }
 
@@ -460,6 +509,7 @@ function getAskAnswerDetails(message: AdminMessage): AskAnswerDetails | null {
       factSummarySource,
       auditEntries,
       usedArbitration: auditEntries.some((item) => item.label === "仲裁"),
+      cacheHit,
     };
   } catch {
     return null;
@@ -1000,9 +1050,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       <strong>{askAnswerDetails.text}</strong>
                     </div>
                     <span>
-                      {askAnswerDetails.usedArbitration
-                        ? "已触发仲裁"
-                        : "两路一致"}
+                      {askAnswerDetails.cacheHit
+                        ? "命中缓存"
+                        : askAnswerDetails.usedArbitration
+                          ? "已触发仲裁"
+                          : "两路一致"}
                     </span>
                     {markedAiMessageIds.has(message.id) ? (
                       <span className="admin-ai-error-marked-badge">已收录</span>
@@ -1016,6 +1068,31 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       {" · 来源："}
                       {getFactSummarySourceLabel(askAnswerDetails.factSummarySource)}
                     </p>
+                  )}
+                  {askAnswerDetails.cacheHit && (
+                    <details className="admin-collapsible admin-cache-hit-details">
+                      <summary>
+                        查看缓存来源
+                        <span className="admin-cache-hit-badge">
+                          {getCacheMatchTypeLabel(askAnswerDetails.cacheHit.matchType)}
+                        </span>
+                      </summary>
+                      <div className="admin-cache-hit-body">
+                        <div>
+                          <span>缓存问题</span>
+                          <p>{askAnswerDetails.cacheHit.questionText}</p>
+                        </div>
+                        <div className="admin-cache-hit-meta">
+                          <span>缓存条目 #{askAnswerDetails.cacheHit.entryId}</span>
+                          <span>答案类型 {askAnswerDetails.cacheHit.answerType}</span>
+                          {askAnswerDetails.cacheHit.normalizedQuestion && (
+                            <span>
+                              规范化：{askAnswerDetails.cacheHit.normalizedQuestion}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </details>
                   )}
                   {askAnswerDetails.auditEntries.length > 0 && (
                     <details className="admin-collapsible">

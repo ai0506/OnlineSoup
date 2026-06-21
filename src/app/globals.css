@@ -1916,6 +1916,60 @@ textarea:focus {
   overflow-wrap: anywhere;
 }
 
+.admin-cache-hit-details {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.admin-cache-hit-details > summary {
+  gap: 8px;
+}
+
+.admin-cache-hit-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.admin-cache-hit-body {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  font-size: 0.82rem;
+}
+
+.admin-cache-hit-body span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.admin-cache-hit-body p {
+  margin: 4px 0 0;
+  color: #0f172a;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.admin-cache-hit-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-cache-hit-meta span {
+  padding: 3px 7px;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1e3a8a;
+  overflow-wrap: anywhere;
+}
+
 .admin-ask-audit {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
