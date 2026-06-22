@@ -215,7 +215,7 @@ export async function POST(request: Request, { params }: AskRouteContext) {
       let cacheHit = false;
 
       if (zhipuKey) {
-        const cacheEntries = await fetchPuzzleQaCache(admin, requestResult.puzzle_id, knownFacts);
+        const cacheEntries = await fetchPuzzleQaCache(admin, requestResult.puzzle_id);
         const hit = cacheEntries.length > 0
           ? await checkCacheHit(normalizedQ, content, cacheEntries, zhipuKey)
           : null;
@@ -259,7 +259,7 @@ export async function POST(request: Request, { params }: AskRouteContext) {
           aiContent = result.content;
           // Save to cache only on high-confidence (strict===inferential) answers
           if (result.cacheEligible && zhipuKey && isCacheWorthy(content, result.answerType)) {
-            void saveToPuzzleQaCache(admin, requestResult.puzzle_id, knownFacts, content, normalizedQ, result.answerType, zhipuKey);
+            void saveToPuzzleQaCache(admin, requestResult.puzzle_id, content, normalizedQ, result.answerType);
           }
         }
       }
