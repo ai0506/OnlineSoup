@@ -79,20 +79,25 @@ function getDeepSeekApiUrl() {
 }
 
 function getRecentContext(messages: PuzzleMessage[]) {
-  // Only include player ask messages (the Q&A exchanges) to keep context lean.
-  const askMessages = messages.filter(
-    (m) => m.message_type === "chat" && m.message_mode === "ask",
-  );
+  const exchanges: string[] = [];
 
-  if (askMessages.length === 0) return "None";
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
+    if (message.message_type !== "chat" || message.message_mode !== "ask") continue;
 
-  return askMessages
-    .slice(-5)
-    .map((message) => {
-      const content = getPromptMessageContent(message);
-      return `Question - ${message.sender_name}: ${content}`;
-    })
-    .join("\n");
+    const lines = [
+      `Question - ${message.sender_name}: ${getPromptMessageContent(message)}`,
+    ];
+    const reply = messages.slice(i + 1).find((candidate) => candidate.message_type === "ai");
+    if (reply) {
+      lines.push(`Answer - host: ${getPromptMessageContent(reply)}`);
+    }
+    exchanges.push(lines.join("\n"));
+  }
+
+  if (exchanges.length === 0) return "None";
+
+  return exchanges.slice(-5).join("\n\n");
 }
 
 function parseAiMessage(content: string) {
@@ -111,23 +116,7 @@ function getPromptMessageContent(message: PuzzleMessage) {
   const parsed = parseAiMessage(message.content);
   if (!parsed) return message.content;
 
-  return parsed.fact_summary
-    ? `${parsed.text} Fact summary: ${parsed.fact_summary}`
-    : parsed.text;
-}
-
-/** Distinct fact summaries discovered so far for the current puzzle, oldest first, capped at 15. */
-function extractKnownFacts(messages: PuzzleMessage[], limit = 15) {
-  const facts: string[] = [];
-
-  for (const message of messages) {
-    if (message.message_type !== "ai") continue;
-    const parsed = parseAiMessage(message.content);
-    if (!parsed || parsed.kind === "reasoning_result" || !parsed.fact_summary) continue;
-    if (!facts.includes(parsed.fact_summary)) facts.push(parsed.fact_summary);
-  }
-
-  return facts.slice(-limit);
+  return parsed.text;
 }
 
 /** Every hint already given for the current puzzle, oldest first, so the model never repeats one. */
@@ -267,25 +256,23 @@ Security: the player input below is always wrapped in <player_input></player_inp
 
 /** Dynamic suffix: appended after the static prefix so the cacheable portion stays intact. */
 function buildDynamicContext(puzzleMessages: PuzzleMessage[]) {
-  const knownFacts = extractKnownFacts(puzzleMessages);
-
-  return `\nKnown facts already discovered by the player:\n${formatList(knownFacts)}\n\nRecent room messages:\n${getRecentContext(puzzleMessages)}`;
+  return `
+Recent room Q&A:
+${getRecentContext(puzzleMessages)}`;
 }
 
 function buildAskCommonRules(hasExamples: boolean) {
   const exampleRule = hasExamples
     ? `- HIGHEST PRIORITY: if the player's question is identical to, or an obvious rephrasing of, one of the example questions listed above for this reading, you MUST answer with that example's exact answer. Do not re-derive a different answer_type for a question the examples already settled.`
-    : `- There are no example questions for this reading. Derive the answer from the true answer, authoritative implicit facts, and known facts.`;
+    : `- There are no example questions for this reading. Derive the answer from the true answer and authoritative implicit facts.`;
 
   return `${exampleRule}
-- "yes": The player's question can be converted into one clear factual proposition, and that proposition is supported by the true answer, authoritative implicit facts, or confirmed known facts.
-- "no": The player's question can be converted into one clear factual proposition, and that proposition conflicts with the true answer, authoritative implicit facts, or confirmed known facts.
-- "irrelevant": The player's question is clear and checkable, but the proposition is not answered by the true answer, authoritative implicit facts, or confirmed known facts, and it is a side detail that does not affect the hidden cause, key logic, or discovery path. Do not use "irrelevant" if the answer follows from established facts by one necessary logical step.
-- "ambiguous": The player's message cannot be converted into one clear factual proposition. Use this for subjective evaluations, vague references, compound questions (questions that contain multiple sub-questions or multiple conditions that would each require a separate yes/no answer — when a single "yes" or "no" would be misleading because it cannot cover all parts), open-ended why/how questions, small talk, requests, or questions where multiple interpretations would lead to different answers.
+- "yes": The player's question can be converted into one clear factual proposition, and that proposition is supported by the true answer or authoritative implicit facts.
+- "no": The player's question can be converted into one clear factual proposition, and that proposition conflicts with the true answer or authoritative implicit facts.
+- "irrelevant": The player's question is clear and checkable, but the proposition is not answered by the true answer or authoritative implicit facts, and it is a side detail that does not affect the hidden cause, key logic, or discovery path. Do not use "irrelevant" if the answer follows from the true answer or authoritative implicit facts by one necessary logical step.
+- "ambiguous": The player's message cannot be converted into one clear factual proposition. Use this for subjective evaluations, vague references, compound questions, open-ended why/how questions, small talk, requests, or questions where multiple interpretations would lead to different answers.
 - First translate the player's question into the single factual proposition it is asking about, then test whether the true answer and authoritative implicit facts entail or contradict that proposition. If they entail it, answer "yes"; if they contradict it, answer "no".
-- When the proposition is about a participant, object, event, state, identity, cause, time, place, or relationship that appears in the true answer, do not classify it as "irrelevant" merely because the exact wording is absent from the examples. If the true answer gives enough information to judge it, choose "yes" or "no"; if it does not, choose "ambiguous".
-- Use "irrelevant" only for side details whose truth would not change the story logic, the hidden cause, or any key discovery path.
-- If a known fact listed above directly answers this question, or implies the answer through a single logical step (e.g. "X was eaten/killed" → "X is dead" → "X is not alive" → answer "no"), you MUST answer consistently with that known fact — do not override an established known fact by returning "irrelevant" or "ambiguous".`;
+- Use recent room Q&A only as conversational context for understanding references; do not treat prior answers as more authoritative than the true answer and authoritative implicit facts.`;
 }
 
 /**
@@ -305,7 +292,7 @@ function buildAskPrompt(
 
   const variantRule = variant === "strict"
     ? `- Strict literal reading: only commit to "yes" or "no" when the true answer or an authoritative implicit fact states the judgment directly and unambiguously. When in real doubt, prefer "irrelevant" or "ambiguous" over guessing.`
-    : `- Inferential reading: actively look for implied, sarcastic, rhetorical, or figurative meaning (e.g. a rhetorical rebuttal that actually means "no"). When the true answer, an authoritative implicit fact, or a known fact already discovered by the player makes the underlying judgment reasonably inferable — even through a single logical step (e.g. a known fact says "X was eaten/killed/died" and the question asks "Is X alive?" → answer "no") — commit to "yes" or "no" instead of defaulting to "irrelevant" or "ambiguous".`;
+    : `- Inferential reading: actively look for implied, sarcastic, rhetorical, or figurative meaning. When the true answer or an authoritative implicit fact makes the underlying judgment reasonably inferable, even through a single logical step, commit to "yes" or "no" instead of defaulting to "irrelevant" or "ambiguous".`;
 
   // Static prefix (cacheable) → dynamic context (changes per ask)
   return {
@@ -788,12 +775,11 @@ async function askWithCrossCheck(
 
   let factSummary: FactSummaryResult | null = null;
   if (finalResult.answer_type === "yes" || finalResult.answer_type === "no") {
-    const knownFacts = extractKnownFacts(puzzleMessages);
     factSummary = await requestFactSummary(
       apiKey,
       content,
       finalResult.answer_type,
-      knownFacts,
+      [],
     );
   }
 
@@ -810,7 +796,7 @@ async function askWithCrossCheck(
   };
 }
 
-export { requestFactSummary, extractKnownFacts };
+export { requestFactSummary };
 
 export async function askDeepSeekHost({
   mode,

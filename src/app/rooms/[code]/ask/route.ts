@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { askDeepSeekHost, extractKnownFacts, requestFactSummary } from "@/lib/deepseek";
+import { askDeepSeekHost, requestFactSummary } from "@/lib/deepseek";
 import {
   checkCacheHit,
   fetchPuzzleQaCache,
@@ -211,7 +211,6 @@ export async function POST(request: Request, { params }: AskRouteContext) {
       // --- Q&A cache check ---
       const zhipuKey = process.env.ZHIPU_API_KEY;
       const normalizedQ = normalizeQuestion(content);
-      const knownFacts = extractKnownFacts(reversedMessages);
       let cacheHit = false;
 
       if (zhipuKey) {
@@ -225,7 +224,7 @@ export async function POST(request: Request, { params }: AskRouteContext) {
           cacheHit = true;
           void recordCacheHit(admin, hit.id);
           const factSummary = (hit.answer_type === "yes" || hit.answer_type === "no")
-            ? await requestFactSummary(process.env.DEEPSEEK_API_KEY!, content, hit.answer_type, knownFacts)
+            ? await requestFactSummary(process.env.DEEPSEEK_API_KEY!, content, hit.answer_type, [])
             : null;
           const answerLabel: Record<string, string> = { yes: "是", no: "否", irrelevant: "与此无关", ambiguous: "模糊问题" };
           aiContent = JSON.stringify({
