@@ -10,6 +10,7 @@ supabase/.temp/
 .claude/
 .codex-pet-runs/
 .vercel/
+ai-error/
 screenshots/
 npm-debug.log*
 yarn-debug.log*

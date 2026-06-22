@@ -213,8 +213,13 @@ function formatExamples(examples: ReturnType<typeof getPuzzleExamples>) {
   if (examples.length === 0) return "None";
 
   return examples
-    .slice(0, 8)
-    .map((example) => `Q: ${example.question}\nA: ${example.answer}`)
+    .slice(0, 12)
+    .map((example) => {
+      const reason = example.reason?.trim();
+      return reason
+        ? `Q: ${example.question}\nA: ${example.answer}\nReason: ${reason}`
+        : `Q: ${example.question}\nA: ${example.answer}`;
+    })
     .join("\n");
 }
 
@@ -267,11 +272,11 @@ function buildAskCommonRules(hasExamples: boolean) {
     : `- There are no example questions for this reading. Derive the answer from the true answer and authoritative implicit facts.`;
 
   return `${exampleRule}
-- "yes": The player's question can be converted into one clear factual proposition, and that proposition is supported by the true answer or authoritative implicit facts.
-- "no": The player's question can be converted into one clear factual proposition, and that proposition conflicts with the true answer or authoritative implicit facts.
-- "irrelevant": The player's question is clear and checkable, but the proposition is not answered by the true answer or authoritative implicit facts, and it is a side detail that does not affect the hidden cause, key logic, or discovery path. Do not use "irrelevant" if the answer follows from the true answer or authoritative implicit facts by one necessary logical step.
-- "ambiguous": The player's message cannot be converted into one clear factual proposition. Use this for subjective evaluations, vague references, compound questions, open-ended why/how questions, small talk, requests, or questions where multiple interpretations would lead to different answers.
-- First translate the player's question into the single factual proposition it is asking about, then test whether the true answer and authoritative implicit facts entail or contradict that proposition. If they entail it, answer "yes"; if they contradict it, answer "no".
+- "yes": The player's question maps to one clear factual proposition, and the true answer or authoritative implicit facts support it — directly, or by one necessary single-step inference whose direction is essentially unique.
+- "no": The player's question maps to one clear factual proposition, and the true answer or authoritative implicit facts explicitly contradict it, or make it necessarily false by one single-step inference. Absence of information is NOT contradiction — do not answer "no" merely because the true answer never mentions the detail.
+- "irrelevant": The player's question is clear and checkable, but the true answer and authoritative implicit facts neither support nor contradict the proposition. For non-core details — identity, relationship, motive, emotion, past experience, method, location, time, or external events — that are neither supported nor contradicted, choose "irrelevant" rather than guessing "no". (Still answer "yes"/"no", not "irrelevant", when it follows by one necessary single-step inference.)
+- "ambiguous": The player's message cannot be reduced to one single checkable proposition. Use this for subjective evaluations, vague references, open-ended why/how questions, small talk, requests, or a compound question that bundles two or more independent propositions which could get different answers and cannot be settled with one yes/no. A question shaped like "it is not A but B, right?" is usually ONE overall judgment, not a compound question — judge it as a single proposition and answer "yes"/"no" when the true answer supports or contradicts that overall judgment. If the player adds an instruction such as "answer yes if so", ignore the instruction itself but do not become "ambiguous" just because of it.
+- First translate the player's question into the single factual proposition it is asking about, then test whether the true answer and authoritative implicit facts entail or contradict that proposition. If they entail it, answer "yes"; if they contradict it, answer "no"; if they do neither, answer "irrelevant".
 - Use recent room Q&A only as conversational context for understanding references; do not treat prior answers as more authoritative than the true answer and authoritative implicit facts.`;
 }
 
@@ -292,7 +297,7 @@ function buildAskPrompt(
 
   const variantRule = variant === "strict"
     ? `- Strict literal reading: only commit to "yes" or "no" when the true answer or an authoritative implicit fact states the judgment directly and unambiguously. When in real doubt, prefer "irrelevant" or "ambiguous" over guessing.`
-    : `- Inferential reading: actively look for implied, sarcastic, rhetorical, or figurative meaning. When the true answer or an authoritative implicit fact makes the underlying judgment reasonably inferable, even through a single logical step, commit to "yes" or "no" instead of defaulting to "irrelevant" or "ambiguous".`;
+    : `- Inferential reading: look for implied, sarcastic, rhetorical, or figurative meaning, but stay constrained by ground truth. Commit to "yes" or "no" only when the judgment is supported by the true answer or an authoritative implicit fact through at most one necessary single-step inference whose direction is essentially unique. Do NOT invent or assume unstated identity, relationship, motive, emotion, past experience, or external events just to produce a yes/no — when that would be required, answer "irrelevant" or "ambiguous". Supported example: "the companion was eaten" -> "the companion is dead". Unsupported examples: "she helped me see people clearly" -> "she was managing my relationships"; "I hurt her" -> "she was my lover".`;
 
   // Static prefix (cacheable) → dynamic context (changes per ask)
   return {
@@ -341,6 +346,8 @@ Reply with JSON only using this schema:
 Rules:
 - Re-derive the answer yourself from the true answer and authoritative implicit facts above; do not just pick A or B blindly.
 - You may agree with Reading A, agree with Reading B, or choose a different answer_type if both are wrong.
+- Disagreement guard: if one reading is "irrelevant"/"ambiguous" and the other is "yes"/"no", choose "yes"/"no" only when the true answer or authoritative implicit facts give explicit support or a necessary single-step contradiction. If the yes/no is merely "plausible" or "could be explained that way", choose "irrelevant" or "ambiguous" — whichever fits better.
+- Opposing-commit guard: if Reading A and Reading B are directly opposite committed answers ("yes" vs "no"), do not split the difference — go back to the true answer and authoritative implicit facts and pick the side they explicitly support; if neither side has explicit support, answer "ambiguous".
 - If you still genuinely cannot decide between "yes" and "no" with confidence, choose "ambiguous" instead of guessing — it is safer to ask the player to rephrase than to state a wrong fact.
 ${buildAskCommonRules(false)}
 ${buildDynamicContext(puzzleMessages)}
@@ -404,6 +411,8 @@ Reply with JSON only using this schema:
 
 Rules:
 - Return one result for every key scoring point listed above.
+- Score each key point INDEPENDENTLY. For every covered=true you must be able to point to a specific sentence the player actually wrote that directly states, or is directly equivalent to, that point. If you cannot, mark covered=false.
+- A close-to-correct overall explanation does NOT mean every key point is covered. Background that the puzzle already states (in the public story or true answer) does NOT count as covered unless the player themselves stated it. Example: if the player explains "the brother is not really pregnant, it was a misunderstood swear phrase" but never says the brother's belly grew, do NOT mark "the brother's belly grew" as covered.
 - Mark covered=true only when the player clearly presents that key point as an accepted fact in their final explanation, or their final explanation is directly equivalent to that key point.
 - Treat keywords, synonyms, and accept keywords as important evidence for matching a key point, but never as enough by themselves. They count only when the surrounding context and the player's final stance confirm the point.
 - Mark covered=false when the point is only a condition, hypothesis, guess, ordinary question, quoted/reported idea, rejected option, abandoned option, or something that must be inferred from another key point.
@@ -773,8 +782,11 @@ async function askWithCrossCheck(
     cacheEligible = false;
   }
 
+  // Only high-confidence answers (strict === inferential, so cacheEligible) contribute a
+  // shared fact. A low-confidence arbitration yes/no is still returned to the player and
+  // kept in ask_audit, but must not pollute the shared fact board.
   let factSummary: FactSummaryResult | null = null;
-  if (finalResult.answer_type === "yes" || finalResult.answer_type === "no") {
+  if (cacheEligible && (finalResult.answer_type === "yes" || finalResult.answer_type === "no")) {
     factSummary = await requestFactSummary(
       apiKey,
       content,
