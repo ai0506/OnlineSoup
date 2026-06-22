@@ -6,7 +6,6 @@ import { askDeepSeekHost, extractKnownFacts, requestFactSummary } from "@/lib/de
 import {
   checkCacheHit,
   fetchPuzzleQaCache,
-  hashKnownFacts,
   isCacheWorthy,
   normalizeQuestion,
   recordCacheHit,
@@ -213,11 +212,10 @@ export async function POST(request: Request, { params }: AskRouteContext) {
       const zhipuKey = process.env.ZHIPU_API_KEY;
       const normalizedQ = normalizeQuestion(content);
       const knownFacts = extractKnownFacts(reversedMessages);
-      const factsHash = hashKnownFacts(knownFacts);
       let cacheHit = false;
 
       if (zhipuKey) {
-        const cacheEntries = await fetchPuzzleQaCache(admin, requestResult.puzzle_id, factsHash);
+        const cacheEntries = await fetchPuzzleQaCache(admin, requestResult.puzzle_id, knownFacts);
         const hit = cacheEntries.length > 0
           ? await checkCacheHit(normalizedQ, content, cacheEntries, zhipuKey)
           : null;
@@ -261,7 +259,7 @@ export async function POST(request: Request, { params }: AskRouteContext) {
           aiContent = result.content;
           // Save to cache only on high-confidence (strict===inferential) answers
           if (result.cacheEligible && zhipuKey && isCacheWorthy(content, result.answerType)) {
-            void saveToPuzzleQaCache(admin, requestResult.puzzle_id, factsHash, content, normalizedQ, result.answerType);
+            void saveToPuzzleQaCache(admin, requestResult.puzzle_id, knownFacts, content, normalizedQ, result.answerType, zhipuKey);
           }
         }
       }

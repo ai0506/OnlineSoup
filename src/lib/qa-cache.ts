@@ -1,5 +1,3 @@
-import { createHash } from "crypto";
-
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type CacheCandidate = {
@@ -24,18 +22,6 @@ const answerLabel: Record<CacheHit["answer_type"], string> = {
   ambiguous: "模糊问题",
 };
 
-/**
- * Context-dependent referents: pronouns, demonstratives, and temporal words whose
- * interpretation can shift as new facts are discovered. Questions containing these
- * must be scoped by known_facts_hash even when answer_type is yes/no.
- */
-const CONTEXT_DEPENDENT_TOKENS = [
-  "这个", "那个", "这件事", "那件事", "这里", "那里",
-  "这样", "那样", "这碗", "那碗", "这次", "那次",
-  "他", "她", "他们", "它",
-  "当时", "后来", "之前", "之后",
-];
-
 const COMPOUND_QUESTION_TOKENS = [
   "并且", "或者", "同时", "还是", "而且", "以及", "又",
 ];
@@ -47,20 +33,18 @@ const LEADING_QUESTION_TOKENS = [
 const LOW_VALUE_QUESTION_PATTERN =
   /忽略|无视|ignore|system|prompt|json|debug|调试|测试|随便|不知道|废话|哈哈|呵呵/i;
 
-/** Returns true if the question contains any context-dependent referent. */
-export function isContextDependent(text: string): boolean {
-  return CONTEXT_DEPENDENT_TOKENS.some((token) => text.includes(token));
-}
-
-/** Only high-quality concrete yes/no questions should be added to the automatic cache. */
+/**
+ * Only concrete, unambiguous questions should be added to the automatic cache.
+ * Context-dependent questions (pronouns, demonstratives) are now allowed —
+ * their required facts are captured in relevant_facts at write time.
+ */
 export function isCacheWorthy(
   questionText: string,
   answerType: CacheHit["answer_type"],
 ): boolean {
   const normalized = normalizeQuestion(questionText);
   if (normalized.length < 6) return false;
-  if (answerType !== "yes" && answerType !== "no") return false;
-  if (isContextDependent(questionText)) return false;
+  if (answerType === "ambiguous") return false;
   if (COMPOUND_QUESTION_TOKENS.some((token) => questionText.includes(token))) {
     return false;
   }
@@ -81,13 +65,6 @@ export function normalizeQuestion(text: string): string {
     .replace(/\s+/g, " ")
     .toLowerCase()
     .trim();
-}
-
-/** SHA-256 prefix of sorted known facts — used as a cache partition key. */
-export function hashKnownFacts(facts: string[]): string {
-  if (facts.length === 0) return "";
-  const sorted = [...facts].sort().join("\n");
-  return createHash("sha256").update(sorted).digest("hex").slice(0, 16);
 }
 
 function bigrams(s: string): Set<string> {
@@ -179,6 +156,89 @@ Q2 能保证得到与 Q1 完全相同的答案吗？`;
   }
 }
 
+/**
+ * Ask GLM to identify which known facts were necessary to answer the question.
+ * Uses indices to avoid rephrasing issues. Conservative: on any error, returns
+ * all known facts so the cache entry is scoped as narrowly as possible.
+ */
+async function extractRelevantFacts(
+  questionText: string,
+  answerType: CacheHit["answer_type"],
+  knownFacts: string[],
+  apiKey: string,
+): Promise<string[]> {
+  if (knownFacts.length === 0) return [];
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6_000);
+
+  try {
+    const system = `你是海龟汤答题分析助手，任务是判断哪些已知事实对回答某个问题是必要的。
+
+【保守原则】宁可多报，不可少报：
+- 任何可能影响答案的事实都应包含
+- 如果无法确定是否必要，就包含它
+- 如果问题与谜题完全无关（主持人答"与此无关"），且不依赖任何已知事实，返回空数组
+- 如果问题含有代词（他/她/这个/那个/当时/之前等），必须包含能确定指代对象的全部事实
+
+只输出 JSON，格式：{"relevant_indices": [1, 3]} 或 {"relevant_indices": []}
+索引从 1 开始，对应下面列出的事实编号。不要输出任何其他内容。`;
+
+    const factList = knownFacts
+      .map((f, i) => `${i + 1}. ${escapePromptText(f)}`)
+      .join("\n");
+
+    const user = `问题：${escapePromptText(questionText)}
+主持人答：${answerLabel[answerType]}
+
+已知事实列表：
+${factList}
+
+哪些事实（填编号）对得出该答案是必要的？`;
+
+    const response = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: process.env.ZHIPU_MODEL?.trim() || "glm-4-flash-250414",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0,
+        max_tokens: 60,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) return knownFacts;
+
+    const result = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const raw = result.choices?.[0]?.message?.content;
+    if (!raw) return knownFacts;
+
+    const parsed = JSON.parse(raw) as { relevant_indices?: unknown };
+    if (!Array.isArray(parsed.relevant_indices)) return knownFacts;
+
+    const indices = (parsed.relevant_indices as unknown[])
+      .filter((v): v is number => typeof v === "number" && Number.isInteger(v));
+
+    return indices
+      .filter((i) => i >= 1 && i <= knownFacts.length)
+      .map((i) => knownFacts[i - 1]);
+  } catch {
+    return knownFacts;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 const SIMILARITY_THRESHOLD = 0.72;
 
 /**
@@ -233,23 +293,29 @@ export async function recordCacheHit(admin: SupabaseClient, entryId: number): Pr
   }
 }
 
-/** Write a new entry to puzzle_qa_cache. Non-fatal — errors are swallowed. */
+/**
+ * Write a new entry to puzzle_qa_cache.
+ * Calls GLM to extract which known facts were necessary for the answer,
+ * then stores them so the entry can be matched against future fact supersets.
+ * Non-fatal — errors are swallowed.
+ */
 export async function saveToPuzzleQaCache(
   admin: SupabaseClient,
   puzzleId: number,
-  knownFactsHash: string,
+  knownFacts: string[],
   questionText: string,
   normalizedQuestion: string,
   answerType: CacheHit["answer_type"],
+  zhipuApiKey: string,
 ): Promise<void> {
+  const relevantFacts = await extractRelevantFacts(questionText, answerType, knownFacts, zhipuApiKey);
   try {
     await admin.from("puzzle_qa_cache").insert({
       puzzle_id: puzzleId,
-      known_facts_hash: knownFactsHash,
       question_text: questionText,
       normalized_question: normalizedQuestion,
       answer_type: answerType,
-      is_context_dependent: isContextDependent(questionText),
+      relevant_facts: relevantFacts,
     });
   } catch {
     // non-fatal
@@ -257,39 +323,20 @@ export async function saveToPuzzleQaCache(
 }
 
 /**
- * Fetch cache candidates with tiered scoping:
- *
- * Global path (no hash filter):
- *   answer_type IN (yes, no) AND is_context_dependent = false
- *   — answers are stable; new facts cannot change an unambiguous referent.
- *
- * Hash-partitioned path (scoped to current known-facts snapshot):
- *   answer_type IN (irrelevant, ambiguous) OR is_context_dependent = true
- *   — new facts can upgrade irrelevant→yes/no or make a referent ambiguous (yes/no→ambiguous).
+ * Fetch cache candidates whose relevant_facts are a subset of currentFacts.
+ * Uses Postgres <@ (contained-by) via PostgREST's "cd" operator so only
+ * entries whose required facts are all present in the current context are returned.
  */
 export async function fetchPuzzleQaCache(
   admin: SupabaseClient,
   puzzleId: number,
-  knownFactsHash: string,
+  currentFacts: string[],
 ): Promise<CacheCandidate[]> {
-  const [globalRes, hashedRes] = await Promise.all([
-    // Stable: explicit-referent yes/no only
-    admin
-      .from("puzzle_qa_cache")
-      .select("id, question_text, normalized_question, answer_type")
-      .eq("puzzle_id", puzzleId)
-      .in("answer_type", ["yes", "no"])
-      .eq("is_context_dependent", false),
-    // Context-dependent: everything else, scoped by known-facts snapshot
-    admin
-      .from("puzzle_qa_cache")
-      .select("id, question_text, normalized_question, answer_type")
-      .eq("puzzle_id", puzzleId)
-      .eq("known_facts_hash", knownFactsHash)
-      .or("answer_type.in.(irrelevant,ambiguous),is_context_dependent.eq.true"),
-  ]);
-  return [
-    ...((globalRes.data ?? []) as CacheCandidate[]),
-    ...((hashedRes.data ?? []) as CacheCandidate[]),
-  ];
+  const { data } = await admin
+    .from("puzzle_qa_cache")
+    .select("id, question_text, normalized_question, answer_type")
+    .eq("puzzle_id", puzzleId)
+    .containedBy("relevant_facts", currentFacts);
+
+  return (data ?? []) as CacheCandidate[];
 }
