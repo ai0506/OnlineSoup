@@ -7,6 +7,7 @@ import { requireAdmin } from "@/lib/admin";
 import { redirectWithFlash } from "@/lib/flash";
 import { getSiteOrigin } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizeQuestion } from "@/lib/qa-cache";
 import { adminCreateUserSchema, adminPasswordSchema, usernameSchema } from "@/lib/validation";
 
 const NOEMAIL_DOMAIN = "@noemail.internal";
@@ -20,6 +21,7 @@ const adjustNoteSchema = z.string().trim().max(200).default("");
 const puzzleIdSchema = z.coerce.number().int().positive();
 const cacheEntryIdSchema = z.coerce.number().int().positive();
 const cacheAnswerSchema = z.enum(["yes", "no"]);
+const cacheQuestionSchema = z.string().trim().min(1).max(500);
 const aiErrorStatusSchema = z.enum(["open", "reviewed", "fixed", "ignored"]);
 const aiErrorCaseSchema = z.object({
   correctAnswer: z.string().trim().min(1).max(2000),
@@ -588,6 +590,35 @@ export async function updateCacheAnswer(formData: FormData) {
 
   if (error) {
     console.error("Admin cache answer update failed", error);
+    return await redirectAdminResult("error", "cache_update_failed", "puzzles");
+  }
+
+  revalidatePath("/admin");
+  return await redirectAdminResult("message", "cache_entry_updated", "puzzles");
+}
+
+export async function updateCacheText(formData: FormData) {
+  await requireAdmin();
+
+  const entryId = cacheEntryIdSchema.safeParse(formData.get("entryId"));
+  const question = cacheQuestionSchema.safeParse(formData.get("questionText"));
+  if (!entryId.success || !question.success) {
+    return await redirectAdminResult("error", "invalid_cache_entry", "puzzles");
+  }
+
+  const normalized = normalizeQuestion(question.data);
+  if (normalized.length === 0) {
+    return await redirectAdminResult("error", "invalid_cache_entry", "puzzles");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("puzzle_qa_cache")
+    .update({ question_text: question.data, normalized_question: normalized })
+    .eq("id", entryId.data);
+
+  if (error) {
+    console.error("Admin cache text update failed", error);
     return await redirectAdminResult("error", "cache_update_failed", "puzzles");
   }
 

@@ -17,6 +17,7 @@ type AdminPuzzleCachePanelProps = {
   entries: PuzzleCacheEntry[];
   deleteAction: (formData: FormData) => void | Promise<void>;
   updateAnswerAction: (formData: FormData) => void | Promise<void>;
+  updateTextAction: (formData: FormData) => void | Promise<void>;
   clearAction: (formData: FormData) => void | Promise<void>;
 };
 
@@ -42,9 +43,12 @@ export function AdminPuzzleCachePanel({
   entries,
   deleteAction,
   updateAnswerAction,
+  updateTextAction,
   clearAction,
 }: AdminPuzzleCachePanelProps) {
   const [deletingEntry, setDeletingEntry] = useState<PuzzleCacheEntry | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState("");
   const [clearing, setClearing] = useState(false);
 
   if (entries.length === 0) {
@@ -65,41 +69,95 @@ export function AdminPuzzleCachePanel({
       </div>
 
       <div className="admin-cache-entry-list">
-        {entries.map((entry) => (
-          <article className="admin-cache-entry" key={entry.id}>
-            <div className="admin-cache-entry-main">
-              <p className="admin-cache-entry-question">{entry.question_text}</p>
-              <div className="admin-cache-entry-meta">
-                <span className={`admin-cache-answer ${entry.answer_type}`}>
-                  {answerLabel(entry.answer_type)}
-                </span>
-                <span>命中 {entry.hit_count} 次</span>
-                <span>最近命中 {formatTime(entry.last_hit_at)}</span>
+        {entries.map((entry) => {
+          const isEditing = editingId === entry.id;
+          return (
+            <article className="admin-cache-entry" key={entry.id}>
+              <div className="admin-cache-entry-main">
+                {isEditing ? (
+                  <textarea
+                    className="admin-cache-entry-input"
+                    maxLength={500}
+                    onChange={(event) => setEditingText(event.target.value)}
+                    rows={2}
+                    value={editingText}
+                  />
+                ) : (
+                  <p className="admin-cache-entry-question">{entry.question_text}</p>
+                )}
+                <div className="admin-cache-entry-meta">
+                  <span className={`admin-cache-answer ${entry.answer_type}`}>
+                    {answerLabel(entry.answer_type)}
+                  </span>
+                  <span>命中 {entry.hit_count} 次</span>
+                  <span>最近命中 {formatTime(entry.last_hit_at)}</span>
+                </div>
               </div>
-            </div>
-            <div className="admin-cache-entry-actions">
-              <button
-                className="button secondary"
-                onClick={() => {
-                  const formData = new FormData();
-                  formData.set("entryId", String(entry.id));
-                  formData.set("answerType", entry.answer_type === "yes" ? "no" : "yes");
-                  void updateAnswerAction(formData);
-                }}
-                type="button"
-              >
-                改为「{answerLabel(entry.answer_type === "yes" ? "no" : "yes")}」
-              </button>
-              <button
-                className="button danger"
-                onClick={() => setDeletingEntry(entry)}
-                type="button"
-              >
-                删除
-              </button>
-            </div>
-          </article>
-        ))}
+              <div className="admin-cache-entry-actions">
+                {isEditing ? (
+                  <>
+                    <button
+                      className="button"
+                      disabled={
+                        editingText.trim().length === 0 ||
+                        editingText.trim() === entry.question_text
+                      }
+                      onClick={() => {
+                        const formData = new FormData();
+                        formData.set("entryId", String(entry.id));
+                        formData.set("questionText", editingText.trim());
+                        setEditingId(null);
+                        void updateTextAction(formData);
+                      }}
+                      type="button"
+                    >
+                      保存
+                    </button>
+                    <button
+                      className="button secondary"
+                      onClick={() => setEditingId(null)}
+                      type="button"
+                    >
+                      取消
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      className="button secondary"
+                      onClick={() => {
+                        setEditingId(entry.id);
+                        setEditingText(entry.question_text);
+                      }}
+                      type="button"
+                    >
+                      编辑原文
+                    </button>
+                    <button
+                      className="button secondary"
+                      onClick={() => {
+                        const formData = new FormData();
+                        formData.set("entryId", String(entry.id));
+                        formData.set("answerType", entry.answer_type === "yes" ? "no" : "yes");
+                        void updateAnswerAction(formData);
+                      }}
+                      type="button"
+                    >
+                      改为「{answerLabel(entry.answer_type === "yes" ? "no" : "yes")}」
+                    </button>
+                    <button
+                      className="button danger"
+                      onClick={() => setDeletingEntry(entry)}
+                      type="button"
+                    >
+                      删除
+                    </button>
+                  </>
+                )}
+              </div>
+            </article>
+          );
+        })}
       </div>
 
       {deletingEntry && (

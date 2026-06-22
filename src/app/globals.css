@@ -3268,6 +3268,13 @@ textarea:focus {
   word-break: break-word;
 }
 
+.admin-cache-entry-input {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  font-size: 14px;
+}
+
 .admin-cache-entry-meta {
   display: flex;
   flex-wrap: wrap;

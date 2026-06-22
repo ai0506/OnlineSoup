@@ -8,6 +8,7 @@
   deleteCacheEntry,
   deletePuzzle,
   updateCacheAnswer,
+  updateCacheText,
   forceCloseRoom,
   importPuzzles,
   sendPasswordReset,
@@ -907,6 +908,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       puzzles={visiblePuzzles}
       updateAction={updatePuzzle}
       updateCacheAnswerAction={updateCacheAnswer}
+      updateCacheTextAction={updateCacheText}
     />
   );
 

@@ -18,6 +18,7 @@ type AdminPuzzleListProps = {
   cacheByPuzzle: Record<number, PuzzleCacheEntry[]>;
   deleteCacheAction: (formData: FormData) => void | Promise<void>;
   updateCacheAnswerAction: (formData: FormData) => void | Promise<void>;
+  updateCacheTextAction: (formData: FormData) => void | Promise<void>;
   clearPuzzleCacheAction: (formData: FormData) => void | Promise<void>;
 };
 
@@ -33,6 +34,7 @@ export function AdminPuzzleList({
   cacheByPuzzle,
   deleteCacheAction,
   updateCacheAnswerAction,
+  updateCacheTextAction,
   clearPuzzleCacheAction,
 }: AdminPuzzleListProps) {
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -174,6 +176,7 @@ export function AdminPuzzleList({
               entries={cachePuzzle.id ? (cacheByPuzzle[cachePuzzle.id] ?? []) : []}
               puzzleId={cachePuzzle.id ?? 0}
               updateAnswerAction={updateCacheAnswerAction}
+              updateTextAction={updateCacheTextAction}
             />
           </div>
         </div>
