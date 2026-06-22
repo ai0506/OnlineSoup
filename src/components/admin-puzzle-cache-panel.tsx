@@ -7,6 +7,7 @@ export type PuzzleCacheEntry = {
   question_text: string;
   normalized_question: string;
   answer_type: "yes" | "no";
+  status: "pending" | "approved";
   hit_count: number;
   created_at: string;
   last_hit_at: string | null;
@@ -15,6 +16,7 @@ export type PuzzleCacheEntry = {
 type AdminPuzzleCachePanelProps = {
   puzzleId: number;
   entries: PuzzleCacheEntry[];
+  approveAction: (formData: FormData) => void | Promise<void>;
   deleteAction: (formData: FormData) => void | Promise<void>;
   updateAnswerAction: (formData: FormData) => void | Promise<void>;
   updateTextAction: (formData: FormData) => void | Promise<void>;
@@ -41,6 +43,7 @@ function answerLabel(type: "yes" | "no") {
 export function AdminPuzzleCachePanel({
   puzzleId,
   entries,
+  approveAction,
   deleteAction,
   updateAnswerAction,
   updateTextAction,
@@ -58,7 +61,9 @@ export function AdminPuzzleCachePanel({
   return (
     <>
       <div className="admin-cache-panel-actions">
-        <span className="muted">共 {entries.length} 条缓存</span>
+        <span className="muted">
+          共 {entries.length} 条缓存，待批准 {entries.filter((entry) => entry.status === "pending").length} 条
+        </span>
         <button
           className="button danger"
           onClick={() => setClearing(true)}
@@ -89,6 +94,7 @@ export function AdminPuzzleCachePanel({
                   <span className={`admin-cache-answer ${entry.answer_type}`}>
                     {answerLabel(entry.answer_type)}
                   </span>
+                  <span>{entry.status === "approved" ? "已批准" : "待批准"}</span>
                   <span>命中 {entry.hit_count} 次</span>
                   <span>最近命中 {formatTime(entry.last_hit_at)}</span>
                 </div>
@@ -123,6 +129,19 @@ export function AdminPuzzleCachePanel({
                   </>
                 ) : (
                   <>
+                    {entry.status === "pending" && (
+                      <button
+                        className="button"
+                        onClick={() => {
+                          const formData = new FormData();
+                          formData.set("entryId", String(entry.id));
+                          void approveAction(formData);
+                        }}
+                        type="button"
+                      >
+                        批准
+                      </button>
+                    )}
                     <button
                       className="button secondary"
                       onClick={() => {

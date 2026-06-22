@@ -1,4 +1,5 @@
 ﻿import {
+  approveCacheEntry,
   clearRoomMessages,
   clearPuzzleCache,
   createAiErrorCase,
@@ -644,7 +645,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     .returns<AdminAiErrorCase[]>();
   const cacheEntriesPromise = admin
     .from("puzzle_qa_cache")
-    .select("id, puzzle_id, question_text, normalized_question, answer_type, hit_count, created_at, last_hit_at")
+    .select("id, puzzle_id, question_text, normalized_question, answer_type, status, hit_count, created_at, last_hit_at")
+    .order("status", { ascending: false })
     .order("hit_count", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(2000)
@@ -900,6 +902,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   const puzzleContent = (
     <AdminPuzzleList
+      approveCacheAction={approveCacheEntry}
       cacheByPuzzle={cacheByPuzzle}
       clearPuzzleCacheAction={clearPuzzleCache}
       deleteAction={deletePuzzle}

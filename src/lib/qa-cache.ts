@@ -4,22 +4,20 @@ export type CacheCandidate = {
   id: number;
   question_text: string;
   normalized_question: string;
-  answer_type: "yes" | "no" | "irrelevant" | "ambiguous";
+  answer_type: "yes" | "no";
 };
 
 export type CacheHit = {
   id: number;
   question_text: string;
   normalized_question: string;
-  answer_type: "yes" | "no" | "irrelevant" | "ambiguous";
+  answer_type: "yes" | "no";
   match_type: "exact" | "equivalent";
 };
 
 const answerLabel: Record<CacheHit["answer_type"], string> = {
   yes: "是",
   no: "否",
-  irrelevant: "与此无关",
-  ambiguous: "模糊问题",
 };
 
 /**
@@ -28,9 +26,10 @@ const answerLabel: Record<CacheHit["answer_type"], string> = {
  * such a question is not stable, so these are never cached.
  */
 const CONTEXT_DEPENDENT_TOKENS = [
-  "这个", "那个", "这件事", "那件事", "这里", "那里",
-  "这样", "那样", "这碗", "那碗", "这次", "那次",
-  "他", "她", "他们", "它",
+  "我", "你", "您", "他", "她", "它", "他们", "她们", "它们", "咱们", "我们", "你们",
+  "这个", "那个", "这些", "那些", "这种", "那种", "这类", "那类",
+  "这件事", "那件事", "这件事情", "那件事情", "这里", "那里",
+  "这样", "那样", "这碗", "那碗", "这次", "那次", "这场", "那场",
   "当时", "后来", "之前", "之后",
 ];
 
@@ -231,8 +230,8 @@ export async function recordCacheHit(admin: SupabaseClient, entryId: number): Pr
 }
 
 /**
- * Write a new entry to puzzle_qa_cache. Only stable yes/no answers reach here
- * (gated by isCacheWorthy), so no fact-scoping is stored. Non-fatal.
+ * Write a pending entry to puzzle_qa_cache. Only stable yes/no answers reach here
+ * (gated by isCacheWorthy), but an admin must approve it before it can be used.
  */
 export async function saveToPuzzleQaCache(
   admin: SupabaseClient,
@@ -247,6 +246,7 @@ export async function saveToPuzzleQaCache(
       question_text: questionText,
       normalized_question: normalizedQuestion,
       answer_type: answerType,
+      status: "pending",
     });
   } catch {
     // non-fatal
@@ -254,18 +254,24 @@ export async function saveToPuzzleQaCache(
 }
 
 /**
- * Fetch all cached entries for a puzzle. Entries are stable yes/no answers,
- * so no fact-based scoping is needed — the whole puzzle's cache is a valid
- * candidate set.
+ * Fetch approved cached entries for a puzzle. Pending entries are visible only
+ * in the admin panel and expire after 3 days if nobody approves them.
  */
 export async function fetchPuzzleQaCache(
   admin: SupabaseClient,
   puzzleId: number,
 ): Promise<CacheCandidate[]> {
+  try {
+    await admin.rpc("cleanup_expired_qa_cache_pending");
+  } catch {
+    // non-fatal
+  }
+
   const { data } = await admin
     .from("puzzle_qa_cache")
     .select("id, question_text, normalized_question, answer_type")
-    .eq("puzzle_id", puzzleId);
+    .eq("puzzle_id", puzzleId)
+    .eq("status", "approved");
 
   return (data ?? []) as CacheCandidate[];
 }

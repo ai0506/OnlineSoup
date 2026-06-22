@@ -597,6 +597,29 @@ export async function updateCacheAnswer(formData: FormData) {
   return await redirectAdminResult("message", "cache_entry_updated", "puzzles");
 }
 
+export async function approveCacheEntry(formData: FormData) {
+  await requireAdmin();
+
+  const entryId = cacheEntryIdSchema.safeParse(formData.get("entryId"));
+  if (!entryId.success) {
+    return await redirectAdminResult("error", "invalid_cache_entry", "puzzles");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("puzzle_qa_cache")
+    .update({ status: "approved" })
+    .eq("id", entryId.data);
+
+  if (error) {
+    console.error("Admin cache approve failed", error);
+    return await redirectAdminResult("error", "cache_update_failed", "puzzles");
+  }
+
+  revalidatePath("/admin");
+  return await redirectAdminResult("message", "cache_entry_updated", "puzzles");
+}
+
 export async function updateCacheText(formData: FormData) {
   await requireAdmin();
 

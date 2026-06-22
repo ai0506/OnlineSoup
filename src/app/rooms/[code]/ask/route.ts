@@ -257,8 +257,14 @@ export async function POST(request: Request, { params }: AskRouteContext) {
         } else {
           aiContent = result.content;
           // Save to cache only on high-confidence (strict===inferential) answers
-          if (result.cacheEligible && zhipuKey && isCacheWorthy(content, result.answerType)) {
-            void saveToPuzzleQaCache(admin, requestResult.puzzle_id, content, normalizedQ, result.answerType);
+          const answerType = result.answerType;
+          if (
+            result.cacheEligible &&
+            zhipuKey &&
+            (answerType === "yes" || answerType === "no") &&
+            isCacheWorthy(content, answerType)
+          ) {
+            void saveToPuzzleQaCache(admin, requestResult.puzzle_id, content, normalizedQ, answerType);
           }
         }
       }
