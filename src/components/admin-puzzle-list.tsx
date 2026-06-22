@@ -6,11 +6,19 @@ import {
   AdminPuzzleForm,
   type AdminPuzzleFormValue,
 } from "@/components/admin-puzzle-form";
+import {
+  AdminPuzzleCachePanel,
+  type PuzzleCacheEntry,
+} from "@/components/admin-puzzle-cache-panel";
 
 type AdminPuzzleListProps = {
   deleteAction: (formData: FormData) => void | Promise<void>;
   puzzles: AdminPuzzleFormValue[];
   updateAction: (formData: FormData) => void | Promise<void>;
+  cacheByPuzzle: Record<number, PuzzleCacheEntry[]>;
+  deleteCacheAction: (formData: FormData) => void | Promise<void>;
+  updateCacheAnswerAction: (formData: FormData) => void | Promise<void>;
+  clearPuzzleCacheAction: (formData: FormData) => void | Promise<void>;
 };
 
 function clampText(value: string | undefined, maxLength = 42) {
@@ -22,27 +30,37 @@ export function AdminPuzzleList({
   deleteAction,
   puzzles,
   updateAction,
+  cacheByPuzzle,
+  deleteCacheAction,
+  updateCacheAnswerAction,
+  clearPuzzleCacheAction,
 }: AdminPuzzleListProps) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deletingPuzzle, setDeletingPuzzle] = useState<AdminPuzzleFormValue | null>(
     null,
   );
+  const [cachePuzzleId, setCachePuzzleId] = useState<number | null>(null);
   const editingPuzzle = useMemo(
     () => puzzles.find((puzzle) => puzzle.id === editingId),
     [editingId, puzzles],
   );
+  const cachePuzzle = useMemo(
+    () => puzzles.find((puzzle) => puzzle.id === cachePuzzleId),
+    [cachePuzzleId, puzzles],
+  );
 
   useEffect(() => {
-    if (!editingPuzzle && !deletingPuzzle) return;
+    if (!editingPuzzle && !deletingPuzzle && !cachePuzzle) return;
 
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       setEditingId(null);
       setDeletingPuzzle(null);
+      setCachePuzzleId(null);
     };
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [editingPuzzle, deletingPuzzle]);
+  }, [editingPuzzle, deletingPuzzle, cachePuzzle]);
 
   if (puzzles.length === 0) {
     return <div className="card muted">没有找到匹配的题目。</div>;
@@ -75,6 +93,16 @@ export function AdminPuzzleList({
                   type="button"
                 >
                   编辑
+                </button>
+                <button
+                  className="button ghost"
+                  onClick={() => setCachePuzzleId(puzzle.id ?? null)}
+                  type="button"
+                >
+                  缓存
+                  <span className="admin-puzzle-cache-count">
+                    {puzzle.id ? (cacheByPuzzle[puzzle.id]?.length ?? 0) : 0}
+                  </span>
                 </button>
                 <button
                   className="button danger"
@@ -115,6 +143,37 @@ export function AdminPuzzleList({
               mode="edit"
               puzzle={editingPuzzle}
               returnTab="puzzles"
+            />
+          </div>
+        </div>
+      )}
+
+      {cachePuzzle && (
+        <div className="admin-panel-overlay" role="dialog" aria-modal="true">
+          <div className="admin-panel-dialog">
+            <div className="admin-panel-header">
+              <div>
+                <h2>问答缓存</h2>
+                <p className="muted">
+                  #{cachePuzzle.id} · {cachePuzzle.title}
+                </p>
+              </div>
+              <button
+                aria-label="关闭问答缓存面板"
+                className="admin-panel-close"
+                onClick={() => setCachePuzzleId(null)}
+                type="button"
+              >
+                ×
+              </button>
+            </div>
+
+            <AdminPuzzleCachePanel
+              clearAction={clearPuzzleCacheAction}
+              deleteAction={deleteCacheAction}
+              entries={cachePuzzle.id ? (cacheByPuzzle[cachePuzzle.id] ?? []) : []}
+              puzzleId={cachePuzzle.id ?? 0}
+              updateAnswerAction={updateCacheAnswerAction}
             />
           </div>
         </div>

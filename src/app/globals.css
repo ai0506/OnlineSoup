@@ -3215,6 +3215,92 @@ textarea:focus {
   text-transform: uppercase;
 }
 
+/* ── Admin puzzle Q&A cache panel ── */
+
+.admin-puzzle-cache-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--surface-2, rgba(148, 163, 184, 0.18));
+  color: var(--muted);
+}
+
+.admin-cache-panel-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.admin-cache-entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-cache-entry {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--surface-2, rgba(148, 163, 184, 0.08));
+  border: 1px solid var(--line, rgba(148, 163, 184, 0.2));
+}
+
+.admin-cache-entry-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.admin-cache-entry-question {
+  margin: 0;
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.admin-cache-entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.admin-cache-answer {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.admin-cache-answer.yes {
+  background: rgba(34, 197, 94, 0.14);
+  color: #15803d;
+}
+
+.admin-cache-answer.no {
+  background: rgba(239, 68, 68, 0.14);
+  color: #b91c1c;
+}
+
+.admin-cache-entry-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
 .puzzle-owner-menu {
   position: relative;
 }

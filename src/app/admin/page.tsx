@@ -1,10 +1,13 @@
 ﻿import {
   clearRoomMessages,
+  clearPuzzleCache,
   createAiErrorCase,
   createAdminUser,
   createPuzzle,
   deleteAdminUser,
+  deleteCacheEntry,
   deletePuzzle,
+  updateCacheAnswer,
   forceCloseRoom,
   importPuzzles,
   sendPasswordReset,
@@ -25,6 +28,7 @@ import {
 } from "@/components/admin-puzzle-form";
 import { AdminPuzzleImport } from "@/components/admin-puzzle-import";
 import { AdminPuzzleList } from "@/components/admin-puzzle-list";
+import type { PuzzleCacheEntry } from "@/components/admin-puzzle-cache-panel";
 import { AdminRoomCleanupList } from "@/components/admin-room-cleanup-list";
 import {
   AdminRoomOverviewList,
@@ -229,6 +233,8 @@ const errors: Record<string, string> = {
   ai_error_question_not_found: "没有找到这条 AI 回复对应的玩家提问。",
   ai_error_puzzle_not_found: "没有找到这条 AI 回复对应的故事。",
   ai_error_case_failed: "AI 错误案例保存失败，请稍后重试。",
+  invalid_cache_entry: "缓存条目信息无效。",
+  cache_update_failed: "缓存操作失败，请稍后重试。",
 };
 
 const messages: Record<string, string> = {
@@ -246,6 +252,9 @@ const messages: Record<string, string> = {
   ai_error_case_created: "AI 错误案例已收录。",
   ai_error_case_updated: "AI 错误案例已更新。",
   ai_error_cases_updated: "AI 错误案例已批量更新。",
+  cache_entry_deleted: "缓存条目已删除。",
+  cache_entry_updated: "缓存答案已修改。",
+  cache_cleared: "整题缓存已清空。",
 };
 
 const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -632,6 +641,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     .order("created_at", { ascending: false })
     .limit(500)
     .returns<AdminAiErrorCase[]>();
+  const cacheEntriesPromise = admin
+    .from("puzzle_qa_cache")
+    .select("id, puzzle_id, question_text, normalized_question, answer_type, hit_count, created_at, last_hit_at")
+    .order("hit_count", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(2000)
+    .returns<(PuzzleCacheEntry & { puzzle_id: number })[]>();
 
   const [
     { data: usersData, error: usersError },
@@ -641,6 +657,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     { data: aiErrorCases, error: aiErrorCasesError },
     { data: activeRoomsRaw, error: activeRoomsError },
     { data: ptTxnsRaw, error: ptTxnsError },
+    { data: cacheEntriesRaw, error: cacheEntriesError },
   ] = await Promise.all([
     admin.auth.admin.listUsers({
       page: 1,
@@ -658,6 +675,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     aiErrorCasesPromise,
     activeRoomsPromise,
     ptTxnsPromise,
+    cacheEntriesPromise,
   ]);
 
   if (usersError) {
@@ -686,6 +704,16 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   if (ptTxnsError) {
     throw new Error(`读取积分流水失败：${ptTxnsError.message}`);
+  }
+
+  if (cacheEntriesError) {
+    throw new Error(`读取问答缓存失败：${cacheEntriesError.message}`);
+  }
+
+  const cacheByPuzzle: Record<number, PuzzleCacheEntry[]> = {};
+  for (const entry of cacheEntriesRaw ?? []) {
+    const { puzzle_id, ...rest } = entry;
+    (cacheByPuzzle[puzzle_id] ??= []).push(rest);
   }
 
   // Fetch question messages referenced by AI messages via reply_to_id
@@ -871,10 +899,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   const puzzleContent = (
     <AdminPuzzleList
+      cacheByPuzzle={cacheByPuzzle}
+      clearPuzzleCacheAction={clearPuzzleCache}
       deleteAction={deletePuzzle}
+      deleteCacheAction={deleteCacheEntry}
       key="puzzle-list"
       puzzles={visiblePuzzles}
       updateAction={updatePuzzle}
+      updateCacheAnswerAction={updateCacheAnswer}
     />
   );
 

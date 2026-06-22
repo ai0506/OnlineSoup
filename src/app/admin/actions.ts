@@ -18,6 +18,8 @@ const messageIdSchema = z.coerce.number().int().positive();
 const adjustAmountSchema = z.coerce.number().int().min(-1_000_000_000).max(1_000_000_000).refine((v) => v !== 0, "amount must not be zero");
 const adjustNoteSchema = z.string().trim().max(200).default("");
 const puzzleIdSchema = z.coerce.number().int().positive();
+const cacheEntryIdSchema = z.coerce.number().int().positive();
+const cacheAnswerSchema = z.enum(["yes", "no"]);
 const aiErrorStatusSchema = z.enum(["open", "reviewed", "fixed", "ignored"]);
 const aiErrorCaseSchema = z.object({
   correctAnswer: z.string().trim().min(1).max(2000),
@@ -544,6 +546,76 @@ export async function deletePuzzle(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/", "layout");
   return await redirectAdminResult("message", "puzzle_deleted", tab);
+}
+
+export async function deleteCacheEntry(formData: FormData) {
+  await requireAdmin();
+
+  const entryId = cacheEntryIdSchema.safeParse(formData.get("entryId"));
+  if (!entryId.success) {
+    return await redirectAdminResult("error", "invalid_cache_entry", "puzzles");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("puzzle_qa_cache")
+    .delete()
+    .eq("id", entryId.data);
+
+  if (error) {
+    console.error("Admin cache entry delete failed", error);
+    return await redirectAdminResult("error", "cache_update_failed", "puzzles");
+  }
+
+  revalidatePath("/admin");
+  return await redirectAdminResult("message", "cache_entry_deleted", "puzzles");
+}
+
+export async function updateCacheAnswer(formData: FormData) {
+  await requireAdmin();
+
+  const entryId = cacheEntryIdSchema.safeParse(formData.get("entryId"));
+  const answer = cacheAnswerSchema.safeParse(formData.get("answerType"));
+  if (!entryId.success || !answer.success) {
+    return await redirectAdminResult("error", "invalid_cache_entry", "puzzles");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("puzzle_qa_cache")
+    .update({ answer_type: answer.data })
+    .eq("id", entryId.data);
+
+  if (error) {
+    console.error("Admin cache answer update failed", error);
+    return await redirectAdminResult("error", "cache_update_failed", "puzzles");
+  }
+
+  revalidatePath("/admin");
+  return await redirectAdminResult("message", "cache_entry_updated", "puzzles");
+}
+
+export async function clearPuzzleCache(formData: FormData) {
+  await requireAdmin();
+
+  const puzzleId = puzzleIdSchema.safeParse(formData.get("puzzleId"));
+  if (!puzzleId.success) {
+    return await redirectAdminResult("error", "invalid_cache_entry", "puzzles");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("puzzle_qa_cache")
+    .delete()
+    .eq("puzzle_id", puzzleId.data);
+
+  if (error) {
+    console.error("Admin puzzle cache clear failed", error);
+    return await redirectAdminResult("error", "cache_update_failed", "puzzles");
+  }
+
+  revalidatePath("/admin");
+  return await redirectAdminResult("message", "cache_cleared", "puzzles");
 }
 
 export async function createAiErrorCase(formData: FormData) {
