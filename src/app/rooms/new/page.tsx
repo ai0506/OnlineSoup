@@ -33,6 +33,10 @@ export default async function NewRoomPage() {
     redirect("/account/username");
   }
 
+  // 默认房间名为「{房主名}的房间」，房间名上限 8 字，"的房间" 占 3 字，
+  // 因此房主名最多保留 5 字，超出部分截断。
+  const defaultRoomName = `${profile.username.slice(0, 5)}的房间`;
+
   return (
     <section className="form-card">
       <h1>创建房间</h1>
@@ -40,7 +44,7 @@ export default async function NewRoomPage() {
         填好后即可邀请朋友加入。你当前有
         <strong> {profile?.points ?? 0} 积分</strong>。
       </p>
-      <CreateRoomForm currentPoints={profile?.points ?? 0} />
+      <CreateRoomForm currentPoints={profile?.points ?? 0} defaultRoomName={defaultRoomName} />
     </section>
   );
 }

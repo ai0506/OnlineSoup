@@ -111,7 +111,7 @@ export function LiveRoomSeats({
 
   useEffect(() => {
     const media = window.matchMedia(
-      "(min-width: 1180px) and (min-aspect-ratio: 4 / 3)",
+      "(min-width: 880px) and (min-aspect-ratio: 6 / 5)",
     );
     const updateLayout = () => setWideLayout(media.matches);
     updateLayout();
@@ -121,7 +121,7 @@ export function LiveRoomSeats({
 
   useEffect(() => {
     const media = window.matchMedia(
-      "(min-width: 640px) and (max-width: 1179px) and (orientation: landscape)",
+      "(min-width: 640px) and (max-width: 879px) and (orientation: landscape)",
     );
     const openTabletDetails = () => {
       if (media.matches) setDetailsOpen(true);
