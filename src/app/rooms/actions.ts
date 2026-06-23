@@ -646,6 +646,16 @@ export async function closePuzzle(
   return { status: "success" };
 }
 
+export async function checkSeatSessionActive(roomCode: string): Promise<boolean> {
+  const code = roomCode.trim().toUpperCase();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("is_my_seat_session_active", {
+    p_room_code: code,
+  });
+  if (error) return true; // fail open: don't displace on RPC error
+  return data === true;
+}
+
 export async function leaveRoom(
   _previousState: RoomActionState,
   formData: FormData,

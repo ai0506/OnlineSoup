@@ -64,6 +64,10 @@ export default async function AdminVerifyPage({ searchParams }: AdminVerifyPageP
               required
             />
           </label>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+            <input defaultChecked name="remember_device" type="checkbox" />
+            记住此设备（永久免验证）
+          </label>
           <SubmitButton pendingText="正在验证...">进入管理端</SubmitButton>
         </form>
       </div>

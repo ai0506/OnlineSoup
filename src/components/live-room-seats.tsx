@@ -9,7 +9,7 @@ import {
   useTransition,
 } from "react";
 
-import { getRoomMembershipStatus, giftPoints, kickGuest, moveSeat } from "@/app/rooms/actions";
+import { checkSeatSessionActive, getRoomMembershipStatus, giftPoints, kickGuest, moveSeat } from "@/app/rooms/actions";
 import type { RoomActionState } from "@/app/rooms/actions";
 import { CopyRoomCode } from "@/components/copy-room-code";
 import { RoomActionForm } from "@/components/room-action-form";
@@ -44,7 +44,7 @@ type LiveRoomSeatsProps = {
   manageExtra: ReactNode;
 };
 
-function leaveWithNotice(notice: "room_kicked" | "room_closed" | "room_left") {
+function leaveWithNotice(notice: "room_kicked" | "room_closed" | "room_left" | "room_displaced") {
   const params = new URLSearchParams({
     code: notice,
     kind: "notice",
@@ -215,6 +215,15 @@ export function LiveRoomSeats({
     const supabase = createClient();
     let checking = false;
     let syncRequested = false;
+    let sessionCheckTimer: ReturnType<typeof setInterval> | null = null;
+
+    // For logged-in members: periodically check if this device is still the active session.
+    // If another device entered the room, it took over the session and we should leave.
+    const checkSession = async () => {
+      if (!currentUserId || document.visibilityState !== "visible") return;
+      const active = await checkSeatSessionActive(roomCode);
+      if (!active) leaveWithNotice("room_displaced");
+    };
 
     const syncSeats = async () => {
       if (checking || document.visibilityState !== "visible") return;
@@ -307,6 +316,11 @@ export function LiveRoomSeats({
           return;
         }
 
+        // If our seat was updated (e.g. session takeover by another device), check session
+        if (currentUserId && currentSeatId === changedSeat.id) {
+          void checkSession();
+        }
+
         setSeats((current) =>
           current.map((seat) => seat.id === changedSeat.id ? changedSeat : seat),
         );
@@ -323,11 +337,19 @@ export function LiveRoomSeats({
         }
       })
       .subscribe((status) => {
-        if (status === "SUBSCRIBED") void syncSeats();
+        if (status === "SUBSCRIBED") {
+          void syncSeats();
+          if (currentUserId) {
+            // Check every 15s as fallback for when Realtime misses the takeover event
+            sessionCheckTimer = setInterval(() => void checkSession(), 15_000);
+          }
+        }
       });
 
     document.addEventListener("visibilitychange", syncSeats);
+    document.addEventListener("visibilitychange", checkSession);
     window.addEventListener("focus", syncSeats);
+    window.addEventListener("focus", checkSession);
     window.addEventListener("online", syncSeats);
     window.addEventListener("room-data-refresh", syncSeats);
     const syncTimer = window.setInterval(() => void syncSeats(), SEATS_FALLBACK_POLL_MS);
@@ -335,10 +357,13 @@ export function LiveRoomSeats({
 
     return () => {
       document.removeEventListener("visibilitychange", syncSeats);
+      document.removeEventListener("visibilitychange", checkSession);
       window.removeEventListener("focus", syncSeats);
+      window.removeEventListener("focus", checkSession);
       window.removeEventListener("online", syncSeats);
       window.removeEventListener("room-data-refresh", syncSeats);
       window.clearInterval(syncTimer);
+      if (sessionCheckTimer !== null) clearInterval(sessionCheckTimer);
       void supabase.removeChannel(channel);
     };
   }, [currentSeatId, currentUserId, isJoinedGuest, roomCode, roomId]);

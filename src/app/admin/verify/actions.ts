@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/admin";
 import {
   clearAdminVerified,
+  setAdminDeviceTrusted,
   setAdminVerified,
 } from "@/lib/admin-verification";
 import { getClientIp, getDeviceLabel, getLocationLabel } from "@/lib/request-context";
@@ -84,5 +85,11 @@ export async function verifyAdminEmailCode(formData: FormData) {
   }
 
   await setAdminVerified(verifiedUserId, sessionId);
+
+  const rememberDevice = formData.get("remember_device") === "on";
+  if (rememberDevice) {
+    await setAdminDeviceTrusted(verifiedUserId);
+  }
+
   redirect("/admin");
 }
