@@ -1445,6 +1445,7 @@ textarea:focus {
 }
 
 .room-details-code {
+  flex-wrap: wrap;
   margin-bottom: 12px;
 }
 

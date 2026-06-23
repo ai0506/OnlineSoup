@@ -10,7 +10,6 @@ import { LiveRoomSeats } from "@/components/live-room-seats";
 import { PuzzlePanel } from "@/components/puzzle-panel";
 import { RoomActionForm } from "@/components/room-action-form";
 import { RoomChat } from "@/components/room-chat";
-import { ShareRoomLink } from "@/components/share-room-link";
 import { hasSupabaseEnv } from "@/lib/env";
 import { flashRedirectPath } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
@@ -270,7 +269,6 @@ export default async function RoomPage({
         }
         manageExtra={
           <div className="room-controls">
-            <ShareRoomLink code={room.code} />
             {isOwner && (
               <RoomActionForm
                 action={closeRoom}
