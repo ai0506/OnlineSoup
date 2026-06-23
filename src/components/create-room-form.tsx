@@ -11,9 +11,10 @@ const initialState: RoomActionState = { status: "idle" };
 
 type CreateRoomFormProps = {
   currentPoints: number;
+  defaultRoomName: string;
 };
 
-export function CreateRoomForm({ currentPoints }: CreateRoomFormProps) {
+export function CreateRoomForm({ currentPoints, defaultRoomName }: CreateRoomFormProps) {
   const router = useRouter();
   const [state, formAction] = useActionState(createRoom, initialState);
 
@@ -36,7 +37,7 @@ export function CreateRoomForm({ currentPoints }: CreateRoomFormProps) {
       <label>
         房间名称
         <input
-          defaultValue="海龟汤房间"
+          defaultValue={defaultRoomName}
           maxLength={8}
           minLength={2}
           name="name"

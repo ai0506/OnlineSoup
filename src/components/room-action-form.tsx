@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useActionState, useEffect } from "react";
 
 import type { RoomActionState } from "@/app/rooms/actions";
@@ -36,12 +35,14 @@ export function RoomActionForm({
   seatId,
   onSuccess,
 }: RoomActionFormProps) {
-  const router = useRouter();
   const [state, formAction] = useActionState(action, initialState);
 
   useEffect(() => {
     if (state.navigateTo) {
-      router.replace(state.navigateTo);
+      // 用整页跳转替代软导航，确保关闭/退出房间后立即离开，
+      // 并让服务端重新渲染顶部积分等布局信息。
+      window.location.replace(state.navigateTo);
+      return;
     }
     if (state.status === "success" && onSuccess) {
       onSuccess();
@@ -49,7 +50,7 @@ export function RoomActionForm({
     if (state.status === "success") {
       window.dispatchEvent(new Event("room-data-refresh"));
     }
-  }, [router, state, onSuccess]);
+  }, [state, onSuccess]);
 
   return (
     <form action={formAction} className={className}>

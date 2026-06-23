@@ -92,6 +92,8 @@ export async function createRoom(
     };
   }
 
+  // 创建扣积分后，刷新布局缓存让站点头部的积分立即更新
+  revalidatePath("/", "layout");
   redirect(`/rooms/${data}`);
 }
 
