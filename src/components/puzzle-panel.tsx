@@ -22,6 +22,9 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   抽象: "puzzle-diff-abstract",
 };
 
+const LONG_SURFACE_CHAR_LIMIT = 360;
+const LONG_SURFACE_LINE_LIMIT = 8;
+
 type PuzzlePanelProps = {
   isOwner: boolean;
   roomCode: string;
@@ -51,6 +54,7 @@ export function PuzzlePanel({
   const [filterDiff, setFilterDiff] = useState<string | null>(null);
   const [selectedPuzzle, setSelectedPuzzle] = useState<PuzzleListItem | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [surfaceExpanded, setSurfaceExpanded] = useState(false);
   const [isPending, startTransition] = useTransition();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const refreshSeqRef = useRef(0);
@@ -71,6 +75,7 @@ export function PuzzlePanel({
   if (factsPuzzleId !== (currentPuzzle?.id ?? null)) {
     setFactsPuzzleId(currentPuzzle?.id ?? null);
     setKnownFacts([]);
+    setSurfaceExpanded(false);
   }
 
   // 同步通知聊天区：当前是否有进行中的题目、题目 ID，决定能否使用询问/提示/推理
@@ -205,6 +210,12 @@ export function PuzzlePanel({
   const filteredPuzzles = filterDiff
     ? puzzleList.filter((p) => p.difficulty === filterDiff)
     : puzzleList;
+
+  const currentSurface = currentPuzzle?.surface ?? "";
+  const currentSurfaceLineCount = currentSurface.split(/\r\n|\r|\n/).length;
+  const isLongSurface =
+    currentSurface.length > LONG_SURFACE_CHAR_LIMIT ||
+    currentSurfaceLineCount > LONG_SURFACE_LINE_LIMIT;
 
   const portalTarget = typeof document === "undefined" ? null : document.body;
 
@@ -444,7 +455,23 @@ export function PuzzlePanel({
               <span className="puzzle-unsolved-badge">○ 进行中</span>
             )}
           </div>
-          <p className="puzzle-surface-text">{currentPuzzle.surface}</p>
+          <div className="puzzle-surface-block">
+            <p
+              className={`puzzle-surface-text${isLongSurface ? " long" : ""}${surfaceExpanded ? " expanded" : ""}`}
+            >
+              {currentPuzzle.surface}
+            </p>
+            {isLongSurface && (
+              <button
+                className="puzzle-surface-toggle"
+                type="button"
+                onClick={() => setSurfaceExpanded((value) => !value)}
+                aria-expanded={surfaceExpanded}
+              >
+                {surfaceExpanded ? "收起" : "展开阅读"}
+              </button>
+            )}
+          </div>
 
           <div className="puzzle-facts-section">
             <span className="puzzle-facts-label">事实总结</span>
