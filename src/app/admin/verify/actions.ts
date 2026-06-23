@@ -40,7 +40,7 @@ export async function verifyAdminEmailCode(formData: FormData) {
   const user = await requireAdmin({ requireVerified: false });
   const token = String(formData.get("token") ?? "").trim();
 
-  if (!user.email || !/^\d{6}$/.test(token)) {
+  if (!user.email || !/^\d{8}$/.test(token)) {
     redirectVerify({ error: "invalid_code" });
   }
 

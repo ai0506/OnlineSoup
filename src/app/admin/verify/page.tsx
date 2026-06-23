@@ -14,12 +14,12 @@ type AdminVerifyPageProps = {
 const errors: Record<string, string> = {
   missing_email: "当前管理员账号没有邮箱，无法完成二次验证。",
   send_failed: "验证码发送失败，请稍后重试。",
-  invalid_code: "请输入邮件中的 6 位验证码。",
+  invalid_code: "请输入邮件中的 8 位验证码。",
   verify_failed: "验证码无效或已过期，请重新发送后再试。",
 };
 
 const messages: Record<string, string> = {
-  code_sent: "验证码已发送到管理员邮箱，请查收 6 位数字验证码。",
+  code_sent: "验证码已发送到管理员邮箱，请查收 8 位数字验证码。",
 };
 
 export default async function AdminVerifyPage({ searchParams }: AdminVerifyPageProps) {
@@ -33,7 +33,7 @@ export default async function AdminVerifyPage({ searchParams }: AdminVerifyPageP
           <p className="eyebrow">管理端二次认证</p>
           <h1>验证管理员邮箱</h1>
           <p className="muted">
-            当前浏览器首次进入管理端，需要使用 {user.email} 收到的 6 位验证码确认身份。
+            当前浏览器首次进入管理端，需要使用 {user.email} 收到的 8 位验证码确认身份。
           </p>
         </div>
 
@@ -56,11 +56,11 @@ export default async function AdminVerifyPage({ searchParams }: AdminVerifyPageP
             <input
               autoComplete="one-time-code"
               inputMode="numeric"
-              maxLength={6}
-              minLength={6}
+              maxLength={8}
+              minLength={8}
               name="token"
-              pattern="[0-9]{6}"
-              placeholder="6 位数字"
+              pattern="[0-9]{8}"
+              placeholder="8 位数字"
               required
             />
           </label>
