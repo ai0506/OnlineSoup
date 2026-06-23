@@ -17,16 +17,19 @@ import type { CurrentPuzzle, PuzzleListItem, Room, RoomChatBootstrap, RoomSeat }
 
 type RoomPageProps = {
   params: Promise<{ code: string }>;
+  searchParams: Promise<{ action?: string }>;
 };
 
 export default async function RoomPage({
   params,
+  searchParams,
 }: RoomPageProps) {
   if (!hasSupabaseEnv()) {
     notFound();
   }
 
   const { code: rawCode } = await params;
+  const { action } = await searchParams;
   const code = rawCode.toUpperCase();
   const supabase = await createClient();
   const cookieStore = await cookies();
@@ -150,11 +153,18 @@ export default async function RoomPage({
     }
 
     if (!sessionCheckError && canUseRoomSession === false) {
-      redirect(flashRedirectPath("/", {
-        code: "room_in_use",
-        kind: "notice",
-        scope: "home",
-      }));
+      if (action === "enter") {
+        // User explicitly chose to enter on this device — take over session
+        await supabase.rpc("take_over_room_session", { p_room_code: code });
+        redirect(`/rooms/${code}`);
+      } else {
+        // Normal refresh: this device was displaced by another, go home
+        redirect(flashRedirectPath("/", {
+          code: "room_displaced",
+          kind: "notice",
+          scope: "home",
+        }));
+      }
     }
   }
 

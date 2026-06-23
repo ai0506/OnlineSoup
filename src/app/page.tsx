@@ -87,7 +87,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <p className="muted">
               请先返回当前房间，或退出后再加入其他房间。
             </p>
-            <Link className="button" href={`/rooms/${activeRoomCode}`}>
+            <Link className="button" href={`/rooms/${activeRoomCode}?action=enter`}>
               返回房间
             </Link>
           </div>
