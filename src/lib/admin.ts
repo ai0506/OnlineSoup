@@ -1,5 +1,9 @@
 import { redirect } from "next/navigation";
 
+import {
+  clearAdminVerified,
+  isAdminVerified,
+} from "@/lib/admin-verification";
 import { flashRedirectPath } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,7 +18,12 @@ export function isAdminEmail(email: string | undefined) {
   return Boolean(email && getAdminEmails().includes(email.toLowerCase()));
 }
 
-export async function requireAdmin() {
+type RequireAdminOptions = {
+  requireVerified?: boolean;
+};
+
+export async function requireAdmin(options: RequireAdminOptions = {}) {
+  const { requireVerified = true } = options;
   const supabase = await createClient();
   const {
     data: { user },
@@ -30,6 +39,18 @@ export async function requireAdmin() {
 
   if (!isAdminEmail(user.email)) {
     redirect("/");
+  }
+
+  if (requireVerified) {
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const sessionId = claimsData?.claims?.session_id;
+    if (
+      typeof sessionId !== "string" ||
+      !(await isAdminVerified(user.id, sessionId))
+    ) {
+      await clearAdminVerified();
+      redirect("/admin/verify");
+    }
   }
 
   return user;

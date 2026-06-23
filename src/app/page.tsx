@@ -21,6 +21,7 @@ const homeNotices: Record<string, string> = {
   room_closed: "房间已关闭",
   room_left: "你已退出房间",
   room_kicked: "你已被房主移出房间",
+  room_in_use: "这个账号已在其他设备进入该房间，请先在那个设备退出房间。",
 };
 
 export default async function HomePage({ searchParams }: HomePageProps) {
