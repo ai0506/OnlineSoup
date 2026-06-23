@@ -9,7 +9,6 @@ import {
   setAdminVerified,
 } from "@/lib/admin-verification";
 import { getClientIp, getDeviceLabel, getLocationLabel } from "@/lib/request-context";
-import { getSiteOrigin } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
 function redirectVerify(params: Record<string, string>): never {
@@ -24,14 +23,7 @@ export async function sendAdminEmailCode() {
   }
 
   const supabase = await createClient();
-  const siteUrl = await getSiteOrigin();
-  const { error } = await supabase.auth.signInWithOtp({
-    email: user.email,
-    options: {
-      emailRedirectTo: `${siteUrl}/auth/callback?next=/admin/verify/complete`,
-      shouldCreateUser: false,
-    },
-  });
+  const { error } = await supabase.auth.reauthenticate();
 
   if (error) {
     console.error("Send admin verification code failed", {
@@ -53,10 +45,11 @@ export async function verifyAdminEmailCode(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.verifyOtp({
-    email: user.email,
-    token,
-    type: "email",
+  const { error } = await supabase.auth.updateUser({
+    data: {
+      admin_reauthenticated_at: new Date().toISOString(),
+    },
+    nonce: token,
   });
 
   if (error) {
