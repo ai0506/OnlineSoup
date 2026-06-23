@@ -290,6 +290,8 @@ export async function joinRoom(
       "nickname_in_room",
       "username_in_room",
       "registered_member_required",
+      "room_device_in_use",
+      "active_room_exists",
     ];
     const matched = knownErrors.find((key) =>
       error.message.includes(key),
@@ -305,6 +307,8 @@ export async function joinRoom(
       nickname_in_room: "当前房间里已经有人使用这个名字",
       username_in_room: "房间里有访客正在使用你的用户名，请联系房主处理",
       registered_member_required: "登录用户需要使用账户身份加入房间",
+      room_device_in_use: "这个账号已在其他设备进入该房间，请先在那个设备退出房间。",
+      active_room_exists: "这个账号已在其他设备进入房间，请先退出当前房间。",
       join_failed: "加入房间失败，请稍后重试",
     };
     if (matched === "guest_kicked") {

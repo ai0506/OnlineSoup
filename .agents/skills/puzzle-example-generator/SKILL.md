@@ -43,9 +43,10 @@ If an older file uses `points`, normalize it to `key_points` in the preview.
 4. Preserve puzzle order and all existing fields unless the user asks for cleanup.
 5. Add or rewrite `examples` with distinct `model` values: `"fact"` and `"inferential"`.
 6. Run `scripts/validate_puzzle_examples.py <preview-file>`.
-7. Show the user the preview path, per-puzzle counts, and any warnings.
-8. Wait for the user to review or edit.
-9. Only after explicit approval, upload or import the approved JSON through the project's existing admin/Supabase path.
+7. Generate a simple review HTML next to the preview JSON, named with the same basename and `.html`.
+8. Show the user the preview JSON path, review HTML path, per-puzzle counts, and any warnings.
+9. Wait for the user to review or edit.
+10. Only after explicit approval, upload or import the approved JSON through the project's existing admin/Supabase path.
 
 Do not silently overwrite the source file. Do not call `admin_replace_all_puzzles` during preview.
 
@@ -125,6 +126,18 @@ Default to 4 fact examples and 4 inferential examples per puzzle unless the user
 
 Prefer quality over count. If a puzzle cannot support enough inferential examples without speculation, generate fewer and explain why in the preview summary message to the user, not as a JSON field.
 
+## Ask Examples Only
+
+`examples` are ask-mode examples. They must be written from the player's point of view as questions a player might ask the turtle-soup host, and they teach the AI how to answer player questions with `"是"`, `"否"`, `"与此无关"`, or `"模糊问题"`.
+
+Do not put reason-mode, coverage, grading, or admin-audit questions into puzzle `examples`. These are a different domain. For example, do not generate questions like:
+
+- `玩家只说明食物真相时，是否能自动算作说出了当年遇险地点？`
+- `玩家只说哥哥没有真怀孕时，是否已经覆盖“怀你妈”是骂人话？`
+- `这段推理是否覆盖了 key point 1？`
+
+Those samples are useful as reason-mode regression fixtures or admin review notes, but they must live outside `puzzles.examples`. Keeping the two domains separate is important: ask examples train the host's yes/no boundary for player questions, while reason coverage evaluates whether a player's final explanation explicitly mentioned required key points.
+
 Each example must teach a unique decision boundary. Avoid multiple questions that test the same idea using synonyms.
 
 During preview generation, every generated example must include `boundary_type`. This field may be removed from the final upload file after review, but it must exist while generating and validating previews.
@@ -151,6 +164,8 @@ When examples are meant to repair ask-mode behavior, prioritize known failure bo
 - absence of evidence is not contradiction: unsupported non-core details should usually be `"与此无关"`, not `"否"`
 - necessary one-step contradiction can still be `"否"` when the true answer or key points make the proposition impossible
 - compound questions are `"模糊问题"` only when they contain independent propositions that cannot share one yes/no answer
+- `ambiguous_reference` should be used narrowly: only when the relevant referent has not been established in the immediately available context and the player uses a vague pronoun or demonstrative such as `他/她/它/那个人/这句话/这个/那个`. Do not mark a question ambiguous merely because it contains a pronoun that the current context clearly resolves.
+- Questions that ask for `who/what/which`, ask whether something is `true or false`, or present an `A or B` choice are `"模糊问题"` when they cannot be converted into one yes/no proposition without changing the player's intent. The host can answer only `"是"`, `"否"`, `"与此无关"`, or `"模糊问题"`; it cannot choose a speaker, label something as true/false, or select an option.
 - `"不是 A，而是 B 吗"` is usually one overall judgment and may be answerable
 - relationship, motive, emotion, identity, past-experience, method, location, and external-event guesses need strong support before `"是"` / `"否"`
 - reason-mode examples should not give credit for key points the player did not explicitly state
@@ -243,11 +258,27 @@ Before final upload, ask the user whether to keep `boundary_type`. If they want 
 After generating the preview, report:
 
 - output file path
+- review HTML path
 - number of puzzles processed
 - fact/inferential counts
 - warnings for weak inference, duplicate concepts, missing fields, legacy `summary`, or puzzles with too few examples
 
 Use concise Chinese explanations. Do not paste the whole JSON unless the user asks.
+
+## Review HTML
+
+For every generated preview JSON, also create a simple static HTML review file in `.agents/tmp/puzzle-example-previews/` with the same basename and `.html`.
+
+The HTML should:
+
+- work by opening the file directly in a browser, without a dev server
+- group examples by puzzle title
+- show `model`, `boundary_type`, `question`, `answer`, and `reason`
+- show per-puzzle counts for fact and inferential examples
+- escape all text as HTML; never inject raw JSON strings into markup
+- stay review-focused and avoid adding upload controls or database actions
+
+This HTML is only for human review. It must not upload to Supabase or change the source JSON.
 
 ## Upload
 

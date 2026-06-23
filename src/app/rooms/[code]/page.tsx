@@ -137,6 +137,27 @@ export default async function RoomPage({
       ? (profileResult.data?.points as number | undefined)
       : undefined;
 
+  if (userId && (isOwner || isRegisteredMember)) {
+    const { data: canUseRoomSession, error: sessionCheckError } =
+      await supabase.rpc("can_use_room_session", { room_code: code });
+
+    if (sessionCheckError) {
+      console.error("can_use_room_session RPC failed", {
+        code: sessionCheckError.code,
+        message: sessionCheckError.message,
+        roomCode: code,
+      });
+    }
+
+    if (!sessionCheckError && canUseRoomSession === false) {
+      redirect(flashRedirectPath("/", {
+        code: "room_in_use",
+        kind: "notice",
+        scope: "home",
+      }));
+    }
+  }
+
   const verifiedRoomPassword = cookieStore.get(`room_password_${code}`)?.value;
   const requiresPassword =
     requiresPasswordData === true && !/^\d{6}$/.test(verifiedRoomPassword ?? "");
