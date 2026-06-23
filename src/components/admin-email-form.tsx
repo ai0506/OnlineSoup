@@ -10,6 +10,13 @@ export function AdminEmailForm({ action }: AdminEmailFormProps) {
   return (
     <form action={action} className="form-grid admin-email-form">
       <label>
+        发件人
+        <select name="from" defaultValue="Online Soup <noreply@ai0506.com>">
+          <option value="Online Soup <noreply@ai0506.com>">noreply — Online Soup &lt;noreply@ai0506.com&gt;</option>
+          <option value="Support <support@ai0506.com>">support — Support &lt;support@ai0506.com&gt;</option>
+        </select>
+      </label>
+      <label>
         收件邮箱
         <textarea
           maxLength={2000}

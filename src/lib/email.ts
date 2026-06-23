@@ -2,6 +2,7 @@ type SendEmailInput = {
   to: string[];
   subject: string;
   text: string;
+  from?: string;
 };
 
 type ResendErrorBody = {
@@ -21,9 +22,9 @@ export class EmailSendError extends Error {
   }
 }
 
-export async function sendAdminEmail({ to, subject, text }: SendEmailInput) {
+export async function sendAdminEmail({ to, subject, text, from: fromOverride }: SendEmailInput) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.ADMIN_EMAIL_FROM ?? process.env.RESEND_FROM;
+  const from = fromOverride ?? process.env.ADMIN_EMAIL_FROM ?? process.env.RESEND_FROM;
 
   if (!apiKey || !from) {
     throw new EmailConfigError();

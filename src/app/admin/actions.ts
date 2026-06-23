@@ -64,6 +64,11 @@ const importPuzzleSchema = z.object({
 });
 
 const importPuzzlesSchema = z.array(importPuzzleSchema).min(1).max(500);
+const ALLOWED_EMAIL_SENDERS = [
+  "Online Soup <noreply@ai0506.com>",
+  "Support <support@ai0506.com>",
+] as const;
+
 const adminEmailSchema = z.object({
   to: z
     .string()
@@ -79,6 +84,7 @@ const adminEmailSchema = z.object({
     .pipe(z.array(z.email()).min(1).max(50)),
   subject: z.string().trim().min(1).max(120),
   body: z.string().trim().min(1).max(5000),
+  from: z.enum(ALLOWED_EMAIL_SENDERS).optional(),
 });
 
 // 兼容旧版 questions.json 里用 `points` 命名得分点字段的情况
@@ -315,6 +321,7 @@ export async function sendEmailFromAdmin(formData: FormData) {
     to: formData.get("to"),
     subject: formData.get("subject"),
     body: formData.get("body"),
+    from: formData.get("from") || undefined,
   });
 
   if (!parsed.success) {
@@ -326,6 +333,7 @@ export async function sendEmailFromAdmin(formData: FormData) {
       to: parsed.data.to,
       subject: parsed.data.subject,
       text: parsed.data.body,
+      from: parsed.data.from,
     });
   } catch (error) {
     if (error instanceof EmailConfigError) {
