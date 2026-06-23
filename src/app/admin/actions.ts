@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { requireAdmin } from "@/lib/admin";
+import { EmailConfigError, sendAdminEmail } from "@/lib/email";
 import { redirectWithFlash } from "@/lib/flash";
 import { getSiteOrigin } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -63,6 +64,22 @@ const importPuzzleSchema = z.object({
 });
 
 const importPuzzlesSchema = z.array(importPuzzleSchema).min(1).max(500);
+const adminEmailSchema = z.object({
+  to: z
+    .string()
+    .trim()
+    .min(1)
+    .max(2000)
+    .transform((value) =>
+      value
+        .split(/[\n,;]/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.email()).min(1).max(50)),
+  subject: z.string().trim().min(1).max(120),
+  body: z.string().trim().min(1).max(5000),
+});
 
 // 兼容旧版 questions.json 里用 `points` 命名得分点字段的情况
 function normalizeImportItem(item: unknown) {
@@ -74,7 +91,7 @@ function normalizeImportItem(item: unknown) {
   return record;
 }
 
-type AdminResultTab = "puzzles" | "messages" | "cleanup" | "ai-errors" | "rooms" | "points";
+type AdminResultTab = "puzzles" | "messages" | "cleanup" | "ai-errors" | "rooms" | "points" | "emails";
 
 async function redirectAdminResult(
   type: "error" | "message",
@@ -289,6 +306,37 @@ export async function sendPasswordReset(formData: FormData) {
   }
 
   return await redirectAdminResult("message", "password_reset_sent");
+}
+
+export async function sendEmailFromAdmin(formData: FormData) {
+  await requireAdmin();
+
+  const parsed = adminEmailSchema.safeParse({
+    to: formData.get("to"),
+    subject: formData.get("subject"),
+    body: formData.get("body"),
+  });
+
+  if (!parsed.success) {
+    return await redirectAdminResult("error", "invalid_email", "emails");
+  }
+
+  try {
+    await sendAdminEmail({
+      to: parsed.data.to,
+      subject: parsed.data.subject,
+      text: parsed.data.body,
+    });
+  } catch (error) {
+    if (error instanceof EmailConfigError) {
+      return await redirectAdminResult("error", "email_not_configured", "emails");
+    }
+
+    console.error("Admin email send failed", error);
+    return await redirectAdminResult("error", "email_send_failed", "emails");
+  }
+
+  return await redirectAdminResult("message", "email_sent", "emails");
 }
 
 export async function createAdminUser(formData: FormData) {

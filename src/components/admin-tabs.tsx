@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-type AdminTab = "accounts" | "puzzles" | "messages" | "rooms" | "points";
+type AdminTab = "accounts" | "puzzles" | "messages" | "rooms" | "points" | "emails";
 
 type MessageSubTab = "audit" | "errors";
 
@@ -26,6 +26,7 @@ type AdminTabsProps = {
   roomsCount: number;
   pointsContent: React.ReactNode;
   pointsCount: number;
+  emailContent: React.ReactNode;
 };
 
 const TAB_PARAMS: Record<AdminTab, string[]> = {
@@ -42,6 +43,7 @@ const TAB_PARAMS: Record<AdminTab, string[]> = {
   ],
   rooms: [],
   points: ["ptUser", "ptType", "ptDateFrom", "ptDateTo"],
+  emails: [],
 };
 
 function cleanUrlForTab(url: URL, tab: AdminTab) {
@@ -73,6 +75,7 @@ export function AdminTabs({
   roomsCount,
   pointsContent,
   pointsCount,
+  emailContent,
 }: AdminTabsProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<AdminTab>(initialTab);
@@ -180,6 +183,16 @@ export function AdminTabs({
           积分流水
           <span>{pointsCount}</span>
         </button>
+        <button
+          aria-selected={activeTab === "emails"}
+          className={`admin-tab${activeTab === "emails" ? " active" : ""}`}
+          onClick={() => selectTab("emails")}
+          role="tab"
+          type="button"
+        >
+          邮件发送
+          <span>发送</span>
+        </button>
       </div>
 
       <section hidden={activeTab !== "accounts"} role="tabpanel">
@@ -252,6 +265,10 @@ export function AdminTabs({
 
       <section hidden={activeTab !== "points"} role="tabpanel">
         {pointsContent}
+      </section>
+
+      <section hidden={activeTab !== "emails"} role="tabpanel">
+        {emailContent}
       </section>
 
       {importOpen && (

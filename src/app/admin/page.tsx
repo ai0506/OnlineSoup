@@ -13,6 +13,7 @@
   forceCloseRoom,
   importPuzzles,
   sendPasswordReset,
+  sendEmailFromAdmin,
   updateAiErrorCase,
   batchUpdateAiErrorCaseStatus,
   updatePuzzle,
@@ -40,6 +41,7 @@ import { AdminTabs } from "@/components/admin-tabs";
 import { AdminAiErrorForm } from "@/components/admin-ai-error-form";
 import { AdminAiErrorCaseList } from "@/components/admin-ai-error-case-list";
 import { AdminFilterForm } from "@/components/admin-filter-form";
+import { AdminEmailForm } from "@/components/admin-email-form";
 import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
 import { requireAdmin } from "@/lib/admin";
 import { getFlashMessage } from "@/lib/flash";
@@ -74,7 +76,7 @@ type AdminPuzzle = Required<Pick<AdminPuzzleFormValue, "id">> &
     created_at: string;
   };
 
-type AdminTab = "accounts" | "puzzles" | "messages" | "rooms" | "points";
+type AdminTab = "accounts" | "puzzles" | "messages" | "rooms" | "points" | "emails";
 type AiErrorStatus = "open" | "reviewed" | "fixed" | "ignored";
 
 type AdminMessageRoom = {
@@ -237,6 +239,9 @@ const errors: Record<string, string> = {
   ai_error_case_failed: "AI 错误案例保存失败，请稍后重试。",
   invalid_cache_entry: "缓存条目信息无效。",
   cache_update_failed: "缓存操作失败，请稍后重试。",
+  invalid_email: "邮件信息不完整，请检查收件邮箱、标题和正文。",
+  email_not_configured: "邮件服务还没有配置，请先设置 RESEND_API_KEY 和 ADMIN_EMAIL_FROM。",
+  email_send_failed: "邮件发送失败，请检查发件域名、收件人或 Resend 配置。",
 };
 
 const messages: Record<string, string> = {
@@ -257,6 +262,7 @@ const messages: Record<string, string> = {
   cache_entry_deleted: "缓存条目已删除。",
   cache_entry_updated: "缓存答案已修改。",
   cache_cleared: "整题缓存已清空。",
+  email_sent: "邮件已发送。",
 };
 
 const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -270,7 +276,7 @@ const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
 });
 
 function getAdminTab(value?: string): AdminTab {
-  if (value === "puzzles" || value === "messages" || value === "rooms" || value === "points") {
+  if (value === "puzzles" || value === "messages" || value === "rooms" || value === "points" || value === "emails") {
     return value;
   }
   // 旧 tab 值向后兼容
@@ -1301,6 +1307,18 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     </div>
   );
 
+  const emailContent = (
+    <div className="admin-section" key="emails-section">
+      <div className="admin-section-heading">
+        <h2>发送邮件</h2>
+        <p className="muted">
+          向指定邮箱发送纯文本通知。多个收件人可以换行填写。
+        </p>
+      </div>
+      <AdminEmailForm action={sendEmailFromAdmin} />
+    </div>
+  );
+
   const cleanupContent = (
     <div className="admin-section" key="cleanup-section">
       <div className="admin-section-heading">
@@ -1377,6 +1395,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         roomsCount={activeRooms.length}
         pointsContent={pointsContent}
         pointsCount={visibleTxns.length}
+        emailContent={emailContent}
       />
     </section>
   );
