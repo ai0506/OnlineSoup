@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 
 import {
-  clearAdminVerified,
   isAdminVerified,
 } from "@/lib/admin-verification";
 import { flashRedirectPath } from "@/lib/flash";
@@ -48,7 +47,6 @@ export async function requireAdmin(options: RequireAdminOptions = {}) {
       typeof sessionId !== "string" ||
       !(await isAdminVerified(user.id, sessionId))
     ) {
-      await clearAdminVerified();
       redirect("/admin/verify");
     }
   }
