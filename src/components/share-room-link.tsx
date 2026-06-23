@@ -34,11 +34,11 @@ export function ShareRoomLink({ code }: ShareRoomLinkProps) {
   return (
     <button
       aria-label="复制房间分享链接"
-      className="button secondary"
+      className="button secondary copy-code-button"
       onClick={copyLink}
       type="button"
     >
-      {copied ? "链接已复制" : "复制分享链接"}
+      {copied ? "已复制" : "分享链接"}
     </button>
   );
 }

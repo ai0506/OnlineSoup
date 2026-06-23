@@ -13,6 +13,7 @@ import { getRoomMembershipStatus, giftPoints, kickGuest, moveSeat } from "@/app/
 import type { RoomActionState } from "@/app/rooms/actions";
 import { CopyRoomCode } from "@/components/copy-room-code";
 import { RoomActionForm } from "@/components/room-action-form";
+import { ShareRoomLink } from "@/components/share-room-link";
 
 import { createClient } from "@/lib/supabase/client";
 import type { RoomSeat } from "@/lib/types";
@@ -360,7 +361,8 @@ export function LiveRoomSeats({
         string,
         Array<{ seat_id?: string }>
       >;
-      const nextOnline = new Set<string>();
+      // 自己正在浏览房间，必定在线；presence 抖动时不应把自己显示成离线。
+      const nextOnline = new Set<string>([currentSeatId]);
 
       Object.entries(state).forEach(([key, presences]) => {
         if (key) nextOnline.add(key);
@@ -372,20 +374,35 @@ export function LiveRoomSeats({
       setOnlineSeatIds(nextOnline);
     };
 
+    // Supabase 在 websocket 重连后不会自动重新 track，所以标签页重新可见、
+    // 重新获焦或网络恢复时都要重新上报，避免人还在却被显示为离线。
+    const trackPresence = () => {
+      void channel.track({
+        seat_id: currentSeatId,
+        online_at: new Date().toISOString(),
+      });
+    };
+
+    const handleVisible = () => {
+      if (document.visibilityState === "visible") trackPresence();
+    };
+
     channel
       .on("presence", { event: "sync" }, syncPresence)
       .on("presence", { event: "join" }, syncPresence)
       .on("presence", { event: "leave" }, syncPresence)
       .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          void channel.track({
-            seat_id: currentSeatId,
-            online_at: new Date().toISOString(),
-          });
-        }
+        if (status === "SUBSCRIBED") trackPresence();
       });
 
+    document.addEventListener("visibilitychange", handleVisible);
+    window.addEventListener("focus", trackPresence);
+    window.addEventListener("online", trackPresence);
+
     return () => {
+      document.removeEventListener("visibilitychange", handleVisible);
+      window.removeEventListener("focus", trackPresence);
+      window.removeEventListener("online", trackPresence);
       setOnlineSeatIds((current) => {
         const nextOnline = new Set(current);
         nextOnline.delete(currentSeatId);
@@ -697,6 +714,7 @@ export function LiveRoomSeats({
           <div className="room-code-actions room-details-code">
             <div className="room-code">{roomCode}</div>
             <CopyRoomCode code={roomCode} />
+            <ShareRoomLink code={roomCode} />
           </div>
           <div className="room-detail-meta">
             <span>
