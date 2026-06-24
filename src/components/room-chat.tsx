@@ -861,6 +861,11 @@ export function RoomChat({
         <div className="dialog-backdrop" role="dialog" aria-modal="true" aria-label="积分不足">
           <div className="dialog-panel">
             <h2>积分不足</h2>
+            {currentUserId ? (
+              <p>个人积分已耗尽。可发邮件至 <a href="mailto:support@ai0506.com">support@ai0506.com</a> 联系管理员补充积分。</p>
+            ) : (
+              <p>座位临时积分已耗尽。请联系房主在房间详情中赠送积分。</p>
+            )}
             <div className="dialog-actions">
               <button
                 className="button"
