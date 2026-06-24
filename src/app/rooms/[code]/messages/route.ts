@@ -22,7 +22,7 @@ type MessageRouteContext = {
 };
 
 const messageSchema = z.object({
-  content: z.string().trim().min(1).max(500),
+  content: z.string().trim().min(1).max(300),
   message_mode: z.enum(["chat", "ask", "hint", "reason"]).default("chat"),
   use_personal_points: z.boolean().default(false),
 });
@@ -99,7 +99,7 @@ export async function POST(
   const parsed = messageSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "消息应为 1 到 500 个字符" },
+      { error: "消息内容超出该模式的字数限制" },
       { status: 400 },
     );
   }
