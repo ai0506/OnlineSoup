@@ -24,6 +24,8 @@ const DIFFICULTY_COLORS: Record<string, string> = {
 
 const LONG_SURFACE_CHAR_LIMIT = 360;
 const LONG_SURFACE_LINE_LIMIT = 8;
+const LONG_FACTS_COUNT_LIMIT = 5;
+const LONG_FACTS_CHAR_LIMIT = 180;
 
 type PuzzlePanelProps = {
   isOwner: boolean;
@@ -55,6 +57,7 @@ export function PuzzlePanel({
   const [selectedPuzzle, setSelectedPuzzle] = useState<PuzzleListItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [surfaceExpanded, setSurfaceExpanded] = useState(false);
+  const [factsExpanded, setFactsExpanded] = useState(false);
   const [isPending, startTransition] = useTransition();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const refreshSeqRef = useRef(0);
@@ -76,6 +79,7 @@ export function PuzzlePanel({
     setFactsPuzzleId(currentPuzzle?.id ?? null);
     setKnownFacts([]);
     setSurfaceExpanded(false);
+    setFactsExpanded(false);
   }
 
   // 同步通知聊天区：当前是否有进行中的题目、题目 ID，决定能否使用询问/提示/推理
@@ -216,6 +220,9 @@ export function PuzzlePanel({
   const isLongSurface =
     currentSurface.length > LONG_SURFACE_CHAR_LIMIT ||
     currentSurfaceLineCount > LONG_SURFACE_LINE_LIMIT;
+  const factsCharCount = knownFacts.reduce((total, fact) => total + fact.length, 0);
+  const isLongFacts =
+    knownFacts.length > LONG_FACTS_COUNT_LIMIT || factsCharCount > LONG_FACTS_CHAR_LIMIT;
 
   const portalTarget = typeof document === "undefined" ? null : document.body;
 
@@ -480,11 +487,21 @@ export function PuzzlePanel({
                 暂无已确认事实，向 AI 提问或请求提示后系统会自动归纳在这里。
               </p>
             ) : (
-              <ul className="puzzle-facts-list">
+              <ul className={`puzzle-facts-list${isLongFacts ? " long" : ""}${factsExpanded ? " expanded" : ""}`}>
                 {knownFacts.map((fact, index) => (
                   <li key={index}>{fact}</li>
                 ))}
               </ul>
+            )}
+            {isLongFacts && (
+              <button
+                className="puzzle-text-toggle"
+                type="button"
+                onClick={() => setFactsExpanded((value) => !value)}
+                aria-expanded={factsExpanded}
+              >
+                {factsExpanded ? "收起事实总结" : "展开全部事实"}
+              </button>
             )}
           </div>
         </div>

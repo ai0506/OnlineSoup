@@ -3419,11 +3419,12 @@ textarea:focus {
 }
 
 .puzzle-surface-text.long.expanded {
-  max-height: none;
-  overflow: visible;
+  max-height: min(56vh, 560px);
+  overflow-y: auto;
 }
 
-.puzzle-surface-toggle {
+.puzzle-surface-toggle,
+.puzzle-text-toggle {
   align-self: flex-start;
   padding: 0;
   border: 0;
@@ -3435,7 +3436,8 @@ textarea:focus {
   cursor: pointer;
 }
 
-.puzzle-surface-toggle:hover {
+.puzzle-surface-toggle:hover,
+.puzzle-text-toggle:hover {
   text-decoration: underline;
 }
 
@@ -3471,6 +3473,19 @@ textarea:focus {
   padding-left: 1.2em;
   font-size: 0.8rem;
   line-height: 1.6;
+}
+
+.puzzle-facts-list.long {
+  max-height: 132px;
+  overflow-y: auto;
+  padding: 8px 10px 8px 1.65em;
+  background: rgba(255, 255, 255, 0.46);
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+}
+
+.puzzle-facts-list.long.expanded {
+  max-height: min(42vh, 360px);
 }
 
 .puzzle-facts-list li {
