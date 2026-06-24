@@ -481,7 +481,19 @@ export function PuzzlePanel({
           </div>
 
           <div className="puzzle-facts-section">
-            <span className="puzzle-facts-label">事实总结</span>
+            <div className="puzzle-facts-header">
+              <span className="puzzle-facts-label">事实总结</span>
+              {isLongFacts && (
+                <button
+                  className="puzzle-text-toggle"
+                  type="button"
+                  onClick={() => setFactsExpanded((value) => !value)}
+                  aria-expanded={factsExpanded}
+                >
+                  {factsExpanded ? "收起事实总结" : "展开全部事实"}
+                </button>
+              )}
+            </div>
             {knownFacts.length === 0 ? (
               <p className="puzzle-facts-empty muted">
                 暂无已确认事实，向 AI 提问或请求提示后系统会自动归纳在这里。
@@ -492,16 +504,6 @@ export function PuzzlePanel({
                   <li key={index}>{fact}</li>
                 ))}
               </ul>
-            )}
-            {isLongFacts && (
-              <button
-                className="puzzle-text-toggle"
-                type="button"
-                onClick={() => setFactsExpanded((value) => !value)}
-                aria-expanded={factsExpanded}
-              >
-                {factsExpanded ? "收起事实总结" : "展开全部事实"}
-              </button>
             )}
           </div>
         </div>

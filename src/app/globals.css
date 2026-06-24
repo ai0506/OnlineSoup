@@ -3453,13 +3453,21 @@ textarea:focus {
   border-top: 1px dashed #fde68a;
 }
 
-.puzzle-facts-label {
-  display: block;
+.puzzle-facts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   margin-bottom: 4px;
+}
+
+.puzzle-facts-label {
   font-size: 0.76rem;
   font-weight: 600;
   color: var(--muted);
   letter-spacing: 0.04em;
+  line-height: 1.4;
+  text-transform: uppercase;
 }
 
 .puzzle-facts-empty {
