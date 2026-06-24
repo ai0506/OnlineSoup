@@ -15,10 +15,10 @@ import { createClient } from "@/lib/supabase/client";
 import type { MessageMode, RoomMessage } from "@/lib/types";
 
 const MODES = [
-  { key: "chat"   as MessageMode, label: "聊天",   cost: 0, maxLength: 500 },
-  { key: "ask"    as MessageMode, label: "询问",   cost: 1, maxLength: 50  },
+  { key: "chat"   as MessageMode, label: "聊天",   cost: 0, maxLength: 300 },
+  { key: "ask"    as MessageMode, label: "询问",   cost: 1, maxLength: 100 },
   { key: "hint"   as MessageMode, label: "提示",   cost: 1, maxLength: 50  },
-  { key: "reason" as MessageMode, label: "尝试推理", cost: 2, maxLength: 200 },
+  { key: "reason" as MessageMode, label: "尝试推理", cost: 2, maxLength: 300 },
 ] as const;
 
 const MODE_LABEL: Record<MessageMode, string> = {
@@ -104,9 +104,9 @@ function getSystemMessageContent(message: RoomMessage) {
 
 function getPlaceholder(mode: MessageMode) {
   switch (mode) {
-    case "ask":    return "向 AI 提问（50 字以内），消耗 1 积分";
+    case "ask":    return "向 AI 提问（100 字以内），消耗 1 积分";
     case "hint":   return "请求提示（50 字以内），消耗 1 积分 + 1 次提示机会";
-    case "reason": return "尝试推理（200 字以内），消耗 2 积分，完成后获得 1 次提示机会";
+    case "reason": return "尝试推理（300 字以内），消耗 2 积分，完成后获得 1 次提示机会";
     default:       return "输入普通聊天内容，Enter 发送，Shift+Enter 换行";
   }
 }

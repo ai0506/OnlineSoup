@@ -47,9 +47,9 @@ const askSchema = z.object({
 });
 
 const modeMaxLength: Record<Extract<MessageMode, "ask" | "hint" | "reason">, number> = {
-  ask: 50,
+  ask: 100,
   hint: 50,
-  reason: 200,
+  reason: 300,
 };
 
 function aiErrorResponse(error: { message: string }) {
