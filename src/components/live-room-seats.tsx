@@ -11,7 +11,6 @@ import {
 
 import { checkSeatSessionActive, getRoomMembershipStatus, giftPoints, kickGuest, moveSeat } from "@/app/rooms/actions";
 import type { RoomActionState } from "@/app/rooms/actions";
-import { CopyRoomCode } from "@/components/copy-room-code";
 import { RoomActionForm } from "@/components/room-action-form";
 import { ShareRoomLink } from "@/components/share-room-link";
 
@@ -738,7 +737,6 @@ export function LiveRoomSeats({
           <div className="room-manage-tab" hidden={activeTab !== "manage"}>
           <div className="room-code-actions room-details-code">
             <div className="room-code">{roomCode}</div>
-            <CopyRoomCode code={roomCode} />
             <ShareRoomLink code={roomCode} />
           </div>
           <div className="room-detail-meta">
