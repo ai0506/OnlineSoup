@@ -169,7 +169,7 @@ export default function TutorialPage() {
           <p>提示机会的获得方式：每完成 3 次询问 +1 次，每尝试推理 1 次 +1 次。</p>
 
           <h3 id="s1-6">1.6 怎么尝试推理</h3>
-          <p>切换到「尝试推理」模式，用 200 字以内写出完整推理。发送后 AI 会判定「推理正确」「部分正确」或「推理不正确」。</p>
+          <p>切换到「尝试推理」模式，用 300 字以内写出完整推理。发送后 AI 会判定「推理正确」「部分正确」或「推理不正确」。</p>
 
           <h3 id="s1-7">1.7 积分说明</h3>
           <Shot src="/screenshots/1.7tempsandaccountscore.png" alt="积分显示区域" caption="积分显示：个人积分 + 座位临时积分 [临]" onZoom={zoom} />
@@ -265,10 +265,10 @@ export default function TutorialPage() {
           <table className="tutorial-table">
             <thead><tr><th>模式</th><th>用途</th><th>消耗</th><th>字数限制</th></tr></thead>
             <tbody>
-              <tr><td>聊天</td><td>普通聊天，不问 AI</td><td>0</td><td>500 字</td></tr>
-              <tr><td>询问</td><td>向 AI 问一个是非判断</td><td>1 积分</td><td>50 字</td></tr>
+              <tr><td>聊天</td><td>普通聊天，不问 AI</td><td>0</td><td>300 字</td></tr>
+              <tr><td>询问</td><td>向 AI 问一个是非判断</td><td>1 积分</td><td>100 字</td></tr>
               <tr><td>提示</td><td>请求 AI 给一点线索</td><td>1 积分 + 1 次提示机会</td><td>50 字</td></tr>
-              <tr><td>尝试推理</td><td>提交你认为的完整真相</td><td>2 积分</td><td>200 字</td></tr>
+              <tr><td>尝试推理</td><td>提交你认为的完整真相</td><td>2 积分</td><td>300 字</td></tr>
             </tbody>
           </table>
 
