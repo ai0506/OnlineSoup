@@ -629,9 +629,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const cleanupRoomsPromise = admin.rpc(
     "admin_list_room_cleanup_candidates",
   ) as unknown as SupabaseResult<AdminCleanupRoom[]>;
-  const chatBackupDaysPromise = admin.rpc(
-    "admin_list_chat_backup_days",
-  ) as unknown as SupabaseResult<ChatBackupDay[]>;
+  const chatBackupDaysPromise = loadMessages
+    ? (admin.rpc(
+        "admin_list_chat_backup_days",
+      ) as unknown as SupabaseResult<ChatBackupDay[]>)
+    : Promise.resolve({ data: [] as ChatBackupDay[], error: null });
 
   const activeRoomsPromise = admin
     .from("rooms")
@@ -747,8 +749,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     throw new Error(`读取问答缓存失败：${cacheEntriesError.message}`);
   }
 
+  // 聊天备份列表不影响其他 tab，报错时降级为空列表，避免整页崩溃。
   if (chatBackupDaysError) {
-    throw new Error(`读取聊天备份列表失败：${chatBackupDaysError.message}`);
+    console.error("读取聊天备份列表失败:", chatBackupDaysError.message);
   }
 
   const cacheByPuzzle: Record<number, PuzzleCacheEntry[]> = {};
