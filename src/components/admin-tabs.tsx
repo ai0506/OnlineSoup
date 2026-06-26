@@ -97,6 +97,10 @@ export function AdminTabs({
     }
     cleanUrlForTab(url, tab);
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    // messages 和 rooms 有专用的 useEffect 轮询处理刷新，其他 tab 需手动触发服务端重取
+    if (tab !== "messages" && tab !== "rooms") {
+      router.refresh();
+    }
   }
 
   function selectMsgSubTab(sub: MessageSubTab) {
