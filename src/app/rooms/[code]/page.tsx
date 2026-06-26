@@ -35,7 +35,7 @@ export default async function RoomPage({
   const cookieStore = await cookies();
   const guestToken = cookieStore.get(`guest_room_${code}`)?.value;
   const guestIdentity = cookieStore.get("guest_identity")?.value;
-  let { data: exitReason, error: exitReasonError } = await supabase.rpc(
+  const { data: exitReason, error: exitReasonError } = await supabase.rpc(
     "get_room_exit_reason",
     {
       room_code: code,
@@ -43,20 +43,6 @@ export default async function RoomPage({
       guest_identity: guestIdentity || null,
     },
   );
-
-  if (
-    exitReasonError &&
-    (exitReasonError.code === "PGRST202" ||
-      exitReasonError.message.includes("function public.get_room_exit_reason") ||
-      exitReasonError.message.includes("Could not find the function get_room_exit_reason"))
-  ) {
-    const legacyResult = await supabase.rpc("get_room_exit_reason", {
-      room_code: code,
-      guest_token: guestToken || null,
-    });
-    exitReason = legacyResult.data;
-    exitReasonError = legacyResult.error;
-  }
 
   if (exitReasonError) {
     console.error("get_room_exit_reason RPC failed", {

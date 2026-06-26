@@ -5,15 +5,15 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import type { RoomChatBootstrap, RoomMessage } from "@/lib/types";
 
-function stripAuditField(msg: RoomMessage): RoomMessage {
+function stripInternalFields(msg: RoomMessage): RoomMessage {
   if (msg.message_type !== "ai") return msg;
   try {
     const parsed = JSON.parse(msg.content) as Record<string, unknown>;
-    if ("ask_audit" in parsed) {
-      delete parsed.ask_audit;
-      return { ...msg, content: JSON.stringify(parsed) };
-    }
-  } catch { /* not JSON, leave as is */ }
+    let changed = false;
+    if ("ask_audit" in parsed) { delete parsed.ask_audit; changed = true; }
+    if ("cache_hit" in parsed) { delete parsed.cache_hit; changed = true; }
+    if (changed) return { ...msg, content: JSON.stringify(parsed) };
+  } catch { /* not JSON */ }
   return msg;
 }
 
@@ -82,7 +82,7 @@ export async function GET(
   }
 
   const bootstrap = data as RoomChatBootstrap;
-  return NextResponse.json({ messages: bootstrap.messages.map(stripAuditField) });
+  return NextResponse.json({ messages: bootstrap.messages.map(stripInternalFields) });
 }
 
 export async function POST(

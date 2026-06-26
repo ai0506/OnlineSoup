@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { redirectWithFlash } from "@/lib/flash";
+import { flashRedirectPath, redirectWithFlash } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 import { guestJoinSchema, roomSchema } from "@/lib/validation";
 
@@ -151,7 +151,7 @@ export async function getRoomMembershipStatus(code: string) {
   const guestIdentity = cookieStore.get("guest_identity")?.value;
 
   const supabase = await createClient();
-  let { data: exitReason, error: exitReasonError } = await supabase.rpc(
+  const { data: exitReason, error: exitReasonError } = await supabase.rpc(
     "get_room_exit_reason",
     {
       room_code: normalizedCode,
@@ -159,18 +159,6 @@ export async function getRoomMembershipStatus(code: string) {
       guest_identity: guestIdentity || null,
     },
   );
-
-  if (
-    exitReasonError &&
-    isMissingDatabaseFunction(exitReasonError, "get_room_exit_reason")
-  ) {
-    const legacyResult = await supabase.rpc("get_room_exit_reason", {
-      room_code: normalizedCode,
-      guest_token: guestToken,
-    });
-    exitReason = legacyResult.data;
-    exitReasonError = legacyResult.error;
-  }
 
   if (exitReasonError) {
     console.error("get_room_exit_reason RPC failed", {
@@ -309,8 +297,8 @@ export async function joinRoom(
       nickname_in_room: "当前房间里已经有人使用这个名字",
       username_in_room: "房间里有访客正在使用你的用户名，请联系房主处理",
       registered_member_required: "登录用户需要使用账户身份加入房间",
-      room_device_in_use: "这个账号已在其他设备进入该房间，请先在那个设备退出房间。",
-      active_room_exists: "这个账号已在其他设备进入房间，请先退出当前房间。",
+      room_device_in_use: "这个账号在该房间已有活跃会话，请刷新后重试",
+      active_room_exists: "你已经在另一个房间中，请先退出再加入新房间",
       join_failed: "加入房间失败，请稍后重试",
     };
     if (matched === "guest_kicked") {
@@ -680,6 +668,16 @@ export async function leaveRoom(
       });
 
   if (error) {
+    if (error.message.includes("room_device_in_use")) {
+      return {
+        status: "success",
+        navigateTo: flashRedirectPath("/", {
+          code: "room_displaced",
+          kind: "notice",
+          scope: "home",
+        }),
+      };
+    }
     const message =
       error.code === "PGRST202" ||
         error.message.includes(

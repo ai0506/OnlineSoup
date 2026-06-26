@@ -70,9 +70,11 @@ const ANSWER_COLOR_CLASS: Record<string, string> = {
   模糊问题: "ask-answer-ambiguous",
 };
 
-// 每条消息的去重 key（用于判断临时消息是否已有真实消息对应）
+// 每条消息的去重 key，用于判断乐观消息是否已有对应的真实消息到达。
+// 加入 30 秒时间桶，避免不同时刻发送的相同内容消息互相误判为重复。
 function messageKey(message: RoomMessage) {
-  return `${message.seat_id}|${message.message_mode}|${message.content}`;
+  const ts30s = Math.floor(new Date(message.created_at).getTime() / 30_000);
+  return `${message.seat_id}|${message.message_mode}|${message.content}|${ts30s}`;
 }
 
 function mergeMessages(current: RoomMessage[], incoming: RoomMessage[]) {
@@ -426,22 +428,6 @@ export function RoomChat({
       channels.push(ch);
     }
 
-    if (currentUserId) {
-      const ch = supabase
-        .channel(`chat-profile-pts:${currentUserId}`)
-        .on("postgres_changes", {
-          event: "UPDATE",
-          schema: "public",
-          table: "profiles",
-          filter: `id=eq.${currentUserId}`,
-        }, (payload) => {
-          const updated = payload.new as { points?: number };
-          if (typeof updated.points === "number") setPersonalPoints(updated.points);
-        })
-        .subscribe(() => { void syncPersonalPoints(); });
-      channels.push(ch);
-    }
-
     const handleVisible = () => {
       if (document.visibilityState === "visible") handleRefresh();
     };
@@ -480,6 +466,17 @@ export function RoomChat({
       window.removeEventListener("current-room-seat-changed", handleSeatChanged);
     };
   }, []);
+
+  // 接收 live-room-seats 广播的个人积分变化（live-room-seats 持有唯一的 profiles Realtime 订阅）
+  useEffect(() => {
+    if (!currentUserId) return;
+    const handler = (e: Event) => {
+      const { points } = (e as CustomEvent<{ points: number }>).detail;
+      setPersonalPoints(points);
+    };
+    window.addEventListener("personal-points-changed", handler);
+    return () => window.removeEventListener("personal-points-changed", handler);
+  }, [currentUserId]);
 
   // 房主开题/关闭题目时，同步是否允许使用询问/提示/推理；关闭题目时强制回到普通聊天模式
   useEffect(() => {

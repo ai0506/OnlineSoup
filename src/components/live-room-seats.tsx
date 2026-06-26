@@ -436,6 +436,14 @@ export function LiveRoomSeats({
     };
   }, [currentSeatId, roomId]);
 
+  // 向 room-chat 广播个人积分变化（room-chat 不持有自己的 profiles Realtime 订阅）
+  useEffect(() => {
+    if (!currentUserId) return;
+    window.dispatchEvent(
+      new CustomEvent("personal-points-changed", { detail: { points: personalPoints } }),
+    );
+  }, [currentUserId, personalPoints]);
+
   // Realtime: personal points (logged-in members only)
   useEffect(() => {
     if (!currentUserId) return;

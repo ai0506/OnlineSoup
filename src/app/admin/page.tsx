@@ -576,6 +576,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   }`;
   const admin = createAdminClient();
 
+  // 按 tab 按需加载：只拉当前 tab 所需数据，避免每次请求都全量加载
+  const loadAccounts = activeTab === "accounts";
+  const loadPuzzles = activeTab === "puzzles";
+  const loadMessages = activeTab === "messages";
+  const loadPoints = activeTab === "points";
+
   let adminMessagesQuery = admin
     .from("room_messages")
     .select(
@@ -649,27 +655,33 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     ptTxnsQuery = ptTxnsQuery.lte("created_at", ptDateTo + "T23:59:59.999Z");
   }
 
-  const ptTxnsPromise = ptTxnsQuery
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(300)
-    .returns<AdminPointsTransaction[]>();
-  const aiErrorCasesPromise = admin
-    .from("ai_error_cases")
-    .select(
-      "id, room_id, puzzle_id, question_message_id, ai_message_id, question_content, ai_content, correct_answer, note, status, puzzle_title, puzzle_surface, puzzle_bottom, created_at, updated_at, rooms(code, name, status)",
-    )
-    .order("created_at", { ascending: false })
-    .limit(500)
-    .returns<AdminAiErrorCase[]>();
-  const cacheEntriesPromise = admin
-    .from("puzzle_qa_cache")
-    .select("id, puzzle_id, question_text, normalized_question, answer_type, status, hit_count, created_at, last_hit_at")
-    .order("status", { ascending: false })
-    .order("hit_count", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(2000)
-    .returns<(PuzzleCacheEntry & { puzzle_id: number })[]>();
+  const ptTxnsPromise = loadPoints
+    ? ptTxnsQuery
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(300)
+        .returns<AdminPointsTransaction[]>()
+    : Promise.resolve({ data: [] as AdminPointsTransaction[], error: null });
+  const aiErrorCasesPromise = loadMessages
+    ? admin
+        .from("ai_error_cases")
+        .select(
+          "id, room_id, puzzle_id, question_message_id, ai_message_id, question_content, ai_content, correct_answer, note, status, puzzle_title, puzzle_surface, puzzle_bottom, created_at, updated_at, rooms(code, name, status)",
+        )
+        .order("created_at", { ascending: false })
+        .limit(500)
+        .returns<AdminAiErrorCase[]>()
+    : Promise.resolve({ data: [] as AdminAiErrorCase[], error: null });
+  const cacheEntriesPromise = loadPuzzles
+    ? admin
+        .from("puzzle_qa_cache")
+        .select("id, puzzle_id, question_text, normalized_question, answer_type, status, hit_count, created_at, last_hit_at")
+        .order("status", { ascending: false })
+        .order("hit_count", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(2000)
+        .returns<(PuzzleCacheEntry & { puzzle_id: number })[]>()
+    : Promise.resolve({ data: [] as (PuzzleCacheEntry & { puzzle_id: number })[], error: null });
 
   const [
     { data: usersData, error: usersError },
@@ -682,17 +694,18 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     { data: cacheEntriesRaw, error: cacheEntriesError },
     { data: chatBackupDays, error: chatBackupDaysError },
   ] = await Promise.all([
-    admin.auth.admin.listUsers({
-      page: 1,
-      perPage: 1000,
-    }),
-    admin
-      .from("puzzles")
-      .select(
-        "id, title, surface, bottom, difficulty, is_active, key_points, examples, created_at",
-      )
-      .order("id", { ascending: true })
-      .returns<AdminPuzzle[]>(),
+    loadAccounts
+      ? admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+      : (Promise.resolve({ data: { users: [] }, error: null }) as unknown as ReturnType<typeof admin.auth.admin.listUsers>),
+    loadPuzzles
+      ? admin
+          .from("puzzles")
+          .select(
+            "id, title, surface, bottom, difficulty, is_active, key_points, examples, created_at",
+          )
+          .order("id", { ascending: true })
+          .returns<AdminPuzzle[]>()
+      : Promise.resolve({ data: [] as AdminPuzzle[], error: null }),
     adminMessagesPromise,
     cleanupRoomsPromise,
     aiErrorCasesPromise,
@@ -1374,9 +1387,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <p className="eyebrow">管理端</p>
           <h1>后台管理</h1>
           <p className="lead">
-            共 {users.length} 个账户，{puzzles?.length ?? 0} 道题目，
-            {(adminMessages ?? []).length} 条消息，{cleanupRooms?.length ?? 0}{" "}
-            个待清理房间，{activeRooms.length} 个活跃房间。
+            {activeTab === "accounts" && `共 ${users.length} 个账户`}
+            {activeTab === "puzzles" && `共 ${(puzzles ?? []).length} 道题目`}
+            {activeTab === "messages" && `共 ${(adminMessages ?? []).length} 条消息`}
+            {activeTab === "rooms" && `${cleanupRooms?.length ?? 0} 个待清理，${activeRooms.length} 个活跃房间`}
+            {activeTab === "points" && `共 ${visibleTxns.length} 条积分记录`}
+            {activeTab === "emails" && "发送系统邮件"}
           </p>
         </div>
         {(activeTab === "accounts" || activeTab === "puzzles") && (

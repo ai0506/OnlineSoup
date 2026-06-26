@@ -327,10 +327,10 @@ export async function POST(request: Request, { params }: AskRouteContext) {
     if (msg.message_type !== "ai") return msg;
     try {
       const parsed = JSON.parse(msg.content) as Record<string, unknown>;
-      if ("ask_audit" in parsed) {
-        delete parsed.ask_audit;
-        return { ...msg, content: JSON.stringify(parsed) };
-      }
+      let changed = false;
+      if ("ask_audit" in parsed) { delete parsed.ask_audit; changed = true; }
+      if ("cache_hit" in parsed) { delete parsed.cache_hit; changed = true; }
+      if (changed) return { ...msg, content: JSON.stringify(parsed) };
     } catch { /* not JSON */ }
     return msg;
   })();
