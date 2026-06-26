@@ -201,10 +201,17 @@ function formatPoints(points: ReturnType<typeof getPuzzlePoints>) {
 
   return points
     .map((point) => {
-      const accept = point.accept.length > 0
-        ? ` Accept keywords: ${point.accept.join(", ")}.`
+      const isSoi = (a: string) => {
+        const s = a.trim().toLowerCase();
+        return s === "seen or implied" || s.includes("soi");
+      };
+      const soi = point.accept.some(isSoi);
+      const keywords = point.accept.filter((a) => !isSoi(a));
+      const acceptPart = keywords.length > 0
+        ? ` Accept keywords: ${keywords.join(", ")}.`
         : "";
-      return `${point.id}. ${point.text}.${accept}`;
+      const soiPart = soi ? " [SOI]" : "";
+      return `${point.id}. ${point.text}.${acceptPart}${soiPart}`;
     })
     .join("\n");
 }
@@ -416,6 +423,7 @@ Rules:
 - Score each key point INDEPENDENTLY. For every covered=true you must be able to point to a specific sentence the player actually wrote that directly states, or is directly equivalent to, that point. If you cannot, mark covered=false.
 - A close-to-correct overall explanation does NOT mean every key point is covered. Background that the puzzle already states (in the public story or true answer) does NOT count as covered unless the player themselves stated it. Example: if the player explains "the brother is not really pregnant, it was a misunderstood swear phrase" but never says the brother's belly grew, do NOT mark "the brother's belly grew" as covered.
 - Mark covered=true only when the player clearly presents that key point as an accepted fact in their final explanation, or their final explanation is directly equivalent to that key point.
+- Points marked [SOI] (Seen Or Implied) are credited when the player's explanation mentions, implies, or clearly presupposes the point — even without stating it word-for-word. Do not require an explicit sentence for [SOI] points.
 - Treat keywords, synonyms, and accept keywords as important evidence for matching a key point, but never as enough by themselves. They count only when the surrounding context and the player's final stance confirm the point.
 - Mark covered=false when the point is only a condition, hypothesis, guess, ordinary question, quoted/reported idea, rejected option, abandoned option, or something that must be inferred from another key point.
 - Mark covered=false when the player negates the point, says they do not believe it, or chooses a competing explanation that does not include it.
