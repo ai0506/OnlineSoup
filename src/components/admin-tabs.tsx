@@ -5,13 +5,15 @@ import { useEffect, useState } from "react";
 
 type AdminTab = "accounts" | "puzzles" | "messages" | "rooms" | "points" | "emails";
 
-type MessageSubTab = "audit" | "errors";
+type MessageSubTab = "audit" | "errors" | "backup";
 
 type AdminTabsProps = {
   accountCount: number;
   accountContent: React.ReactNode;
   aiErrorCaseContent: React.ReactNode;
   aiErrorCaseCount: number;
+  chatBackupContent: React.ReactNode;
+  chatBackupCount: number;
   cleanupContent: React.ReactNode;
   cleanupCount: number;
   createPuzzleContent: React.ReactNode;
@@ -61,6 +63,8 @@ export function AdminTabs({
   accountContent,
   aiErrorCaseContent,
   aiErrorCaseCount,
+  chatBackupContent,
+  chatBackupCount,
   cleanupContent,
   cleanupCount,
   createPuzzleContent,
@@ -98,7 +102,10 @@ export function AdminTabs({
   function selectMsgSubTab(sub: MessageSubTab) {
     setMsgSubTab(sub);
     const url = new URL(window.location.href);
-    url.searchParams.set("tab", sub === "errors" ? "ai-errors" : "messages");
+    url.searchParams.set(
+      "tab",
+      sub === "errors" ? "ai-errors" : sub === "backup" ? "chat-backup" : "messages",
+    );
     cleanUrlForTab(url, "messages");
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }
@@ -250,9 +257,20 @@ export function AdminTabs({
             AI 错误案例
             <span>{aiErrorCaseCount}</span>
           </button>
+          <button
+            aria-selected={msgSubTab === "backup"}
+            className={`admin-subtab${msgSubTab === "backup" ? " active" : ""}`}
+            onClick={() => selectMsgSubTab("backup")}
+            role="tab"
+            type="button"
+          >
+            聊天备份
+            <span>{chatBackupCount}</span>
+          </button>
         </div>
         <div hidden={msgSubTab !== "audit"}>{messageContent}</div>
         <div hidden={msgSubTab !== "errors"}>{aiErrorCaseContent}</div>
+        <div hidden={msgSubTab !== "backup"}>{chatBackupContent}</div>
       </section>
 
       <section hidden={activeTab !== "rooms"} role="tabpanel">

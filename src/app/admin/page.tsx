@@ -40,6 +40,10 @@ import {
 import { AdminTabs } from "@/components/admin-tabs";
 import { AdminAiErrorForm } from "@/components/admin-ai-error-form";
 import { AdminAiErrorCaseList } from "@/components/admin-ai-error-case-list";
+import {
+  AdminChatBackupList,
+  type ChatBackupDay,
+} from "@/components/admin-chat-backup-list";
 import { AdminFilterForm } from "@/components/admin-filter-form";
 import { AdminEmailForm } from "@/components/admin-email-form";
 import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
@@ -282,6 +286,7 @@ function getAdminTab(value?: string): AdminTab {
   // 旧 tab 值向后兼容
   if (value === "cleanup") return "rooms";
   if (value === "ai-errors") return "messages";
+  if (value === "chat-backup") return "messages";
   return "accounts";
 }
 
@@ -541,7 +546,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const messageCode = flash?.kind === "notice" ? flash.code : params.message;
   const query = params.q?.trim().toLowerCase() ?? "";
   const activeTab = getAdminTab(params.tab);
-  const initialMessageSubTab = params.tab === "ai-errors" ? "errors" as const : "audit" as const;
+  const initialMessageSubTab =
+    params.tab === "ai-errors"
+      ? ("errors" as const)
+      : params.tab === "chat-backup"
+        ? ("backup" as const)
+        : ("audit" as const);
   const roomCodeFilter = params.roomCode?.trim().toUpperCase() ?? "";
   const modeFilter = getModeFilter(params.mode);
   const senderFilter = params.sender?.trim() ?? "";
@@ -613,6 +623,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const cleanupRoomsPromise = admin.rpc(
     "admin_list_room_cleanup_candidates",
   ) as unknown as SupabaseResult<AdminCleanupRoom[]>;
+  const chatBackupDaysPromise = admin.rpc(
+    "admin_list_chat_backup_days",
+  ) as unknown as SupabaseResult<ChatBackupDay[]>;
 
   const activeRoomsPromise = admin
     .from("rooms")
@@ -667,6 +680,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     { data: activeRoomsRaw, error: activeRoomsError },
     { data: ptTxnsRaw, error: ptTxnsError },
     { data: cacheEntriesRaw, error: cacheEntriesError },
+    { data: chatBackupDays, error: chatBackupDaysError },
   ] = await Promise.all([
     admin.auth.admin.listUsers({
       page: 1,
@@ -685,6 +699,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     activeRoomsPromise,
     ptTxnsPromise,
     cacheEntriesPromise,
+    chatBackupDaysPromise,
   ]);
 
   if (usersError) {
@@ -717,6 +732,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   if (cacheEntriesError) {
     throw new Error(`读取问答缓存失败：${cacheEntriesError.message}`);
+  }
+
+  if (chatBackupDaysError) {
+    throw new Error(`读取聊天备份列表失败：${chatBackupDaysError.message}`);
   }
 
   const cacheByPuzzle: Record<number, PuzzleCacheEntry[]> = {};
@@ -1210,6 +1229,18 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     </div>
   );
 
+  const chatBackupContent = (
+    <div className="admin-section" key="chat-backup-section">
+      <div className="admin-section-heading">
+        <h2>聊天备份</h2>
+        <p className="muted">
+          按自然日（00:00:00–23:59:59）下载聊天记录，便于日后查看。列表显示每天是否已下载过。
+        </p>
+      </div>
+      <AdminChatBackupList days={chatBackupDays ?? []} />
+    </div>
+  );
+
   const roomsContent = (
     <div className="admin-section" key="rooms-section">
       <div className="admin-section-heading">
@@ -1381,6 +1412,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         accountContent={accountContent}
         aiErrorCaseContent={aiErrorCaseContent}
         aiErrorCaseCount={visibleAiErrorCases.length}
+        chatBackupContent={chatBackupContent}
+        chatBackupCount={(chatBackupDays ?? []).length}
         createPuzzleContent={createPuzzleContent}
         cleanupContent={cleanupContent}
         cleanupCount={cleanupRooms?.length ?? 0}
