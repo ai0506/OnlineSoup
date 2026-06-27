@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 
 import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
+import { NoticeMessage } from "@/components/notice-message";
 import { hasSupabaseEnv } from "@/lib/env";
 import { getFlashMessage } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
@@ -76,8 +77,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   return (
     <>
       {flash && <FlashCookieCleaner />}
-      {errorMessage && <div className="error">{errorMessage}</div>}
-      {noticeMessage && <div className="notice">{noticeMessage}</div>}
+      {errorMessage && <NoticeMessage type="error" message={errorMessage} />}
+      {noticeMessage && <NoticeMessage type="notice" message={noticeMessage} />}
       <section className="join-landing">
         <div className="join-heading">
           <h1>{activeRoomCode ? "你已在房间中" : "加入房间"}</h1>

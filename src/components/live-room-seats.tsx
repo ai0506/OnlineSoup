@@ -713,7 +713,18 @@ export function LiveRoomSeats({
           </span>
           <span className="room-occupancy">{occupiedCount}/{maxMembers} 人</span>
           {pointsDisplay && (
-            <span className="room-summary-points">{pointsDisplay}</span>
+            <span
+              className="room-summary-points"
+              title={
+                currentUserId && roomPoints > 0
+                  ? `个人积分 ${personalPoints} + 座位临时积分 ${roomPoints}（[临]表示房间内临时积分，关房退还给房主）`
+                  : roomPoints > 0
+                    ? `座位临时积分 ${roomPoints}（[临]表示房间内临时积分）`
+                    : undefined
+              }
+            >
+              {pointsDisplay}
+            </span>
           )}
         </summary>
 

@@ -89,11 +89,18 @@ function mergeMessages(current: RoomMessage[], incoming: RoomMessage[]) {
     .slice(-100);
 }
 
-const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
-  year: "numeric", month: "2-digit", day: "2-digit",
-  hour: "2-digit", minute: "2-digit", second: "2-digit",
-  hour12: false,
-});
+const timeShortFmt = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
+const timeLongFmt  = new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
+
+function formatTime(isoString: string): string {
+  const d = new Date(isoString);
+  const n = new Date();
+  const sameDay =
+    d.getFullYear() === n.getFullYear() &&
+    d.getMonth() === n.getMonth() &&
+    d.getDate() === n.getDate();
+  return sameDay ? timeShortFmt.format(d) : timeLongFmt.format(d);
+}
 
 function getSystemMessageContent(message: RoomMessage) {
   switch (message.content) {
@@ -154,7 +161,7 @@ const SystemMessage = memo(function SystemMessage({ message }: { message: RoomMe
     <div className="system-message">
       <span>{getSystemMessageContent(message)}</span>
       <time dateTime={message.created_at}>
-        {timeFormatter.format(new Date(message.created_at))}
+        {formatTime(message.created_at)}
       </time>
     </div>
   );
@@ -213,7 +220,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
             <p>{message.content}</p>
           )}
           <time dateTime={message.created_at}>
-            {timeFormatter.format(new Date(message.created_at))}
+            {formatTime(message.created_at)}
           </time>
         </div>
         {message.id < 0 && pendingSend && (
@@ -816,7 +823,7 @@ export function RoomChat({
 
       {/* Confirm dialog: seat points insufficient, ask to use personal */}
       {confirmState && (
-        <div className="dialog-backdrop" role="dialog" aria-modal="true" aria-label="积分确认">
+        <div className="dialog-backdrop" role="dialog" aria-modal="true" aria-label="积分确认" onClick={(e) => { if (e.target === e.currentTarget) setConfirmState(null); }}>
           <div className="dialog-panel">
             <h2>使用个人积分？</h2>
             <p>
@@ -855,7 +862,7 @@ export function RoomChat({
       )}
 
       {showInsufficientNotice && (
-        <div className="dialog-backdrop" role="dialog" aria-modal="true" aria-label="积分不足">
+        <div className="dialog-backdrop" role="dialog" aria-modal="true" aria-label="积分不足" onClick={(e) => { if (e.target === e.currentTarget) setShowInsufficientNotice(false); }}>
           <div className="dialog-panel">
             <h2>积分不足</h2>
             {currentUserId ? (
@@ -877,7 +884,7 @@ export function RoomChat({
       )}
 
       {showRateLimitNotice && (
-        <div className="dialog-backdrop" role="dialog" aria-modal="true" aria-label="发送太频繁">
+        <div className="dialog-backdrop" role="dialog" aria-modal="true" aria-label="发送太频繁" onClick={(e) => { if (e.target === e.currentTarget) setShowRateLimitNotice(false); }}>
           <div className="dialog-panel">
             <h2>发送太频繁</h2>
             <p>请稍后再发送消息。</p>
@@ -914,7 +921,7 @@ export function RoomChat({
                 onClick={() => {
                   if (locked) return;
                   setMode(m.key);
-                  setContent("");
+                  setContent((c) => c.slice(0, m.maxLength));
                 }}
                 title={title}
                 type="button"
@@ -946,12 +953,19 @@ export function RoomChat({
         />
 
         <div className="chat-form-footer">
-          <span className="muted">{content.length}/{currentMode.maxLength}</span>
+          <span className={content.length >= Math.floor(currentMode.maxLength * 0.85) ? "chat-char-count near-limit" : "muted"}>
+            {content.length}/{currentMode.maxLength}
+          </span>
 
           {/* 积分 + 提示机会（合为一行，占 grid 中间列） */}
           <span className="chat-footer-center">
             {currentMode.cost > 0 && (
-              <span className={`chat-points-info${canAfford ? "" : " insufficient"}`}>
+              <span
+                className={`chat-points-info${canAfford ? "" : " insufficient"}`}
+                title={currentUserId
+                  ? `座位临时积分 ${seatPoints}，个人积分 ${personalPoints}（优先扣临时积分）`
+                  : `座位临时积分 ${seatPoints}`}
+              >
                 {seatPoints}[临]
                 {currentUserId ? ` + ${personalPoints}` : ""}
               </span>
@@ -974,7 +988,7 @@ export function RoomChat({
       </form>
 
       {errorNotice && (
-        <div className="dialog-backdrop" role="dialog" aria-modal="true" aria-label="发送失败">
+        <div className="dialog-backdrop" role="dialog" aria-modal="true" aria-label="发送失败" onClick={(e) => { if (e.target === e.currentTarget) setErrorNotice(null); }}>
           <div className="dialog-panel">
             <h2>发送失败</h2>
             <p>{errorNotice}</p>
