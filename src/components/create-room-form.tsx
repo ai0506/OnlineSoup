@@ -33,7 +33,7 @@ export function CreateRoomForm({ currentPoints, defaultRoomName }: CreateRoomFor
   }, [router, state]);
 
   return (
-    <form action={formAction} className="form-grid">
+    <form action={formAction} className="form-grid create-room-form">
       <label>
         房间名称
         <input
@@ -41,52 +41,50 @@ export function CreateRoomForm({ currentPoints, defaultRoomName }: CreateRoomFor
           maxLength={8}
           minLength={2}
           name="name"
+          placeholder="2–8 个字符"
           required
         />
-        <span className="help">2 到 8 个任意字符。</span>
       </label>
-      <label>
-        座位数量
-        <input
-          max={20}
-          min={1}
-          name="maxMembers"
-          onChange={(e) => setSeats(e.target.value)}
-          required
-          type="number"
-          value={seats}
-        />
-        <span className="help">包含房主在内，1 到 20 个座位。</span>
-      </label>
-      <label>
-        每位玩家积分
-        <input
-          max={100}
-          min={0}
-          name="pointsPerSeat"
-          onChange={(e) => setPointsPerSeat(e.target.value)}
-          required
-          type="number"
-          value={pointsPerSeat}
-        />
-        <span className="help">每位玩家预留积分，0 到 100。设为 0 表示本场不预留积分。</span>
-      </label>
-
-      <div className="points-preview">
+      <div className="form-row-2">
+        <label>
+          座位数量
+          <input
+            max={20}
+            min={1}
+            name="maxMembers"
+            onChange={(e) => setSeats(e.target.value)}
+            required
+            type="number"
+            value={seats}
+          />
+        </label>
+        <label>
+          每座积分
+          <input
+            max={100}
+            min={0}
+            name="pointsPerSeat"
+            onChange={(e) => setPointsPerSeat(e.target.value)}
+            required
+            type="number"
+            value={pointsPerSeat}
+          />
+        </label>
+      </div>
+      <div className="create-room-cost">
         {cost === 0 ? (
-          <span>本次不消耗积分</span>
+          <span className="muted">本次不消耗积分</span>
         ) : (
-          <span>本次消耗：<strong>{cost} 积分</strong>（{seats} 座 × {pointsPerSeat} 分）</span>
+          <span>消耗 <strong>{cost}</strong> 积分（{seats} 座 × {pointsPerSeat} 分）</span>
         )}
         {cost > 0 && (
-          <span className={remaining < 0 ? "points-insufficient" : "points-remaining"}>
-            创建后剩余：<strong>{remaining} 积分</strong>
+          <span className={remaining < 0 ? "points-insufficient" : "muted"}>
+            剩余 <strong>{remaining}</strong>
           </span>
         )}
       </div>
-
       <label>
-        6 位数字密码（可选）
+        密码<span className="muted">（可选，6 位数字）</span>
         <input
           autoComplete="new-password"
           inputMode="numeric"
@@ -97,13 +95,10 @@ export function CreateRoomForm({ currentPoints, defaultRoomName }: CreateRoomFor
           placeholder="留空则无需密码"
           type="password"
         />
-        <span className="help">设置密码后，加入者需要输入相同的 6 位数字。</span>
       </label>
-
       {state.status === "error" && (
         <div className="error" role="alert">{state.message}</div>
       )}
-
       <SubmitButton pendingText="正在创建...">创建房间</SubmitButton>
     </form>
   );

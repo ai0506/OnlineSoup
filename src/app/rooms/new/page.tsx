@@ -38,13 +38,14 @@ export default async function NewRoomPage() {
   const defaultRoomName = `${profile.username.slice(0, 5)}的房间`;
 
   return (
-    <section className="form-card">
-      <h1>创建房间</h1>
-      <p className="lead">
-        填好后即可邀请朋友加入。你当前有
-        <strong> {profile?.points ?? 0} 积分</strong>。
-      </p>
-      <CreateRoomForm currentPoints={profile?.points ?? 0} defaultRoomName={defaultRoomName} />
-    </section>
+    <div className="create-room-page">
+      <section className="form-card">
+        <h1>创建房间</h1>
+        <p className="lead">
+          你当前有 <strong>{profile?.points ?? 0} 积分</strong>。
+        </p>
+        <CreateRoomForm currentPoints={profile?.points ?? 0} defaultRoomName={defaultRoomName} />
+      </section>
+    </div>
   );
 }

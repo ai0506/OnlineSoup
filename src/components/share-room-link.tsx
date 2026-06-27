@@ -34,11 +34,21 @@ export function ShareRoomLink({ code }: ShareRoomLinkProps) {
   return (
     <button
       aria-label="复制房间分享链接"
+      title={copied ? "链接已复制" : "复制分享链接"}
       className="button secondary copy-code-button"
       onClick={copyLink}
       type="button"
     >
-      {copied ? "已复制" : "分享链接"}
+      {copied ? (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          <path d="M12 3v12M8 7l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
     </button>
   );
 }

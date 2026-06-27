@@ -283,9 +283,6 @@ export default async function RoomPage({
                 roomCode={room.code}
               />
             )}
-            <Link className="button secondary room-back-link" href="/">
-              返回大厅
-            </Link>
           </div>
         }
       />

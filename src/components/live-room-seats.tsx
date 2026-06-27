@@ -11,6 +11,7 @@ import {
 
 import { checkSeatSessionActive, getRoomMembershipStatus, giftPoints, kickGuest, moveSeat } from "@/app/rooms/actions";
 import type { RoomActionState } from "@/app/rooms/actions";
+import { CopyRoomCode } from "@/components/copy-room-code";
 import { RoomActionForm } from "@/components/room-action-form";
 import { ShareRoomLink } from "@/components/share-room-link";
 
@@ -754,9 +755,13 @@ export function LiveRoomSeats({
           </div>
 
           <div className="room-manage-tab" hidden={activeTab !== "manage"}>
-          <div className="room-code-actions room-details-code">
-            <div className="room-code">{roomCode}</div>
-            <ShareRoomLink code={roomCode} />
+          <div className="room-details-code">
+            <span className="room-code-label">房间码</span>
+            <div className="room-code-row">
+              <span className="room-code">{roomCode}</span>
+              <CopyRoomCode code={roomCode} />
+              <ShareRoomLink code={roomCode} />
+            </div>
           </div>
           <div className="room-detail-meta">
             <span>
@@ -768,12 +773,29 @@ export function LiveRoomSeats({
           <div className="seat-grid">
             {seats.map((seat) => {
               const isSeatOnline = Boolean(seat.nickname && onlineSeatIds.has(seat.id));
+              const identity =
+                seat.seat_number === 1 ? "owner" : seat.user_id ? "registered" : "guest";
+              const identityLabel =
+                seat.seat_number === 1 ? "房主" : seat.user_id ? "注册" : "访客";
 
               return (
               <div
                 className={`seat ${seat.nickname ? "occupied" : ""}`}
                 key={seat.id}
               >
+                <span className="seat-number">{seat.seat_number}</span>
+                <span
+                  aria-label={seat.nickname ? (isSeatOnline ? "在线" : "离线") : "空位"}
+                  className={`seat-status-dot ${seat.nickname ? (isSeatOnline ? "online" : "offline") : "empty"}`}
+                  title={seat.nickname ? (isSeatOnline ? "在线" : "离线") : "空位"}
+                />
+                <strong className="seat-name">{seat.nickname || "等待玩家"}</strong>
+                {seat.nickname && seat.remaining_points > 0 && (
+                  <span className="seat-points">{seat.remaining_points}[临]</span>
+                )}
+                {seat.nickname && (
+                  <span className={`seat-id-badge ${identity}`}>{identityLabel}</span>
+                )}
                 {seat.nickname && (
                   <div
                     className="seat-menu"
@@ -796,11 +818,11 @@ export function LiveRoomSeats({
                       <div
                         className={`seat-menu-popover${seatMenuOpensUpward ? " opens-upward" : ""}`}
                       >
-                        <div>
+                        <div className="seat-menu-info-row">
                           <span className="muted">剩余积分</span>
                           <strong>{seat.remaining_points}</strong>
                         </div>
-                        <div>
+                        <div className="seat-menu-info-row">
                           <span className="muted">入座时间</span>
                           <strong>
                             {seat.occupied_at
@@ -810,9 +832,9 @@ export function LiveRoomSeats({
                         </div>
 
                         {isOwner && seat.seat_number !== 1 && (
-                          <>
+                          <div className="seat-menu-actions">
                             <button
-                              className="button small"
+                              className="seat-menu-action-btn"
                               onClick={() => {
                                 setOpenSeatMenuId(null);
                                 setGiftTargetSeatId(seat.id);
@@ -822,9 +844,8 @@ export function LiveRoomSeats({
                             >
                               赠送积分
                             </button>
-
                             <button
-                              className="button small seat-action-move"
+                              className="seat-menu-action-btn"
                               onClick={() => {
                                 setOpenSeatMenuId(null);
                                 setMovingFromSeatId(seat.id);
@@ -832,35 +853,22 @@ export function LiveRoomSeats({
                               }}
                               type="button"
                             >
-                              移动位置
+                              调整位置
                             </button>
-
                             <RoomActionForm
                               action={kickGuest}
-                              buttonClassName="seat-menu-danger"
+                              buttonClassName="seat-menu-action-btn danger"
                               buttonText="移出房间"
                               code={roomCode}
                               pendingText="正在移出..."
                               seatId={seat.id}
                             />
-                          </>
+                          </div>
                         )}
                       </div>
                     )}
                   </div>
                 )}
-                <span className="seat-number">座位 {seat.seat_number}</span>
-                <strong>{seat.nickname || "等待玩家"}</strong>
-                <span className="seat-status muted">
-                  {seat.nickname && (
-                    <span
-                      aria-label={isSeatOnline ? "在线" : "离线"}
-                      className={`seat-status-dot ${isSeatOnline ? "online" : "offline"}`}
-                      title={isSeatOnline ? "在线" : "离线"}
-                    />
-                  )}
-                  {seat.nickname ? (isSeatOnline ? "在线" : "离线") : "空闲"}
-                </span>
               </div>
               );
             })}
