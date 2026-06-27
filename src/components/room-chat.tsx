@@ -89,8 +89,20 @@ function mergeMessages(current: RoomMessage[], incoming: RoomMessage[]) {
     .slice(-100);
 }
 
-const timeShortFmt = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
-const timeLongFmt  = new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
+const timeShortFmt = new Intl.DateTimeFormat("zh-CN", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+const timeLongFmt = new Intl.DateTimeFormat("zh-CN", {
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
 
 function formatTime(isoString: string): string {
   const d = new Date(isoString);
@@ -269,7 +281,7 @@ export function RoomChat({
   senderSeatNumber,
   senderType,
 }: RoomChatProps) {
-  const [messages, setMessages] = useState(initialMessages);
+  const [messages, setMessages] = useState(() => mergeMessages([], initialMessages));
   const [content, setContent] = useState("");
   const [mode, setMode] = useState<MessageMode>("chat");
   const [hasPuzzle, setHasPuzzle] = useState(initialHasPuzzle);
@@ -360,11 +372,11 @@ export function RoomChat({
 
     const supabase = createClient();
     const channel = supabase
-      .channel(`room-messages:${roomId}`)
+      .channel(`room-message-events:${roomId}`)
       .on("postgres_changes", {
         event: "INSERT",
         schema: "public",
-        table: "room_messages",
+        table: "room_message_events",
         filter: `room_id=eq.${roomId}`,
       }, () => { if (!disposed) void refreshMessages(); })
       .subscribe((status) => { if (status === "SUBSCRIBED") void refreshMessages(); });
