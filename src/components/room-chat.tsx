@@ -90,12 +90,14 @@ function mergeMessages(current: RoomMessage[], incoming: RoomMessage[]) {
 }
 
 const timeShortFmt = new Intl.DateTimeFormat("zh-CN", {
+  timeZone: "Asia/Shanghai",
   hour: "2-digit",
   minute: "2-digit",
   second: "2-digit",
   hour12: false,
 });
 const timeLongFmt = new Intl.DateTimeFormat("zh-CN", {
+  timeZone: "Asia/Shanghai",
   month: "2-digit",
   day: "2-digit",
   hour: "2-digit",
@@ -103,14 +105,17 @@ const timeLongFmt = new Intl.DateTimeFormat("zh-CN", {
   second: "2-digit",
   hour12: false,
 });
+const dateKeyFmt = new Intl.DateTimeFormat("zh-CN", {
+  timeZone: "Asia/Shanghai",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
 function formatTime(isoString: string): string {
   const d = new Date(isoString);
   const n = new Date();
-  const sameDay =
-    d.getFullYear() === n.getFullYear() &&
-    d.getMonth() === n.getMonth() &&
-    d.getDate() === n.getDate();
+  const sameDay = dateKeyFmt.format(d) === dateKeyFmt.format(n);
   return sameDay ? timeShortFmt.format(d) : timeLongFmt.format(d);
 }
 
