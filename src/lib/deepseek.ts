@@ -26,6 +26,7 @@ type AskAuditEntry = {
 const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
 const DEFAULT_MODEL = "deepseek-v4-flash";
 const DEEPSEEK_TIMEOUT_MS = 30_000;
+const ASK_MAX_TOKENS = 160;
 
 const askSchema = z.object({
   answer_type: z.enum(["yes", "no", "irrelevant", "ambiguous"]),
@@ -756,23 +757,41 @@ async function askWithCrossCheck(
   const strictPrompt = buildAskPrompt("strict", puzzle, content, puzzleMessages);
   const inferentialPrompt = buildAskPrompt("inferential", puzzle, content, puzzleMessages);
 
-  const [strictRaw, inferentialRaw] = await Promise.all([
-    requestDeepSeekJson(apiKey, strictPrompt.system, strictPrompt.user, 400),
-    requestDeepSeekJson(apiKey, inferentialPrompt.system, inferentialPrompt.user, 400),
+  const [strictResult, inferentialResult] = await Promise.allSettled([
+    requestDeepSeekJson(apiKey, strictPrompt.system, strictPrompt.user, ASK_MAX_TOKENS),
+    requestDeepSeekJson(apiKey, inferentialPrompt.system, inferentialPrompt.user, ASK_MAX_TOKENS),
   ]);
 
-  const strict = askSchema.parse(strictRaw);
-  const inferential = askSchema.parse(inferentialRaw);
+  if (strictResult.status === "rejected" && inferentialResult.status === "rejected") {
+    throw strictResult.reason instanceof Error ? strictResult.reason : new Error("DeepSeek ask failed");
+  }
+
+  const strict = strictResult.status === "fulfilled"
+    ? askSchema.parse(strictResult.value)
+    : null;
+  const inferential = inferentialResult.status === "fulfilled"
+    ? askSchema.parse(inferentialResult.value)
+    : null;
+
+  const fallback = strict ?? inferential;
+  if (!fallback) {
+    throw new Error("DeepSeek ask failed");
+  }
+
   const audit = {
-    strict: toAskAuditEntry(strict),
-    inferential: toAskAuditEntry(inferential),
+    strict: strict ? toAskAuditEntry(strict) : toAskAuditEntry(fallback),
+    inferential: inferential ? toAskAuditEntry(inferential) : toAskAuditEntry(fallback),
   };
 
   let finalResult: AskResult;
   let finalAudit: typeof audit & { final?: AskAuditEntry };
   let cacheEligible: boolean;
 
-  if (strict.answer_type === inferential.answer_type) {
+  if (!strict || !inferential) {
+    finalResult = fallback;
+    finalAudit = audit;
+    cacheEligible = false;
+  } else if (strict.answer_type === inferential.answer_type) {
     finalResult = strict;
     finalAudit = audit;
     cacheEligible = true;
@@ -785,7 +804,7 @@ async function askWithCrossCheck(
       apiKey,
       arbitrationPrompt.system,
       arbitrationPrompt.user,
-      400,
+      ASK_MAX_TOKENS,
     );
     const final = askSchema.parse(arbitrationRaw);
     finalResult = final;
