@@ -25,6 +25,7 @@ type AskAuditEntry = {
 
 const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
 const DEFAULT_MODEL = "deepseek-v4-flash";
+const DEEPSEEK_TIMEOUT_MS = 30_000;
 
 const askSchema = z.object({
   answer_type: z.enum(["yes", "no", "irrelevant", "ambiguous"]),
@@ -554,7 +555,7 @@ async function requestDeepSeekJson(
   maxTokens: number,
 ) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10_000);
+  const timeout = setTimeout(() => controller.abort(), DEEPSEEK_TIMEOUT_MS);
 
   try {
     const response = await fetch(getDeepSeekApiUrl(), {
@@ -572,7 +573,6 @@ async function requestDeepSeekJson(
         response_format: { type: "json_object" },
         temperature: 0.2,
         max_tokens: maxTokens,
-        thinking: { type: "disabled" },
       }),
       signal: controller.signal,
     });
@@ -757,8 +757,8 @@ async function askWithCrossCheck(
   const inferentialPrompt = buildAskPrompt("inferential", puzzle, content, puzzleMessages);
 
   const [strictRaw, inferentialRaw] = await Promise.all([
-    requestDeepSeekJson(apiKey, strictPrompt.system, strictPrompt.user, 50),
-    requestDeepSeekJson(apiKey, inferentialPrompt.system, inferentialPrompt.user, 50),
+    requestDeepSeekJson(apiKey, strictPrompt.system, strictPrompt.user, 400),
+    requestDeepSeekJson(apiKey, inferentialPrompt.system, inferentialPrompt.user, 400),
   ]);
 
   const strict = askSchema.parse(strictRaw);
@@ -785,7 +785,7 @@ async function askWithCrossCheck(
       apiKey,
       arbitrationPrompt.system,
       arbitrationPrompt.user,
-      50,
+      400,
     );
     const final = askSchema.parse(arbitrationRaw);
     finalResult = final;
