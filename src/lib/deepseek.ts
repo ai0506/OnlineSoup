@@ -757,41 +757,27 @@ async function askWithCrossCheck(
   const strictPrompt = buildAskPrompt("strict", puzzle, content, puzzleMessages);
   const inferentialPrompt = buildAskPrompt("inferential", puzzle, content, puzzleMessages);
 
-  let inferential: AskResult | null = null;
-  let strict: AskResult | null = null;
-  let firstError: unknown = null;
+  const [strictResult, inferentialResult] = await Promise.allSettled([
+    requestDeepSeekJson(apiKey, strictPrompt.system, strictPrompt.user, ASK_MAX_TOKENS),
+    requestDeepSeekJson(apiKey, inferentialPrompt.system, inferentialPrompt.user, ASK_MAX_TOKENS),
+  ]);
 
-  try {
-    inferential = askSchema.parse(
-      await requestDeepSeekJson(
-        apiKey,
-        inferentialPrompt.system,
-        inferentialPrompt.user,
-        ASK_MAX_TOKENS,
-      ),
-    );
-  } catch (err) {
-    firstError = err;
+  if (strictResult.status === "rejected" && inferentialResult.status === "rejected") {
+    throw strictResult.reason instanceof Error ? strictResult.reason : new Error("DeepSeek ask failed");
   }
 
-  if (!inferential || process.env.DEEPSEEK_ASK_CROSSCHECK === "true") {
-    try {
-      strict = askSchema.parse(
-        await requestDeepSeekJson(
-          apiKey,
-          strictPrompt.system,
-          strictPrompt.user,
-          ASK_MAX_TOKENS,
-        ),
-      );
-    } catch (err) {
-      if (!inferential) {
-        throw firstError instanceof Error ? firstError : err;
-      }
-    }
+  const strict = strictResult.status === "fulfilled"
+    ? askSchema.parse(strictResult.value)
+    : null;
+  const inferential = inferentialResult.status === "fulfilled"
+    ? askSchema.parse(inferentialResult.value)
+    : null;
+
+  const fallback = strict ?? inferential;
+  if (!fallback) {
+    throw new Error("DeepSeek ask failed");
   }
 
-  const fallback = inferential ?? strict!;
   const audit = {
     strict: strict ? toAskAuditEntry(strict) : toAskAuditEntry(fallback),
     inferential: inferential ? toAskAuditEntry(inferential) : toAskAuditEntry(fallback),
