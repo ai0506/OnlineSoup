@@ -21,15 +21,17 @@ type AskVariant = "strict" | "inferential";
 type AskAuditEntry = {
   answer_type: AskResult["answer_type"];
   text: string;
+  reason: string | null;
 };
 
 const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
 const DEFAULT_MODEL = "deepseek-v4-flash";
 const DEEPSEEK_TIMEOUT_MS = 30_000;
-const ASK_MAX_TOKENS = 160;
+const ASK_MAX_TOKENS = 320;
 
 const askSchema = z.object({
   answer_type: z.enum(["yes", "no", "irrelevant", "ambiguous"]),
+  reason: z.string().trim().max(200).optional(),
 });
 
 type AskResult = z.infer<typeof askSchema>;
@@ -319,7 +321,8 @@ ${formatExamples(examples)}
 
 Reply with JSON only using this schema:
 {
-  "answer_type": "yes|no|irrelevant|ambiguous"
+  "answer_type": "yes|no|irrelevant|ambiguous",
+  "reason": "one short Chinese sentence (<=40 chars) naming the specific fact, key point, or example question that drove this answer_type — internal debugging note, never shown to players"
 }
 
 Rules:
@@ -351,7 +354,8 @@ Two independent readings of the player's question below disagreed. Decide the fi
 
 Reply with JSON only using this schema:
 {
-  "answer_type": "yes|no|irrelevant|ambiguous"
+  "answer_type": "yes|no|irrelevant|ambiguous",
+  "reason": "one short Chinese sentence (<=40 chars) explaining why you picked this side (or a third option) over the disagreeing reading — internal debugging note, never shown to players"
 }
 
 Rules:
@@ -456,6 +460,7 @@ function toAskAuditEntry(data: AskResult): AskAuditEntry {
   return {
     answer_type: data.answer_type,
     text: answerLabel[data.answer_type],
+    reason: data.reason?.trim() || null,
   };
 }
 

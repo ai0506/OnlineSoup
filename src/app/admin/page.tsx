@@ -187,6 +187,7 @@ type AskAuditEntry = {
   answerType: string;
   text: string;
   factSummary: string | null;
+  reason: string | null;
 };
 
 type FactSummarySource = "glm" | "deepseek" | "unknown";
@@ -521,6 +522,7 @@ function getAskAnswerDetails(message: AdminMessage): AskAnswerDetails | null {
             typeof record.fact_summary === "string"
               ? record.fact_summary
               : null,
+          reason: typeof record.reason === "string" ? record.reason : null,
         };
       })
       .filter((item): item is AskAuditEntry => item !== null);
@@ -1182,6 +1184,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                             <span>
                               {item.text} / {item.answerType}
                             </span>
+                            {item.reason && <p className="admin-ask-audit-reason">原因：{item.reason}</p>}
                             {item.factSummary && <p>{item.factSummary}</p>}
                           </div>
                         ))}
