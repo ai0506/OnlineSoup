@@ -25,6 +25,7 @@ type AdminUserSectionProps = {
   updateUserPassword: (formData: FormData) => Promise<void>;
   sendPasswordReset: (formData: FormData) => Promise<void>;
   deleteAdminUser: (formData: FormData) => Promise<void>;
+  truncated?: boolean;
 };
 
 export function AdminUserSection({
@@ -35,11 +36,22 @@ export function AdminUserSection({
   updateUserPassword,
   sendPasswordReset,
   deleteAdminUser,
+  truncated,
 }: AdminUserSectionProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [adjustingUser, setAdjustingUser] = useState<AdminUserEntry | null>(null);
   const [adjustDirection, setAdjustDirection] = useState<"add" | "subtract">("add");
+  // 提交后先本地更新积分/用户名，避免等服务端整页刷新才看到变化；服务端数据回来后自动覆盖
+  const [optimisticPoints, setOptimisticPoints] = useState<Record<string, number>>({});
+  const [optimisticUsernames, setOptimisticUsernames] = useState<Record<string, string>>({});
+  const [syncedUsers, setSyncedUsers] = useState(users);
+
+  if (syncedUsers !== users) {
+    setSyncedUsers(users);
+    setOptimisticPoints({});
+    setOptimisticUsernames({});
+  }
 
   const deletingUser = deletingUserId
     ? users.find((u) => u.id === deletingUserId)
@@ -51,6 +63,11 @@ export function AdminUserSection({
         <div>
           <h2>账户管理</h2>
           <p className="muted">创建账户，或修改用户名、密码、积分。</p>
+          {truncated && (
+            <p className="admin-truncated-hint">
+              已达到本次查询上限（1000 个账户），可能还有账户未显示，请用搜索缩小范围查看。
+            </p>
+          )}
         </div>
         <button
           className="button"
@@ -67,21 +84,23 @@ export function AdminUserSection({
           const displayEmail = emailless
             ? "无邮箱账户"
             : (user.email ?? "无邮箱账户");
+          const displayUsername = optimisticUsernames[user.id] ?? user.username;
+          const displayPoints = optimisticPoints[user.id] ?? user.points;
 
           return (
             <article className="admin-user-card" key={user.id}>
               <div className="admin-user-summary">
                 <div>
                   <strong>{displayEmail}</strong>
-                  <span>{user.username ?? "未设置用户名"}</span>
+                  <span>{displayUsername ?? "未设置用户名"}</span>
                 </div>
                 <div className="admin-user-summary-right">
-                  <div className="points-badge">{user.points} 积分</div>
+                  <div className="points-badge">{displayPoints} 积分</div>
                   <button
                     className="button secondary small"
                     onClick={() => {
                       setAdjustDirection("add");
-                      setAdjustingUser(user);
+                      setAdjustingUser({ ...user, points: displayPoints });
                     }}
                     type="button"
                   >
@@ -98,7 +117,20 @@ export function AdminUserSection({
               </div>
 
               <div className="admin-user-actions">
-                <form action={updateUserUsername} className="inline-admin-form">
+                <form
+                  action={updateUserUsername}
+                  className="inline-admin-form"
+                  onSubmit={(event) => {
+                    const value = (
+                      event.currentTarget.elements.namedItem(
+                        "username",
+                      ) as HTMLInputElement | null
+                    )?.value.trim();
+                    if (value) {
+                      setOptimisticUsernames((prev) => ({ ...prev, [user.id]: value }));
+                    }
+                  }}
+                >
                   <input name="userId" type="hidden" value={user.id} />
                   <label>
                     用户名
@@ -168,7 +200,27 @@ export function AdminUserSection({
               {adjustingUser.username ?? adjustingUser.email ?? adjustingUser.id}
               &nbsp;·&nbsp;当前 {adjustingUser.points} 积分
             </p>
-            <form action={adjustUserPoints} className="form-grid" onSubmit={() => setAdjustingUser(null)}>
+            <form
+              action={adjustUserPoints}
+              className="form-grid"
+              onSubmit={(event) => {
+                const quantity = Number(
+                  (
+                    event.currentTarget.elements.namedItem(
+                      "_quantity",
+                    ) as HTMLInputElement | null
+                  )?.value ?? 0,
+                );
+                if (quantity > 0) {
+                  const delta = adjustDirection === "subtract" ? -quantity : quantity;
+                  setOptimisticPoints((prev) => ({
+                    ...prev,
+                    [adjustingUser.id]: adjustingUser.points + delta,
+                  }));
+                }
+                setAdjustingUser(null);
+              }}
+            >
               <input name="userId" type="hidden" value={adjustingUser.id} />
               <label>
                 操作

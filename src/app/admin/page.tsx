@@ -933,6 +933,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     aiErrorStatusFilter ? item.status === aiErrorStatusFilter : true,
   );
 
+  // 查询命中硬编码上限时给出提示，避免管理员误以为数据就这么多
+  const usersTruncated = users.length >= 1000;
+  const messagesTruncated = (adminMessages ?? []).length >= 200;
+  const aiErrorCasesTruncated = (aiErrorCases ?? []).length >= 500;
+  const pointsTruncated = (ptTxnsRaw ?? []).length >= 300;
+
   const createPuzzleContent = (
     <AdminPuzzleForm
       action={createPuzzle}
@@ -982,6 +988,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         adjustUserPoints={adjustUserPoints}
         updateUserUsername={updateUserUsername}
         users={accountUsers}
+        truncated={usersTruncated}
       />
     </div>
   );
@@ -993,6 +1000,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <p className="muted">
           查看各房间最近 200 条消息，AI 询问回复会拆出最终答案、严格/推断/仲裁结果和事实总结。
         </p>
+        {messagesTruncated && (
+          <p className="admin-truncated-hint">
+            已达到本次查询上限（200 条），可能还有更早的消息未显示，请用房间号、发送者或日期区间缩小范围查看。
+          </p>
+        )}
       </div>
 
       <AdminFilterForm className="admin-message-filters">
@@ -1215,6 +1227,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <p className="muted">
           收集 AI 询问回答不准确的样本，保留玩家提问、AI 回答和题目故事快照。
         </p>
+        {aiErrorCasesTruncated && (
+          <p className="admin-truncated-hint">
+            已达到本次查询上限（500 条），可能还有更早的案例未显示，请用状态筛选缩小范围查看。
+          </p>
+        )}
       </div>
 
       <AdminFilterForm className="admin-message-filters">
@@ -1277,6 +1294,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       <div className="admin-section-heading">
         <h2>积分流水</h2>
         <p className="muted">最近 300 条积分变动记录，按类型和日期范围筛选。</p>
+        {pointsTruncated && (
+          <p className="admin-truncated-hint">
+            已达到本次查询上限（300 条），用户名搜索仅在这 300 条内匹配，请先用类型或日期区间缩小范围再搜索用户名。
+          </p>
+        )}
       </div>
 
       <AdminFilterForm className="admin-message-filters">

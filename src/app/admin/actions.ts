@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -99,12 +100,30 @@ function normalizeImportItem(item: unknown) {
 
 type AdminResultTab = "puzzles" | "messages" | "cleanup" | "ai-errors" | "rooms" | "points" | "emails";
 
+// 尽量跳回操作前所在的 URL（保留 tab、筛选条件），而不是丢弃状态回到 /admin 首屏
+async function resolveRedirectTarget(tab?: AdminResultTab) {
+  const fallback = tab ? `/admin?tab=${tab}` : "/admin";
+  const referer = (await headers()).get("referer");
+  if (!referer) return fallback;
+
+  try {
+    const url = new URL(referer);
+    if (url.pathname !== "/admin") return fallback;
+    if (tab) {
+      url.searchParams.set("tab", tab);
+    }
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return fallback;
+  }
+}
+
 async function redirectAdminResult(
   type: "error" | "message",
   code: string,
   tab?: AdminResultTab,
 ): Promise<never> {
-  return await redirectWithFlash(tab ? `/admin?tab=${tab}` : "/admin", {
+  return await redirectWithFlash(await resolveRedirectTarget(tab), {
     code,
     kind: type === "error" ? "error" : "notice",
     scope: "admin",

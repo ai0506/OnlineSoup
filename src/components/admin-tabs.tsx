@@ -131,9 +131,16 @@ export function AdminTabs({
     if (activeTab !== "messages" && activeTab !== "rooms") return;
 
     const refreshMessages = () => {
-      if (document.visibilityState === "visible") {
-        router.refresh();
-      }
+      if (document.visibilityState !== "visible") return;
+
+      const active = document.activeElement;
+      const isEditing =
+        active instanceof HTMLElement &&
+        ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName);
+      const hasOpenDialog = document.querySelector('[aria-modal="true"]') !== null;
+      if (isEditing || hasOpenDialog) return;
+
+      router.refresh();
     };
     refreshMessages();
     const intervalId = window.setInterval(refreshMessages, 5000);

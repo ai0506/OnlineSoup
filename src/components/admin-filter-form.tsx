@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import type { FormEvent, ReactNode } from "react";
 
 type AdminFilterFormProps = {
@@ -8,6 +9,8 @@ type AdminFilterFormProps = {
 };
 
 export function AdminFilterForm({ children, className }: AdminFilterFormProps) {
+  const router = useRouter();
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -25,7 +28,8 @@ export function AdminFilterForm({ children, className }: AdminFilterFormProps) {
     }
 
     const query = params.toString();
-    window.location.assign(`${form.action}${query ? `?${query}` : ""}`);
+    const action = form.getAttribute("action") ?? form.action;
+    router.push(`${action}${query ? `?${query}` : ""}`);
   }
 
   return (
