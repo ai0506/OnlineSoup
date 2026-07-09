@@ -78,6 +78,16 @@ export function LiveRoomSeats({
   const [wideLayout, setWideLayout] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"manage" | "puzzle">("manage");
+  // 竖屏手机专用：三段导航（聊天/题目/座位）+ 常驻题面条
+  const [portrait, setPortrait] = useState(false);
+  const [portraitTab, setPortraitTab] = useState<"chat" | "puzzle" | "seats">("chat");
+  const [puzzlePreview, setPuzzlePreview] = useState<{
+    hasPuzzle: boolean;
+    title: string | null;
+    difficulty: string | null;
+    surface: string | null;
+  } | null>(null);
+  const detailsRef = useRef<HTMLDetailsElement>(null);
   const [onlineSeatIds, setOnlineSeatIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -131,6 +141,50 @@ export function LiveRoomSeats({
     media.addEventListener("change", openTabletDetails);
     return () => media.removeEventListener("change", openTabletDetails);
   }, []);
+
+  // 仅手机竖屏启用三段导航；横屏/平板/桌面端保持原布局不受影响
+  useEffect(() => {
+    const media = window.matchMedia("(orientation: portrait) and (max-width: 760px)");
+    const update = () => setPortrait(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  // 监听题目面板广播，供聊天段的常驻题面条展示
+  useEffect(() => {
+    const handlePuzzleChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        hasPuzzle: boolean;
+        title?: string | null;
+        difficulty?: string | null;
+        surface?: string | null;
+      }>).detail;
+      setPuzzlePreview({
+        hasPuzzle: detail.hasPuzzle,
+        title: detail.title ?? null,
+        difficulty: detail.difficulty ?? null,
+        surface: detail.surface ?? null,
+      });
+    };
+    window.addEventListener("room-puzzle-changed", handlePuzzleChanged);
+    return () => window.removeEventListener("room-puzzle-changed", handlePuzzleChanged);
+  }, []);
+
+  // 把当前竖屏分段写到最近的 .room-layout 祖先，供 CSS 控制聊天/详情显隐；
+  // 非竖屏时清除，确保横屏/桌面端不受该属性影响
+  useEffect(() => {
+    const layout = detailsRef.current?.closest(".room-layout") as HTMLElement | null;
+    if (!layout) return;
+    if (portrait) {
+      layout.dataset.portraitTab = portraitTab;
+    } else {
+      delete layout.dataset.portraitTab;
+    }
+    return () => {
+      delete layout.dataset.portraitTab;
+    };
+  }, [portrait, portraitTab]);
 
   useEffect(() => {
     const handleGuestSeatChanged = (event: Event) => {
@@ -701,12 +755,60 @@ export function LiveRoomSeats({
       )}
 
       <details
+        ref={detailsRef}
         className="room-details"
         onToggle={(event) => {
-          if (!wideLayout) setDetailsOpen(event.currentTarget.open);
+          if (!wideLayout && !portrait) setDetailsOpen(event.currentTarget.open);
         }}
-        open={wideLayout || detailsOpen}
+        open={wideLayout || detailsOpen || portrait}
       >
+        {/* 竖屏专用：常驻信息栏 + 三段导航 + 聊天段常驻题面条（默认隐藏，仅竖屏 CSS 显示） */}
+        <div className="room-portrait-bar">
+          <span className="room-portrait-title">
+            <strong>{roomName}</strong>
+            <span>{roomCode}</span>
+          </span>
+          {pointsDisplay && <span className="room-portrait-points">{pointsDisplay}</span>}
+        </div>
+        <div className="room-seg-nav" role="tablist">
+          <button
+            type="button"
+            className={`room-seg-btn${portraitTab === "chat" ? " active" : ""}`}
+            onClick={() => setPortraitTab("chat")}
+          >
+            聊天
+          </button>
+          <button
+            type="button"
+            className={`room-seg-btn${portraitTab === "puzzle" ? " active" : ""}`}
+            onClick={() => { setPortraitTab("puzzle"); setActiveTab("puzzle"); }}
+          >
+            题目
+          </button>
+          <button
+            type="button"
+            className={`room-seg-btn${portraitTab === "seats" ? " active" : ""}`}
+            onClick={() => { setPortraitTab("seats"); setActiveTab("manage"); }}
+          >
+            座位 <span className="room-seg-count">{occupiedCount}</span>
+          </button>
+        </div>
+        {portraitTab === "chat" && puzzlePreview?.hasPuzzle && (
+          <button
+            type="button"
+            className="room-pinned-puzzle"
+            onClick={() => { setPortraitTab("puzzle"); setActiveTab("puzzle"); }}
+          >
+            {puzzlePreview.difficulty && (
+              <span className="room-pinned-diff">{puzzlePreview.difficulty}</span>
+            )}
+            <span className="room-pinned-text">
+              {puzzlePreview.surface || puzzlePreview.title || "查看当前题目"}
+            </span>
+            <span className="room-pinned-go">看题 ›</span>
+          </button>
+        )}
+
         <summary>
           <span className="room-summary-title">
             <strong>{roomName}</strong>

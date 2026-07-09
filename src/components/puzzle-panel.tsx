@@ -93,6 +93,9 @@ export function PuzzlePanel({
         detail: {
           hasPuzzle: Boolean(currentPuzzle),
           puzzleId: currentPuzzle?.id ?? null,
+          title: currentPuzzle?.title ?? null,
+          difficulty: currentPuzzle?.difficulty ?? null,
+          surface: currentPuzzle?.surface ?? null,
         },
       }),
     );
