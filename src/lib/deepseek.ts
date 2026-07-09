@@ -706,6 +706,7 @@ async function requestChatJson({
         response_format: { type: "json_object" },
         temperature: 0.2,
         max_tokens: maxTokens,
+        ...(config.provider === "glm" ? { thinking: { type: "disabled" } } : {}),
       }),
       signal: controller.signal,
     });
