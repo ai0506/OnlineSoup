@@ -60,6 +60,9 @@ export function PuzzlePanel({
   const [factsExpanded, setFactsExpanded] = useState(false);
   const [isPending, startTransition] = useTransition();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const menuPopoverRef = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const refreshSeqRef = useRef(0);
 
   const [knownFacts, setKnownFacts] = useState<string[]>([]);
@@ -148,11 +151,14 @@ export function PuzzlePanel({
     };
   }, [refreshCurrentPuzzle]);
 
-  // 点击下拉菜单外部时关闭
+  // 点击下拉菜单外部时关闭（弹出层已通过 Portal 挂到 body，需一并排除）
   useEffect(() => {
     if (!dropdownOpen) return;
     const close = (e: PointerEvent) => {
-      if (!dropdownRef.current?.contains(e.target as Node)) setDropdownOpen(false);
+      const target = e.target as Node;
+      if (dropdownRef.current?.contains(target)) return;
+      if (menuPopoverRef.current?.contains(target)) return;
+      setDropdownOpen(false);
     };
     const closeKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setDropdownOpen(false);
@@ -162,6 +168,27 @@ export function PuzzlePanel({
     return () => {
       document.removeEventListener("pointerdown", close);
       document.removeEventListener("keydown", closeKey);
+    };
+  }, [dropdownOpen]);
+
+  // 弹出层脱离父容器的 overflow:hidden/滚动裁剪，改用 Portal + 固定定位跟随触发按钮
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const updatePosition = () => {
+      const trigger = menuTriggerRef.current;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      setMenuPos({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+      });
+    };
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
     };
   }, [dropdownOpen]);
 
@@ -226,9 +253,45 @@ export function PuzzlePanel({
 
   const portalTarget = typeof document === "undefined" ? null : document.body;
 
-  // 弹窗通过 Portal 挂到 body，避免被 <details> 的 overflow:hidden 干扰
+  // 弹窗/菜单通过 Portal 挂到 body，避免被 <details> 的 overflow:hidden 干扰或裁剪
   const dialogs = portalTarget ? createPortal(
     <>
+      {/* 题目菜单 */}
+      {dropdownOpen && menuPos && (
+        <div
+          ref={menuPopoverRef}
+          className="puzzle-menu-popover puzzle-menu-popover-fixed"
+          style={{ top: menuPos.top, right: menuPos.right }}
+        >
+          {!currentPuzzle ? (
+            <button
+              className="puzzle-menu-item"
+              type="button"
+              onClick={() => { setDropdownOpen(false); openSelectDialog(); }}
+            >
+              选择题目
+            </button>
+          ) : (
+            <>
+              <button
+                className="puzzle-menu-item"
+                type="button"
+                onClick={() => { setDropdownOpen(false); setDialogState("switch-confirm"); }}
+              >
+                切换题目
+              </button>
+              <button
+                className="puzzle-menu-item puzzle-menu-item-danger"
+                type="button"
+                onClick={() => { setDropdownOpen(false); setDialogState("stop-confirm"); }}
+              >
+                停止题目
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* 确认切换 */}
       {dialogState === "switch-confirm" && currentPuzzle && (
         <div className="move-seat-overlay" role="dialog" aria-modal="true" aria-label="确认切换题目">
@@ -408,6 +471,7 @@ export function PuzzlePanel({
         {isOwner && (
           <div className="puzzle-owner-menu" ref={dropdownRef}>
             <button
+              ref={menuTriggerRef}
               className="button small puzzle-menu-trigger"
               type="button"
               onClick={() => setDropdownOpen((v) => !v)}
@@ -415,36 +479,6 @@ export function PuzzlePanel({
             >
               题目 ▾
             </button>
-            {dropdownOpen && (
-              <div className="puzzle-menu-popover">
-                {!currentPuzzle ? (
-                  <button
-                    className="puzzle-menu-item"
-                    type="button"
-                    onClick={() => { setDropdownOpen(false); openSelectDialog(); }}
-                  >
-                    选择题目
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      className="puzzle-menu-item"
-                      type="button"
-                      onClick={() => { setDropdownOpen(false); setDialogState("switch-confirm"); }}
-                    >
-                      切换题目
-                    </button>
-                    <button
-                      className="puzzle-menu-item puzzle-menu-item-danger"
-                      type="button"
-                      onClick={() => { setDropdownOpen(false); setDialogState("stop-confirm"); }}
-                    >
-                      停止题目
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
           </div>
         )}
       </div>

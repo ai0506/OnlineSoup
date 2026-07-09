@@ -3420,10 +3420,6 @@ textarea:focus {
 }
 
 .puzzle-menu-popover {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  z-index: 50;
   min-width: 120px;
   padding: 6px;
   background: var(--paper);
@@ -3433,6 +3429,12 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+/* 通过 Portal 挂到 body，固定定位跟随触发按钮，避免被祖先的 overflow:hidden 裁剪或遮挡 */
+.puzzle-menu-popover-fixed {
+  position: fixed;
+  z-index: 60;
 }
 
 .puzzle-menu-item {
