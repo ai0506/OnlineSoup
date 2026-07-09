@@ -65,7 +65,7 @@ export function PuzzlePanel({
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const refreshSeqRef = useRef(0);
 
-  const [knownFacts, setKnownFacts] = useState<string[]>([]);
+  const [knownFacts, setKnownFacts] = useState<{ text: string; source: "ask" | "hint" }[]>([]);
   const [factsPuzzleId, setFactsPuzzleId] = useState<number | null>(currentPuzzle?.id ?? null);
 
   const refreshCurrentPuzzle = useCallback(() => {
@@ -107,7 +107,7 @@ export function PuzzlePanel({
     const puzzleId = currentPuzzle?.id ?? null;
 
     const handleFactsChanged = (event: Event) => {
-      const detail = (event as CustomEvent<{ puzzleId: number | null; facts: string[] }>).detail;
+      const detail = (event as CustomEvent<{ puzzleId: number | null; facts: { text: string; source: "ask" | "hint" }[] }>).detail;
       if (detail.puzzleId !== puzzleId) return;
       setKnownFacts(detail.facts);
     };
@@ -250,7 +250,7 @@ export function PuzzlePanel({
   const isLongSurface =
     currentSurface.length > LONG_SURFACE_CHAR_LIMIT ||
     currentSurfaceLineCount > LONG_SURFACE_LINE_LIMIT;
-  const factsCharCount = knownFacts.reduce((total, fact) => total + fact.length, 0);
+  const factsCharCount = knownFacts.reduce((total, fact) => total + fact.text.length, 0);
   const isLongFacts =
     knownFacts.length > LONG_FACTS_COUNT_LIMIT || factsCharCount > LONG_FACTS_CHAR_LIMIT;
 
@@ -538,7 +538,12 @@ export function PuzzlePanel({
             ) : (
               <ul className={`puzzle-facts-list${isLongFacts ? " long" : ""}${factsExpanded ? " expanded" : ""}`}>
                 {knownFacts.map((fact, index) => (
-                  <li key={index}>{fact}</li>
+                  <li key={index}>
+                    {fact.source === "hint" && (
+                      <span className="puzzle-fact-source">提示</span>
+                    )}
+                    {fact.text}
+                  </li>
                 ))}
               </ul>
             )}

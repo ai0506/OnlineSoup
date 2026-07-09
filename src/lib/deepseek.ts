@@ -18,6 +18,14 @@ type PuzzleMessage = Pick<
 type DeepSeekMode = Extract<MessageMode, "ask" | "hint" | "reason">;
 type NonAskMode = Extract<DeepSeekMode, "hint" | "reason">;
 type AskVariant = "strict" | "inferential";
+type AiProvider = "deepseek" | "glm";
+type ChatJsonConfig = {
+  provider: AiProvider;
+  apiKey: string;
+  url: string;
+  model: string;
+};
+type ChatJsonCaller = (system: string, user: string, maxTokens: number) => Promise<unknown>;
 type AskAuditEntry = {
   answer_type: AskResult["answer_type"];
   text: string;
@@ -26,7 +34,15 @@ type AskAuditEntry = {
 
 const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
 const DEFAULT_MODEL = "deepseek-v4-flash";
-const DEEPSEEK_TIMEOUT_MS = 30_000;
+const GLM_API_BASE_URL = "https://open.bigmodel.cn/api/paas/v4";
+const DEFAULT_GLM_ASK_FALLBACK_MODEL = "glm-4.7-flashx";
+const DEFAULT_GLM_HINT_FALLBACK_MODEL = "glm-4.7";
+const DEFAULT_GLM_REASON_FALLBACK_MODEL = "glm-4.7";
+const DEEPSEEK_FACT_SUMMARY_TIMEOUT_MS = 30_000;
+const DEFAULT_DEEPSEEK_PRIMARY_TIMEOUT_MS = 12_000;
+const DEFAULT_DEEPSEEK_REASON_TIMEOUT_MS = 20_000;
+const DEFAULT_GLM_FALLBACK_TIMEOUT_MS = 10_000;
+const DEFAULT_AI_HOST_TOTAL_TIMEOUT_MS = 30_000;
 const ASK_MAX_TOKENS = 320;
 
 const askSchema = z.object({
@@ -80,6 +96,109 @@ function getDeepSeekApiUrl() {
   const baseUrl = process.env.DEEPSEEK_BASE_URL?.trim();
   if (!baseUrl) return DEEPSEEK_API_URL;
   return `${baseUrl.replace(/\/+$/, "")}/chat/completions`;
+}
+
+function getGlmApiUrl() {
+  const baseUrl = process.env.GLM_FALLBACK_BASE_URL?.trim() || GLM_API_BASE_URL;
+  return `${baseUrl.replace(/\/+$/, "")}/chat/completions`;
+}
+
+function readPositiveIntEnv(name: string, fallback: number, min: number, max: number) {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
+function isEnvEnabled(name: string) {
+  const raw = process.env[name]?.trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+}
+
+function getDeepSeekPrimaryTimeoutMs(mode: DeepSeekMode) {
+  if (mode === "reason") {
+    return readPositiveIntEnv(
+      "DEEPSEEK_REASON_TIMEOUT_MS",
+      DEFAULT_DEEPSEEK_REASON_TIMEOUT_MS,
+      1_000,
+      60_000,
+    );
+  }
+
+  return readPositiveIntEnv(
+    "DEEPSEEK_PRIMARY_TIMEOUT_MS",
+    DEFAULT_DEEPSEEK_PRIMARY_TIMEOUT_MS,
+    1_000,
+    60_000,
+  );
+}
+
+function getGlmFallbackTimeoutMs() {
+  return readPositiveIntEnv(
+    "GLM_FALLBACK_TIMEOUT_MS",
+    DEFAULT_GLM_FALLBACK_TIMEOUT_MS,
+    1_000,
+    60_000,
+  );
+}
+
+function createAiHostDeadline() {
+  const startedAt = Date.now();
+  const totalMs = readPositiveIntEnv(
+    "AI_HOST_TOTAL_TIMEOUT_MS",
+    DEFAULT_AI_HOST_TOTAL_TIMEOUT_MS,
+    3_000,
+    120_000,
+  );
+
+  return {
+    remainingMs() {
+      return totalMs - (Date.now() - startedAt);
+    },
+  };
+}
+
+function getBudgetedTimeoutMs(
+  deadline: ReturnType<typeof createAiHostDeadline> | null,
+  timeoutCapMs: number,
+) {
+  if (!deadline) return timeoutCapMs;
+  const remaining = deadline.remainingMs();
+  if (remaining <= 0) {
+    throw new Error("AI 主持请求超时");
+  }
+  return Math.min(timeoutCapMs, remaining);
+}
+
+function getDeepSeekConfig(apiKey: string): ChatJsonConfig {
+  return {
+    provider: "deepseek",
+    apiKey,
+    url: getDeepSeekApiUrl(),
+    model: process.env.DEEPSEEK_MODEL?.trim() || DEFAULT_MODEL,
+  };
+}
+
+function getGlmFallbackConfig(mode: DeepSeekMode): ChatJsonConfig | null {
+  if (!isEnvEnabled("GLM_FALLBACK_ENABLED")) return null;
+
+  const apiKey = process.env.GLM_FALLBACK_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  const model =
+    mode === "ask"
+      ? process.env.GLM_ASK_FALLBACK_MODEL?.trim() || DEFAULT_GLM_ASK_FALLBACK_MODEL
+      : mode === "hint"
+        ? process.env.GLM_HINT_FALLBACK_MODEL?.trim() || DEFAULT_GLM_HINT_FALLBACK_MODEL
+        : process.env.GLM_REASON_FALLBACK_MODEL?.trim() || DEFAULT_GLM_REASON_FALLBACK_MODEL;
+
+  return {
+    provider: "glm",
+    apiKey,
+    url: getGlmApiUrl(),
+    model,
+  };
 }
 
 function getRecentContext(messages: PuzzleMessage[]) {
@@ -553,25 +672,33 @@ function formatRejectedReasonContent(points: ReturnType<typeof getPuzzlePoints>)
   );
 }
 
-/** Single non-streaming DeepSeek chat completion call that returns the parsed JSON body. */
-async function requestDeepSeekJson(
-  apiKey: string,
-  system: string,
-  user: string,
-  maxTokens: number,
-) {
+/** Single non-streaming chat completion call that returns the parsed JSON body. */
+async function requestChatJson({
+  config,
+  system,
+  user,
+  maxTokens,
+  timeoutMs,
+}: {
+  config: ChatJsonConfig;
+  system: string;
+  user: string;
+  maxTokens: number;
+  timeoutMs: number;
+}) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), DEEPSEEK_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const label = config.provider === "deepseek" ? "DeepSeek" : "GLM";
 
   try {
-    const response = await fetch(getDeepSeekApiUrl(), {
+    const response = await fetch(config.url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${config.apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: process.env.DEEPSEEK_MODEL?.trim() || DEFAULT_MODEL,
+        model: config.model,
         messages: [
           { role: "system", content: system },
           { role: "user", content: user },
@@ -584,7 +711,7 @@ async function requestDeepSeekJson(
     });
 
     if (!response.ok) {
-      throw new Error(`DeepSeek 请求失败：${response.status}`);
+      throw new Error(`${label} 请求失败：${response.status}`);
     }
 
     const result = (await response.json()) as {
@@ -593,17 +720,48 @@ async function requestDeepSeekJson(
     const rawContent = result.choices?.[0]?.message?.content;
 
     if (!rawContent) {
-      throw new Error("DeepSeek 没有返回内容");
+      throw new Error(`${label} 没有返回内容`);
     }
 
     if (result.choices?.[0]?.finish_reason === "length") {
-      throw new Error("DeepSeek 输出被截断（max_tokens 不足）");
+      throw new Error(`${label} 输出被截断（max_tokens 不足）`);
     }
 
     return parseJson(rawContent);
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function createChatJsonCaller(
+  config: ChatJsonConfig,
+  timeoutCapMs: number,
+  deadline: ReturnType<typeof createAiHostDeadline> | null,
+): ChatJsonCaller {
+  return (system, user, maxTokens) =>
+    requestChatJson({
+      config,
+      system,
+      user,
+      maxTokens,
+      timeoutMs: getBudgetedTimeoutMs(deadline, timeoutCapMs),
+    });
+}
+
+/** Backward-compatible DeepSeek helper for fact-summary fallback. */
+async function requestDeepSeekJson(
+  apiKey: string,
+  system: string,
+  user: string,
+  maxTokens: number,
+) {
+  return requestChatJson({
+    config: getDeepSeekConfig(apiKey),
+    system,
+    user,
+    maxTokens,
+    timeoutMs: DEEPSEEK_FACT_SUMMARY_TIMEOUT_MS,
+  });
 }
 
 type FactSummaryResult = {
@@ -755,20 +913,22 @@ export type AskCrossCheckResult = {
  */
 async function askWithCrossCheck(
   apiKey: string,
+  requestJson: ChatJsonCaller,
   puzzle: PuzzleContext,
   content: string,
   puzzleMessages: PuzzleMessage[],
+  cacheEligibleAnswers = true,
 ): Promise<AskCrossCheckResult> {
   const strictPrompt = buildAskPrompt("strict", puzzle, content, puzzleMessages);
   const inferentialPrompt = buildAskPrompt("inferential", puzzle, content, puzzleMessages);
 
   const [strictResult, inferentialResult] = await Promise.allSettled([
-    requestDeepSeekJson(apiKey, strictPrompt.system, strictPrompt.user, ASK_MAX_TOKENS),
-    requestDeepSeekJson(apiKey, inferentialPrompt.system, inferentialPrompt.user, ASK_MAX_TOKENS),
+    requestJson(strictPrompt.system, strictPrompt.user, ASK_MAX_TOKENS),
+    requestJson(inferentialPrompt.system, inferentialPrompt.user, ASK_MAX_TOKENS),
   ]);
 
   if (strictResult.status === "rejected" && inferentialResult.status === "rejected") {
-    throw strictResult.reason instanceof Error ? strictResult.reason : new Error("DeepSeek ask failed");
+    throw strictResult.reason instanceof Error ? strictResult.reason : new Error("AI ask failed");
   }
 
   const strict = strictResult.status === "fulfilled"
@@ -780,7 +940,7 @@ async function askWithCrossCheck(
 
   const fallback = strict ?? inferential;
   if (!fallback) {
-    throw new Error("DeepSeek ask failed");
+    throw new Error("AI ask failed");
   }
 
   const audit = {
@@ -805,8 +965,7 @@ async function askWithCrossCheck(
       strict,
       inferential,
     });
-    const arbitrationRaw = await requestDeepSeekJson(
-      apiKey,
+    const arbitrationRaw = await requestJson(
       arbitrationPrompt.system,
       arbitrationPrompt.user,
       ASK_MAX_TOKENS,
@@ -821,7 +980,11 @@ async function askWithCrossCheck(
   // shared fact. A low-confidence arbitration yes/no is still returned to the player and
   // kept in ask_audit, but must not pollute the shared fact board.
   let factSummary: FactSummaryResult | null = null;
-  if (cacheEligible && (finalResult.answer_type === "yes" || finalResult.answer_type === "no")) {
+  if (
+    cacheEligibleAnswers &&
+    cacheEligible &&
+    (finalResult.answer_type === "yes" || finalResult.answer_type === "no")
+  ) {
     factSummary = await requestFactSummary(
       apiKey,
       content,
@@ -838,7 +1001,7 @@ async function askWithCrossCheck(
       factSummary?.fact ?? null,
       factSummary?.source ?? null,
     ),
-    cacheEligible,
+    cacheEligible: cacheEligibleAnswers ? cacheEligible : false,
     answerType: finalResult.answer_type,
   };
 }
@@ -861,21 +1024,93 @@ export async function askDeepSeekHost({
     throw new Error("缺少 DEEPSEEK_API_KEY 环境变量");
   }
 
+  const deadline = createAiHostDeadline();
+  const deepSeekConfig = getDeepSeekConfig(apiKey);
+  const deepSeekCaller = createChatJsonCaller(
+    deepSeekConfig,
+    getDeepSeekPrimaryTimeoutMs(mode),
+    deadline,
+  );
+
+  const runWithConfig = async (
+    config: ChatJsonConfig,
+    timeoutCapMs: number,
+    cacheEligibleAnswers: boolean,
+  ) => {
+    const caller = createChatJsonCaller(config, timeoutCapMs, deadline);
+
+    if (mode === "ask") {
+      return askWithCrossCheck(
+        apiKey,
+        caller,
+        puzzle,
+        content,
+        puzzleMessages,
+        cacheEligibleAnswers,
+      );
+    }
+
+    const prompt = buildPrompt(mode, puzzle, content, puzzleMessages);
+    const puzzlePoints = getPuzzlePoints(puzzle.key_points);
+    // reason 模式关闭 thinking 后不再消耗推理预算，但评分点较多时
+    // JSON 数组本身仍可能偏长，保留较高的 max_tokens 以避免截断。
+    const maxTokens = mode === "reason" ? 1024 : 120;
+    const parsedContent = await caller(prompt.system, prompt.user, maxTokens);
+
+    return mode === "reason"
+      ? formatReasonContent(parsedContent, puzzlePoints)
+      : formatAiContent(mode, parsedContent);
+  };
+
+  const runGlmFallback = async (primaryError: unknown) => {
+    const glmConfig = getGlmFallbackConfig(mode);
+    if (!glmConfig) {
+      throw primaryError instanceof Error ? primaryError : new Error("DeepSeek host failed");
+    }
+
+    const startedAt = Date.now();
+    try {
+      const result = await runWithConfig(glmConfig, getGlmFallbackTimeoutMs(), false);
+      console.info("[ai-fallback] GLM host used", {
+        mode,
+        model: glmConfig.model,
+        elapsedMs: Date.now() - startedAt,
+      });
+      return result;
+    } catch (fallbackError) {
+      console.error("[ai-fallback] GLM host failed", {
+        mode,
+        model: glmConfig.model,
+        primaryError: primaryError instanceof Error ? primaryError.message : String(primaryError),
+        fallbackError: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+      });
+      throw fallbackError instanceof Error ? fallbackError : new Error("GLM fallback failed");
+    }
+  };
+
   if (mode === "ask") {
-    return askWithCrossCheck(apiKey, puzzle, content, puzzleMessages);
+    try {
+      return await askWithCrossCheck(
+        apiKey,
+        deepSeekCaller,
+        puzzle,
+        content,
+        puzzleMessages,
+        true,
+      );
+    } catch (primaryError) {
+      return runGlmFallback(primaryError);
+    }
   }
 
-  const prompt = buildPrompt(mode, puzzle, content, puzzleMessages);
   const puzzlePoints = getPuzzlePoints(puzzle.key_points);
   if (mode === "reason" && isReasoningOutputInjection(content)) {
     return formatRejectedReasonContent(puzzlePoints);
   }
-  // reason 模式关闭 thinking 后不再消耗推理预算，但评分点较多时
-  // JSON 数组本身仍可能偏长，保留较高的 max_tokens 以避免截断。
-  const maxTokens = mode === "reason" ? 1024 : 120;
-  const parsedContent = await requestDeepSeekJson(apiKey, prompt.system, prompt.user, maxTokens);
 
-  return mode === "reason"
-    ? formatReasonContent(parsedContent, puzzlePoints)
-    : formatAiContent(mode, parsedContent);
+  try {
+    return await runWithConfig(deepSeekConfig, getDeepSeekPrimaryTimeoutMs(mode), true);
+  } catch (primaryError) {
+    return runGlmFallback(primaryError);
+  }
 }

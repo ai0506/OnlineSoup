@@ -232,6 +232,9 @@ const ChatMessageItem = memo(function ChatMessageItem({
                 <span className="ai-message-label">{getAiLabel(aiContent.kind)}</span>
                 {aiContent.text}
               </p>
+              {(aiContent.kind === "answer" || aiContent.kind === "hint") && aiContent.fact_summary && (
+                <p className="ai-message-fact">归纳：{aiContent.fact_summary}</p>
+              )}
             </div>
           ) : (
             <p>{message.content}</p>
@@ -523,13 +526,16 @@ export function RoomChat({
   useEffect(() => {
     if (currentPuzzleId === null) return;
 
-    const facts: string[] = [];
+    const facts: { text: string; source: "ask" | "hint" }[] = [];
     for (const message of messages) {
       if (message.message_type !== "ai" || message.puzzle_id !== currentPuzzleId) continue;
       const parsed = parseAiMessageContent(message.content);
       if (!parsed) continue;
-      if (parsed.kind !== "reasoning_result" && parsed.kind !== "reveal" && parsed.fact_summary) {
-        if (!facts.includes(parsed.fact_summary)) facts.push(parsed.fact_summary);
+      const factText = parsed.fact_summary;
+      if (parsed.kind !== "reasoning_result" && parsed.kind !== "reveal" && factText) {
+        if (!facts.some((f) => f.text === factText)) {
+          facts.push({ text: factText, source: parsed.kind === "hint" ? "hint" : "ask" });
+        }
       }
     }
 

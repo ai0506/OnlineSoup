@@ -1140,6 +1140,13 @@ textarea:focus {
   font-weight: 700;
 }
 
+.ai-message-fact {
+  font-size: 0.76rem;
+  color: #64748b;
+  padding-left: 8px;
+  border-left: 2px solid #e2e8f0;
+}
+
 .ask-answer-yes,
 .ask-answer-no,
 .ask-answer-irrelevant,
@@ -3760,6 +3767,18 @@ textarea:focus {
   margin-bottom: 2px;
 }
 
+.puzzle-fact-source {
+  display: inline-block;
+  margin-right: 5px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: #fde68a;
+  color: #92400e;
+  font-size: 0.68rem;
+  font-weight: 700;
+  vertical-align: 1px;
+}
+
 /* Difficulty badges */
 .puzzle-diff-badge {
   display: inline-block;
@@ -4818,6 +4837,8 @@ textarea:focus {
   .ai-message { border-color: #272b38; background: #1a1c24; }
   .ai-message .chat-message-meta strong { color: #cbd5e1; }
   .ai-message-label { background: #272b38; color: #94a3b8; }
+  .ai-message-fact { color: #94a3b8; border-left-color: #313746; }
+  .puzzle-fact-source { background: #78350f; color: #fcd34d; }
 
   /* Answer colors (slight tint adjustment for dark bg) */
   .ask-answer-yes { background: rgba(34, 197, 94, 0.14); border-bottom-color: rgba(34, 197, 94, 0.3); }
