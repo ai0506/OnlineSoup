@@ -238,6 +238,22 @@ textarea {
   color: var(--navy);
 }
 
+/* 手机竖屏：加入房间卡片垂直居中，避免下半屏大片空白 */
+@media (max-width: 760px) {
+  .page-shell:has(> .join-landing) {
+    min-height: calc(100dvh - 120px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0;
+  }
+
+  .page-shell:has(> .join-landing) .join-landing {
+    margin-top: 0;
+  }
+}
+
 .join-back-button {
   margin-top: 14px;
   padding: 0;
@@ -3096,8 +3112,8 @@ textarea:focus {
   }
 
   .chat-mode-tab {
-    min-height: 32px;
-    padding: 5px 8px;
+    min-height: 40px;
+    padding: 5px 10px;
     font-size: 0.78rem;
   }
 
@@ -3134,8 +3150,8 @@ textarea:focus {
   }
 
   .chat-form-footer > .button {
-    min-height: 36px;
-    padding: 0 12px;
+    min-height: 40px;
+    padding: 0 14px;
   }
 
   .chat-message {
@@ -3264,6 +3280,21 @@ textarea:focus {
 }
 
 @media (orientation: portrait) and (max-width: 760px) {
+  /* 房间页竖屏隐藏全局站点头，改由常驻信息栏承担导航/身份，把顶部空间还给聊天。
+     用高度折叠而非 display:none：保留其网格占位，避免 .page-shell 从 1fr 行掉到 auto 行 */
+  body:has(.room-layout) > .site-header {
+    height: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    visibility: hidden;
+  }
+  .page-shell:has(.room-layout) {
+    margin-top: 8px;
+  }
+
   /* 常驻信息栏取代原折叠 summary */
   .room-details > summary {
     display: none;
@@ -3320,7 +3351,7 @@ textarea:focus {
   }
   .room-seg-btn {
     flex: 1;
-    padding: 8px 0;
+    padding: 10px 0;
     border: 1px solid var(--line);
     border-radius: 9px;
     background: var(--paper);
