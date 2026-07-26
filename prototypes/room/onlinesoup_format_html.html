@@ -1,3 +1,10 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>汤局房间演示</title>
+  <style>
 :root {
   --ink: #111827;
   --muted: #6b7280;
@@ -236,22 +243,6 @@ textarea {
 .join-secondary-action a:hover,
 .join-back-link:hover {
   color: var(--navy);
-}
-
-/* 手机竖屏：加入房间卡片垂直居中，避免下半屏大片空白 */
-@media (max-width: 760px) {
-  .page-shell:has(> .join-landing) {
-    min-height: calc(100dvh - 120px);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 0;
-  }
-
-  .page-shell:has(> .join-landing) .join-landing {
-    margin-top: 0;
-  }
 }
 
 .join-back-button {
@@ -728,14 +719,6 @@ textarea:focus {
   box-shadow: 0 4px 16px rgba(17, 24, 39, 0.1);
 }
 
-/* 座位列表可滚动，菜单必须脱离 seat-grid 的 overflow 裁剪层。 */
-.seat-menu-popover-fixed {
-  position: fixed;
-  top: auto;
-  right: auto;
-  z-index: 1000;
-}
-
 .seat-menu-popover.opens-upward {
   top: auto;
   bottom: 30px;
@@ -1162,13 +1145,6 @@ textarea:focus {
   color: #1e40af;
   font-size: 0.72rem;
   font-weight: 700;
-}
-
-.ai-message-fact {
-  font-size: 0.76rem;
-  color: #64748b;
-  padding-left: 8px;
-  border-left: 2px solid #e2e8f0;
 }
 
 .ask-answer-yes,
@@ -1786,16 +1762,6 @@ textarea:focus {
 .admin-section-heading h2 {
   margin-bottom: 4px;
   font-size: 1.35rem;
-}
-
-.admin-truncated-hint {
-  margin-top: 6px;
-  padding: 6px 10px;
-  border: 1px solid #fde68a;
-  border-radius: 6px;
-  background: #fffbeb;
-  color: #92400e;
-  font-size: 0.82rem;
 }
 
 .admin-section-heading.with-action {
@@ -3120,8 +3086,8 @@ textarea:focus {
   }
 
   .chat-mode-tab {
-    min-height: 40px;
-    padding: 5px 10px;
+    min-height: 32px;
+    padding: 5px 8px;
     font-size: 0.78rem;
   }
 
@@ -3158,8 +3124,8 @@ textarea:focus {
   }
 
   .chat-form-footer > .button {
-    min-height: 40px;
-    padding: 0 14px;
+    min-height: 36px;
+    padding: 0 12px;
   }
 
   .chat-message {
@@ -3276,194 +3242,6 @@ textarea:focus {
 
   .admin-puzzle-summary-card .button {
     width: 100%;
-  }
-}
-
-/* ── 手机竖屏：三段导航（聊天/题目/座位），仅 portrait+≤760px 生效 ── */
-/* 竖屏专用外壳元素默认隐藏，保证横屏/平板/桌面端布局零改动 */
-.room-portrait-bar,
-.room-seg-nav,
-.room-pinned-puzzle {
-  display: none;
-}
-
-@media (orientation: portrait) and (max-width: 760px) {
-  /* 房间页竖屏隐藏全局站点头，改由常驻信息栏承担导航/身份，把顶部空间还给聊天。
-     用高度折叠而非 display:none：保留其网格占位，避免 .page-shell 从 1fr 行掉到 auto 行 */
-  body:has(.room-layout) > .site-header {
-    height: 0;
-    min-height: 0;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    overflow: hidden;
-    visibility: hidden;
-  }
-  .page-shell:has(.room-layout) {
-    margin-top: 8px;
-  }
-
-  /* 常驻信息栏取代原折叠 summary */
-  .room-details > summary {
-    display: none;
-  }
-  .room-details > .room-tabs {
-    display: none;
-  }
-
-  .room-portrait-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 16px 8px;
-    background: var(--paper);
-  }
-  .room-portrait-title {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    min-width: 0;
-  }
-  .room-portrait-title strong {
-    font-size: 0.95rem;
-    font-weight: 700;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .room-portrait-title span {
-    flex: 0 0 auto;
-    color: var(--navy);
-    font-size: 0.68rem;
-    letter-spacing: 0.12em;
-    font-weight: 700;
-  }
-  .room-portrait-points {
-    flex: 0 0 auto;
-    padding: 5px 10px;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    background: var(--surface);
-    font-size: 0.74rem;
-    color: #334155;
-    white-space: nowrap;
-  }
-
-  .room-seg-nav {
-    display: flex;
-    gap: 6px;
-    padding: 8px 12px 10px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--line);
-  }
-  .room-seg-btn {
-    flex: 1;
-    padding: 10px 0;
-    border: 1px solid var(--line);
-    border-radius: 9px;
-    background: var(--paper);
-    color: #334155;
-    font-size: 0.82rem;
-    font-weight: 500;
-    cursor: pointer;
-  }
-  .room-seg-btn.active {
-    background: var(--navy);
-    color: #fff;
-    border-color: var(--navy);
-    font-weight: 600;
-  }
-  .room-seg-count {
-    color: var(--blue, #1d4ed8);
-    font-weight: 700;
-  }
-  .room-seg-btn.active .room-seg-count {
-    color: #bfdbfe;
-  }
-
-  .room-pinned-puzzle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 8px 16px;
-    border: 0;
-    border-bottom: 1px solid #fde68a;
-    background: #fffbeb;
-    text-align: left;
-    cursor: pointer;
-  }
-  .room-pinned-diff {
-    flex: 0 0 auto;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: #e0e7ff;
-    color: #3730a3;
-    font-size: 0.7rem;
-    font-weight: 700;
-  }
-  .room-pinned-text {
-    flex: 1;
-    min-width: 0;
-    font-size: 0.8rem;
-    color: #334155;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .room-pinned-go {
-    flex: 0 0 auto;
-    font-size: 0.72rem;
-    color: var(--blue, #1d4ed8);
-    font-weight: 600;
-    white-space: nowrap;
-  }
-
-  /* details 变纵向 flex，让分段内容能填满 */
-  .room-details {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  /* 聊天段（含未初始化的默认态）：显示聊天 + 题面条，隐藏详情内容 */
-  .room-layout[data-portrait-tab="chat"],
-  .room-layout:not([data-portrait-tab]) {
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-  .room-layout[data-portrait-tab="chat"] .room-details,
-  .room-layout:not([data-portrait-tab]) .room-details {
-    grid-row: 1;
-  }
-  .room-layout[data-portrait-tab="chat"] .room-details-content,
-  .room-layout:not([data-portrait-tab]) .room-details-content {
-    display: none;
-  }
-
-  /* 题目段 / 座位段：隐藏聊天，详情填满整屏并内部滚动 */
-  .room-layout[data-portrait-tab="puzzle"],
-  .room-layout[data-portrait-tab="seats"] {
-    grid-template-rows: minmax(0, 1fr);
-  }
-  .room-layout[data-portrait-tab="puzzle"] .room-chat-panel,
-  .room-layout[data-portrait-tab="seats"] .room-chat-panel {
-    display: none;
-  }
-  .room-layout[data-portrait-tab="puzzle"] .room-details,
-  .room-layout[data-portrait-tab="seats"] .room-details {
-    grid-row: 1;
-    flex: 1;
-  }
-  .room-layout[data-portrait-tab="puzzle"] .room-details-content,
-  .room-layout[data-portrait-tab="seats"] .room-details-content {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    height: auto;
-    max-height: none;
-    min-height: 0;
   }
 }
 
@@ -3639,6 +3417,10 @@ textarea:focus {
 }
 
 .puzzle-menu-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 50;
   min-width: 120px;
   padding: 6px;
   background: var(--paper);
@@ -3648,12 +3430,6 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 2px;
-}
-
-/* 通过 Portal 挂到 body，固定定位跟随触发按钮，避免被祖先的 overflow:hidden 裁剪或遮挡 */
-.puzzle-menu-popover-fixed {
-  position: fixed;
-  z-index: 60;
 }
 
 .puzzle-menu-item {
@@ -3804,18 +3580,6 @@ textarea:focus {
 
 .puzzle-facts-list li {
   margin-bottom: 2px;
-}
-
-.puzzle-fact-source {
-  display: inline-block;
-  margin-right: 5px;
-  padding: 0 5px;
-  border-radius: 4px;
-  background: #fde68a;
-  color: #92400e;
-  font-size: 0.68rem;
-  font-weight: 700;
-  vertical-align: 1px;
 }
 
 /* Difficulty badges */
@@ -4824,158 +4588,341 @@ textarea:focus {
   flex: 0 0 auto;
 }
 
-/* ── Dark mode ── */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ink: #e2e8f0;
-    --muted: #94a3b8;
-    --paper: #1c1e26;
-    --surface: #13151b;
-    --navy: #cbd5e1;
-    --navy-dark: #e2e8f0;
-    --line: #272b38;
-    --danger: #f87171;
-  }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#">汤局</a>
+    <nav>
+      <a href="#">大厅</a>
+      <a href="#">教程</a>
+      <a href="#">创建房间</a>
+      <span class="user-points">42 积分</span>
+      <a href="#">test</a>
+      <button class="link-button" type="button">退出</button>
+    </nav>
+  </header>
 
-  /* Primary buttons: dark slate — no blue cast */
-  .button { background: #374151; }
-  .button:hover { background: #4b5563; }
-  .button.secondary { color: var(--ink); }
-  .button.danger { background: #dc2626; }
-  .button.danger:hover { background: #b91c1c; }
-  .button.danger-text { color: #f87171; border-color: #7f1d1d; }
-  .button.danger-text:hover { background: #dc2626; border-color: #dc2626; }
+  <main class="page-shell">
+    <section class="room-layout">
+      <main class="room-chat-panel">
+        <section class="room-chat">
+          <div class="room-chat-heading">
+            <h2>聊天</h2>
+          </div>
 
-  /* Auth toggle */
-  .auth-toggle-btn.active { background: #374151; color: #f1f5f9; }
+          <div aria-live="polite" class="message-list">
+            <div class="system-message">
+              <span>小林 加入了房间</span>
+              <time datetime="2026-07-06T20:14:48+08:00">20:14:48</time>
+            </div>
 
-  /* Dialog */
-  .dialog-backdrop { background: rgba(0, 0, 0, 0.6); }
-  .dialog-panel { box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5); }
+            <article class="chat-message">
+              <div class="chat-message-meta">
+                <strong>阿汤</strong>
+                <span>[1]</span>
+                <span>[已注册]</span>
+              </div>
+              <div class="chat-message-body">
+                <p>我先开题，你们可以随便问，尽量问能回答“是”或“否”的问题。</p>
+                <time datetime="2026-07-06T20:15:02+08:00">20:15:02</time>
+              </div>
+            </article>
 
-  /* Notices */
-  .notice {
-    color: #a7f3d0;
-    background: #052e16;
-    border-color: #14532d;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-  }
-  .error {
-    color: #fca5a5;
-    background: #450a0a;
-    border-color: #7f1d1d;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-  }
-  .notice-close:hover { background: rgba(255, 255, 255, 0.1); }
+            <article class="chat-message">
+              <div class="chat-message-meta">
+                <strong>小林</strong>
+                <span>[2]</span>
+                <span>[已注册]</span>
+              </div>
+              <div class="chat-message-body">
+                <p>这个故事发生在室内吗？</p>
+                <time datetime="2026-07-06T20:15:17+08:00">20:15:17</time>
+              </div>
+            </article>
 
-  /* Chat messages */
-  .chat-message { border-bottom-color: rgba(39, 43, 56, 0.9); }
+            <article class="chat-message ask-answer-yes">
+              <div class="chat-message-meta">
+                <strong>晴晴</strong>
+                <span>[3]</span>
+                <span>[访客]</span>
+                <span class="chat-mode-badge">询问</span>
+              </div>
+              <div class="chat-message-body">
+                <p>桌上的那杯水是关键线索吗？</p>
+                <time datetime="2026-07-06T20:15:31+08:00">20:15:31</time>
+              </div>
+            </article>
 
-  /* AI messages */
-  .ai-message { border-color: #272b38; background: #1a1c24; }
-  .ai-message .chat-message-meta strong { color: #cbd5e1; }
-  .ai-message-label { background: #272b38; color: #94a3b8; }
-  .ai-message-fact { color: #94a3b8; border-left-color: #313746; }
-  .puzzle-fact-source { background: #78350f; color: #fcd34d; }
+            <article class="chat-message ai-message">
+              <div class="chat-message-meta">
+                <strong>AI主持</strong>
+              </div>
+              <div class="chat-message-body">
+                <div class="ai-message-content">
+                  <p><span class="ai-message-label">回复</span>是</p>
+                </div>
+                <time datetime="2026-07-06T20:15:33+08:00">20:15:33</time>
+              </div>
+            </article>
 
-  /* Answer colors (slight tint adjustment for dark bg) */
-  .ask-answer-yes { background: rgba(34, 197, 94, 0.14); border-bottom-color: rgba(34, 197, 94, 0.3); }
-  .ask-answer-no { background: rgba(239, 68, 68, 0.14); border-bottom-color: rgba(239, 68, 68, 0.3); }
-  .ask-answer-irrelevant { background: rgba(234, 179, 8, 0.14); border-bottom-color: rgba(234, 179, 8, 0.3); }
-  .ask-answer-ambiguous { background: rgba(168, 85, 247, 0.14); border-bottom-color: rgba(168, 85, 247, 0.3); }
+            <article class="chat-message ask-answer-no">
+              <div class="chat-message-meta">
+                <strong>老周</strong>
+                <span>[4]</span>
+                <span>[访客]</span>
+                <span class="chat-mode-badge">询问</span>
+              </div>
+              <div class="chat-message-body">
+                <p>有人故意把杯子打翻了吗？</p>
+                <time datetime="2026-07-06T20:15:48+08:00">20:15:48</time>
+              </div>
+            </article>
 
-  /* System messages */
-  .system-message span { background: #1c1e26; }
+            <article class="chat-message ai-message">
+              <div class="chat-message-meta">
+                <strong>AI主持</strong>
+              </div>
+              <div class="chat-message-body">
+                <div class="ai-message-content">
+                  <p><span class="ai-message-label">回复</span>否</p>
+                </div>
+                <time datetime="2026-07-06T20:15:50+08:00">20:15:50</time>
+              </div>
+            </article>
 
-  /* Pending AI dots */
-  .pending-ai-dots span { background: #94a3b8; }
+            <article class="chat-message">
+              <div class="chat-message-meta">
+                <strong>晴晴</strong>
+                <span>[3]</span>
+                <span>[访客]</span>
+                <span class="chat-mode-badge">提示</span>
+              </div>
+              <div class="chat-message-body">
+                <p>卡住了，给一点提示。</p>
+                <time datetime="2026-07-06T20:16:02+08:00">20:16:02</time>
+              </div>
+            </article>
 
-  /* Hint tokens badge */
-  .hint-token-badge { background: #052e16; color: #6ee7b7; }
-  .chat-mode-tab.active .hint-token-badge { background: #065f46; color: #a7f3d0; }
+            <article class="chat-message ai-message">
+              <div class="chat-message-meta">
+                <strong>AI主持</strong>
+              </div>
+              <div class="chat-message-body">
+                <div class="ai-message-content">
+                  <p><span class="ai-message-label">提示</span>留意那杯水为什么会出现在桌上。</p>
+                </div>
+                <time datetime="2026-07-06T20:16:04+08:00">20:16:04</time>
+              </div>
+            </article>
 
-  /* Chat mode tabs */
-  .chat-mode-tab.active { background: #272b38; border-color: #4b5563; color: #e2e8f0; }
-  .chat-mode-cost { background: #451a03; color: #fcd34d; }
-  .chat-mode-tab.active .chat-mode-cost { background: #272b38; color: #94a3b8; }
-  .chat-mode-badge { background: #272b38; color: #94a3b8; }
-  .chat-hint-tokens-info { color: #6ee7b7; }
+            <article class="chat-message">
+              <div class="chat-message-meta">
+                <strong>阿汤</strong>
+                <span>[1]</span>
+                <span>[已注册]</span>
+                <span class="chat-mode-badge">尝试推理</span>
+              </div>
+              <div class="chat-message-body">
+                <p>我猜他看到水以后，意识到某个重要的东西不见了，所以取消了计划。</p>
+                <time datetime="2026-07-06T20:16:09+08:00">20:16:09</time>
+              </div>
+            </article>
 
-  /* Puzzle card */
-  .puzzle-current-card { background: #1e1c11; border-color: #3d3520; }
-  .puzzle-surface-text.long { background: rgba(0, 0, 0, 0.25); border-color: #3d3520; }
+            <div class="pending-ai-indicator">
+              <span class="pending-ai-label">AI主持</span>
+              <span class="pending-ai-dots" aria-label="回复中">
+                <span></span>
+                <span></span>
+                <span></span>
+              </span>
+            </div>
 
-  /* Seat menu action danger hover */
-  .seat-menu-action-btn.danger:hover { background: #450a0a; }
+            <article class="chat-message ai-message">
+              <div class="chat-message-meta">
+                <strong>AI主持</strong>
+              </div>
+              <div class="chat-message-body">
+                <div class="ai-message-content">
+                  <p><span class="ai-message-label">推理结果</span>部分正确</p>
+                </div>
+                <time datetime="2026-07-06T20:16:13+08:00">20:16:13</time>
+              </div>
+            </article>
+          </div>
 
-  /* Room layout */
-  .room-layout { background: var(--paper); }
+          <form class="chat-form">
+            <div class="chat-mode-tabs">
+              <button class="chat-mode-tab" type="button">聊天</button>
+              <button class="chat-mode-tab active" type="button">
+                询问
+                <span class="chat-mode-cost">1pt</span>
+              </button>
+              <button class="chat-mode-tab" type="button">
+                提示
+                <span class="chat-mode-cost">1pt</span>
+              </button>
+              <button class="chat-mode-tab" type="button">
+                尝试推理
+                <span class="chat-mode-cost">2pt</span>
+              </button>
+            </div>
 
-  /* Room right panel refresh */
-  .room-occupancy { background: #272b38; color: #94a3b8; }
-  .seat-status-dot.empty { background: transparent; border-color: #374151; }
-  .seat-id-badge.owner { background: #272b38; color: #e2e8f0; }
-  .seat-id-badge.registered { background: #1e2535; color: #93c5fd; }
-  .seat-id-badge.guest { background: #1c1e26; color: #94a3b8; }
+            <p class="chat-mode-locked-hint muted chat-mode-locked-hint--hidden">
+              房主开始题目后，才能使用询问 / 提示 / 尝试推理
+            </p>
 
-  /* Move seat modal */
-  .move-seat-overlay { background: rgba(0, 0, 0, 0.6); }
-  .move-seat-dialog { box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); }
-  .move-seat-card.card-source { background: #451a03; border-color: #b45309; }
-  .move-seat-card.card-target { background: #052e16; border-color: #10b981; }
-  .move-seat-card.card-target:hover:not(:disabled) { background: #065f46; border-color: #34d399; }
-  .move-seat-card.card-occupied { background: #1c1e26; border-color: var(--line); }
-  .move-seat-card.card-locked { background: #13151b; border-color: var(--line); }
-  .move-card-hint { color: #34d399; }
-  .move-seat-card.card-target .move-card-points { color: #6ee7b7; }
+            <textarea aria-label="询问" maxlength="100" rows="3" readonly>他看到水以后，是否意识到某个东西不见了？</textarea>
 
-  /* Points badge (profile/admin) */
-  .points-badge { color: #6ee7b7; background: #052e16; }
+            <div class="chat-form-footer">
+              <span class="chat-char-count">22/100</span>
+              <span class="chat-footer-center">
+                <span class="chat-points-info" title="座位临时积分 6，个人积分 42（优先扣临时积分）">6[临] + 42</span>
+                <span class="chat-hint-tokens-info">提示机会 1 次</span>
+              </span>
+              <button class="button" type="button">发送</button>
+            </div>
+          </form>
+        </section>
+      </main>
 
-  /* Admin panels — minimal treatment */
-  .admin-tabs { background: var(--surface); }
-  .admin-tab span { background: #272b38; color: var(--muted); }
-  .admin-subtabs { background: var(--surface); }
-  .admin-subtab span { background: #272b38; color: var(--muted); }
-  .admin-message-badges span,
-  .admin-cleanup-tags span { background: #272b38; color: var(--ink); }
-  .admin-message-content,
-  .admin-ai-error-story div,
-  .admin-ai-error-sample div,
-  .admin-ask-answer,
-  .admin-reasoning-correction-item { background: var(--surface); }
-  .admin-message-content,
-  .admin-ai-error-sample pre,
-  .admin-cache-hit-body p,
-  .admin-ai-error-answer-text,
-  .admin-ai-error-story p,
-  .admin-ai-error-sample p,
-  .admin-ask-fact,
-  .admin-reasoning-correction-text { color: var(--ink); }
-  .admin-ask-answer-summary strong { color: #94a3b8; }
-  .admin-question-row { background: #1a1c24; border-color: #272b38; }
-  .admin-cache-hit-details { background: #1a1c24; border-color: #272b38; }
-  .admin-cache-hit-badge { background: #272b38; color: #94a3b8; }
-  .admin-cache-hit-meta span { background: var(--surface); border-color: #272b38; color: #94a3b8; }
-  .admin-ai-error-form,
-  .admin-ai-error-edit { background: #2d1a00; border-color: #78350f; }
-  .admin-ai-error-row.selected { background: #1a1c24; border-color: #272b38; }
-  .admin-ai-error-answer-row { background: #052e16; border-color: #14532d; }
-  .admin-ai-error-answer-label { color: #6ee7b7; }
-  .admin-ai-error-marked { color: #6ee7b7; background: #052e16; border-color: #14532d; }
-  .admin-ai-error-marked-badge { color: #6ee7b7; background: #052e16; border-color: #14532d; }
-  .admin-reasoning-ai-badge { color: #f87171; background: #450a0a; border-color: #7f1d1d; }
-  .admin-reasoning-ai-badge.covered { color: #6ee7b7; background: #052e16; border-color: #14532d; }
-  .admin-reasoning-correction-select { background: var(--surface); color: var(--ink); }
-  .admin-coverage-item { background: #450a0a; border-color: #7f1d1d; }
-  .admin-coverage-item span { color: #f87171; }
-  .admin-coverage-item.covered { background: #052e16; border-color: #14532d; }
-  .admin-coverage-item.covered span { color: #6ee7b7; }
-  .admin-error-badge-open { color: #fcd34d; background: #451a03; border-color: #92400e; }
-  .admin-error-badge-reviewed { color: #94a3b8; background: #272b38; border-color: #374151; }
-  .admin-error-badge-fixed { color: #6ee7b7; background: #052e16; border-color: #14532d; }
-  .admin-error-badge-ignored { color: #9ca3af; background: #1c1e26; border-color: #374151; }
-  .admin-ask-audit-item { background: var(--surface); }
-  .admin-ask-audit-item span { color: var(--ink); }
-}
+      <details class="room-details" open>
+        <summary>
+          <span class="room-summary-title">
+            <strong>朋友局</strong>
+            <span>SOUP26</span>
+          </span>
+          <span class="room-occupancy">4/8 人</span>
+          <span class="room-summary-points" title="个人积分 42 + 座位临时积分 6">42+6[临]</span>
+        </summary>
+
+        <div class="room-tabs room-tabs-stable">
+          <button class="room-tab active" type="button">房间管理</button>
+          <button class="room-tab" type="button">海龟汤</button>
+        </div>
+
+        <div class="room-details-content">
+          <div class="room-puzzle-tab" hidden>
+            <div class="room-puzzle-section">
+              <div class="puzzle-section-header">
+                <span class="puzzle-section-label">当前题目</span>
+              </div>
+              <div class="puzzle-current-card">
+                <div class="puzzle-current-meta">
+                  <span class="puzzle-diff-badge puzzle-diff-medium">中等</span>
+                  <span class="puzzle-current-title">桌上的水</span>
+                  <span class="puzzle-unsolved-badge">进行中</span>
+                </div>
+                <div class="puzzle-surface-block">
+                  <p class="puzzle-surface-text">
+                    一个男人回到房间，看到桌上的一杯水，立刻取消了今晚的计划。为什么？
+                  </p>
+                </div>
+                <div class="puzzle-facts-section">
+                  <div class="puzzle-facts-header">
+                    <span class="puzzle-facts-label">事实总结</span>
+                  </div>
+                  <ul class="puzzle-facts-list">
+                    <li>故事发生在室内。</li>
+                    <li>桌上的水是关键线索。</li>
+                    <li>杯子不是被别人故意打翻的。</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="room-manage-tab">
+            <div class="room-details-code">
+              <span class="room-code-label">房间码</span>
+              <div class="room-code-row">
+                <span class="room-code">SOUP26</span>
+                <button aria-label="复制房间码 SOUP26" title="复制房间码" class="button secondary copy-code-button" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="2"></rect>
+                    <path d="M5 15V5a2 2 0 0 1 2-2h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                  </svg>
+                </button>
+                <button class="button secondary copy-code-button" type="button" aria-label="分享房间链接" title="分享房间链接">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    <path d="M12 16V4m0 0L8 8m4-4 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="room-detail-meta">
+              <span>每位玩家 10 积分</span>
+              <span>无需密码</span>
+            </div>
+
+            <div class="room-controls">
+              <button class="button danger" type="button">关闭房间</button>
+            </div>
+
+            <div class="seat-grid">
+              <div class="seat occupied">
+                <span class="seat-number">1</span>
+                <span aria-label="在线" class="seat-status-dot online" title="在线"></span>
+                <strong class="seat-name">阿汤</strong>
+                <span class="seat-points">8[临]</span>
+                <span class="seat-id-badge owner">房主</span>
+                <div class="seat-menu">
+                  <button aria-expanded="false" aria-label="阿汤的更多操作" class="seat-menu-trigger" type="button">···</button>
+                </div>
+              </div>
+
+              <div class="seat occupied">
+                <span class="seat-number">2</span>
+                <span aria-label="在线" class="seat-status-dot online" title="在线"></span>
+                <strong class="seat-name">小林</strong>
+                <span class="seat-points">6[临]</span>
+                <span class="seat-id-badge registered">注册</span>
+                <div class="seat-menu">
+                  <button aria-expanded="false" aria-label="小林的更多操作" class="seat-menu-trigger" type="button">···</button>
+                </div>
+              </div>
+
+              <div class="seat occupied">
+                <span class="seat-number">3</span>
+                <span aria-label="在线" class="seat-status-dot online" title="在线"></span>
+                <strong class="seat-name">晴晴</strong>
+                <span class="seat-points">4[临]</span>
+                <span class="seat-id-badge guest">访客</span>
+                <div class="seat-menu">
+                  <button aria-expanded="false" aria-label="晴晴的更多操作" class="seat-menu-trigger" type="button">···</button>
+                </div>
+              </div>
+
+              <div class="seat occupied">
+                <span class="seat-number">4</span>
+                <span aria-label="离线" class="seat-status-dot offline" title="离线"></span>
+                <strong class="seat-name">老周</strong>
+                <span class="seat-points">3[临]</span>
+                <span class="seat-id-badge guest">访客</span>
+                <div class="seat-menu">
+                  <button aria-expanded="false" aria-label="老周的更多操作" class="seat-menu-trigger" type="button">···</button>
+                </div>
+              </div>
+
+              <div class="seat">
+                <span class="seat-number">5</span>
+                <span aria-label="空位" class="seat-status-dot empty" title="空位"></span>
+                <strong class="seat-name">等待玩家</strong>
+              </div>
+
+              <div class="seat">
+                <span class="seat-number">6</span>
+                <span aria-label="空位" class="seat-status-dot empty" title="空位"></span>
+                <strong class="seat-name">等待玩家</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </details>
+    </section>
+  </main>
+</body>
+</html>

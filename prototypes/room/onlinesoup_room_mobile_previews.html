@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>汤局 · 手机端房间 UI 方案预览</title>
+<style>
+  :root{
+    --ink:#111827; --muted:#6b7280; --paper:#ffffff; --surface:#f9fafb;
+    --navy:#1e293b; --navy-dark:#0f172a; --line:#e5e7eb; --danger:#dc2626;
+    --blue:#1d4ed8; --blue-soft:#eff6ff; --blue-line:#bfdbfe;
+    --yes:rgba(34,197,94,.14); --yes-line:rgba(34,197,94,.4);
+    --no:rgba(239,68,68,.12); --no-line:rgba(239,68,68,.4);
+    --amber-bg:#fef3c7; --amber-ink:#92400e;
+    --green-bg:#dcfce7; --green-ink:#166534;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:#eef1f5; color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{max-width:1600px;margin:0 auto;padding:36px 24px 80px}
+  .page-head{max-width:820px;margin:0 auto 34px}
+  .page-head h1{font-size:1.5rem;margin:0 0 10px;letter-spacing:-.02em}
+  .page-head p{margin:0 0 6px;color:#475569;line-height:1.7;font-size:.95rem}
+  .page-head .tag{display:inline-block;margin-top:8px;padding:3px 10px;border-radius:999px;
+    background:#fff;border:1px solid var(--line);color:var(--muted);font-size:.78rem}
+
+  .gallery{
+    display:flex;gap:40px;flex-wrap:wrap;justify-content:center;align-items:flex-start;
+  }
+  .variant{width:390px}
+  .variant-cap{margin-bottom:14px}
+  .variant-cap .idx{display:inline-flex;align-items:center;justify-content:center;
+    width:26px;height:26px;border-radius:7px;background:var(--navy);color:#fff;
+    font-size:.85rem;font-weight:700;margin-right:8px;vertical-align:middle}
+  .variant-cap h2{display:inline;font-size:1.06rem;letter-spacing:-.01em}
+  .variant-cap p{margin:9px 2px 0;color:#475569;font-size:.85rem;line-height:1.6}
+  .variant-cap .wins{margin:10px 2px 0;padding:0;list-style:none;font-size:.8rem;color:#334155}
+  .variant-cap .wins li{position:relative;padding-left:16px;margin-bottom:3px;line-height:1.5}
+  .variant-cap .wins li::before{content:"✓";position:absolute;left:0;color:#16a34a;font-weight:700}
+
+  /* ── Phone frame ── */
+  .phone{
+    width:390px;height:800px;border-radius:44px;background:#0b1220;
+    padding:12px;box-shadow:0 22px 50px -18px rgba(15,23,42,.55),0 0 0 1px rgba(0,0,0,.04);
+  }
+  .screen{
+    position:relative;width:100%;height:100%;border-radius:33px;overflow:hidden;
+    background:var(--paper);display:flex;flex-direction:column;
+  }
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);
+    width:130px;height:26px;background:#0b1220;border-radius:0 0 16px 16px;z-index:60}
+
+  /* shared bits */
+  .muted{color:var(--muted)}
+  .badge{display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:.68rem;font-weight:700;line-height:1.6}
+  .b-cost{background:var(--amber-bg);color:var(--amber-ink)}
+  .b-hint{background:var(--green-bg);color:var(--green-ink)}
+  .b-diff{background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:999px;font-size:.7rem;font-weight:700}
+  .b-diff.mid{background:#e0e7ff;color:#3730a3}
+  .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .dot.on{background:#16a34a} .dot.off{background:#cbd5e1}
+
+  .composer{border-top:1px solid var(--line);background:var(--paper);padding:8px 12px 12px}
+  .modes{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:8px;
+    border-bottom:1px solid var(--line);scrollbar-width:none}
+  .modes::-webkit-scrollbar{display:none}
+  .mode{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;padding:6px 10px;
+    border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--muted);
+    font-size:.8rem;font-weight:500;white-space:nowrap}
+  .mode.active{color:var(--navy);background:var(--blue-soft);border-color:var(--navy);font-weight:600}
+  .mode.lock{opacity:.45}
+  .ta{display:flex;align-items:flex-end;gap:8px}
+  .ta textarea{flex:1;min-height:44px;max-height:44px;resize:none;border:1px solid var(--line);
+    border-radius:10px;padding:11px 12px;background:var(--surface);font-size:.86rem;color:var(--ink)}
+  .send{flex:0 0 auto;height:42px;padding:0 16px;border:0;border-radius:10px;background:var(--navy);
+    color:#fff;font-weight:600;font-size:.86rem}
+  .composer-foot{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:.74rem;color:var(--muted)}
+  .pts{color:var(--muted)} .pts b{color:var(--ink)}
+
+  /* message primitives */
+  .msg-scroll{flex:1;overflow-y:auto;background:var(--surface);padding:12px}
+  .sys{display:flex;justify-content:center;margin:6px 0 12px}
+  .sys span{padding:3px 10px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--muted);font-size:.72rem}
+
+  /* list style (closer to current) */
+  .m-row{margin-bottom:12px;padding-bottom:9px;border-bottom:1px solid rgba(229,231,235,.8)}
+  .m-meta{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-bottom:3px;color:var(--muted);font-size:.76rem}
+  .m-meta b{color:var(--navy);font-weight:700}
+  .m-body{font-size:.9rem;line-height:1.55}
+  .m-time{color:var(--muted);font-size:.68rem;margin-left:6px}
+
+  /* bubble style */
+  .bub{display:flex;margin-bottom:12px;gap:8px}
+  .bub.me{flex-direction:row-reverse}
+  .ava{flex:0 0 auto;width:30px;height:30px;border-radius:9px;background:#dbe3ef;color:#334155;
+    display:grid;place-items:center;font-size:.78rem;font-weight:700}
+  .bub.me .ava{background:var(--navy);color:#fff}
+  .bub-col{max-width:74%;display:flex;flex-direction:column}
+  .bub.me .bub-col{align-items:flex-end}
+  .bub-name{font-size:.7rem;color:var(--muted);margin:0 4px 3px}
+  .bub-text{padding:8px 11px;border-radius:12px;font-size:.86rem;line-height:1.5;background:#fff;border:1px solid var(--line)}
+  .bub.me .bub-text{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .bub-time{font-size:.64rem;color:var(--muted);margin:3px 4px 0}
+  .q-tag{display:inline-block;margin:0 4px 3px;padding:1px 6px;border-radius:4px;background:var(--blue-soft);color:var(--blue);font-size:.66rem;font-weight:700}
+
+  /* AI answer cards */
+  .ai-card{margin:2px auto 14px;max-width:86%;border-radius:12px;padding:10px 12px;font-size:.86rem;line-height:1.5}
+  .ai-card .lbl{display:inline-block;margin-right:8px;padding:1px 7px;border-radius:5px;font-size:.68rem;font-weight:800}
+  .ai-yes{background:var(--yes);border:1px solid var(--yes-line)} .ai-yes .lbl{background:#bbf7d0;color:#14532d}
+  .ai-no{background:var(--no);border:1px solid var(--no-line)} .ai-no .lbl{background:#fecaca;color:#7f1d1d}
+  .ai-plain{background:#f8fafc;border:1px solid var(--blue-line)} .ai-plain .lbl{background:#dbeafe;color:#1e40af}
+  .ai-name{font-size:.68rem;color:var(--blue);font-weight:700;margin-bottom:4px;text-align:center}
+
+  .typing{display:flex;align-items:center;gap:7px;justify-content:center;color:var(--muted);font-size:.78rem;margin:2px 0 10px}
+  .typing i{width:5px;height:5px;border-radius:50%;background:var(--navy);opacity:.4;animation:bnc 1.4s infinite}
+  .typing i:nth-child(2){animation-delay:.2s} .typing i:nth-child(3){animation-delay:.4s}
+  @keyframes bnc{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+
+  /* puzzle strip / card */
+  .puz-diff-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .puz-title{font-weight:700;font-size:.92rem}
+  .fact-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .chip{padding:4px 9px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:.74rem;color:#334155}
+  .chip.k{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
+
+  /* seat mini */
+  .seat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .seat{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff;display:flex;flex-direction:column;gap:3px}
+  .seat.empty{background:var(--surface);color:var(--muted)}
+  .seat .snum{font-size:.66rem;color:var(--muted)}
+  .seat .sname{font-weight:700;font-size:.84rem;display:flex;align-items:center;gap:5px}
+  .seat .sid{font-size:.66rem}
+  .seat .sid.owner{color:#b45309} .seat .sid.reg{color:var(--blue)} .seat .sid.guest{color:var(--muted)}
+
+  .icon-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:#fff;
+    display:grid;place-items:center;font-size:1rem;color:#334155}
+
+  /* generic header bar */
+  .topbar{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--paper);padding-top:30px}
+  .topbar .rn{font-weight:700;font-size:.92rem;line-height:1.2}
+  .topbar .rc{font-size:.68rem;color:var(--navy);letter-spacing:.12em;font-weight:700}
+  .topbar .grow{flex:1;min-width:0}
+  .top-pts{font-size:.74rem;color:#334155;background:var(--surface);border:1px solid var(--line);padding:4px 9px;border-radius:999px;white-space:nowrap}
+
+  .note{font-size:.7rem;color:var(--muted);text-align:center;padding:6px}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="page-head">
+    <h1>汤局 · 手机端房间 UI 方案预览</h1>
+    <p>针对当前手机端「汤面/事实被折叠面板埋住、聊天与游戏内容割裂」的问题，做了 4 个不同方向的静态原型。配色、文案、模式与你现有实现一致，仅调整信息结构与视觉。这是纯静态预览，未改动任何项目代码。</p>
+    <span class="tag">内容为示例数据 · 仅 UI 预览</span>
+  </div>
+
+  <div class="gallery">
+
+    <!-- ══════════ A：题面置顶 ══════════ -->
+    <div class="variant">
+      <div class="variant-cap">
+        <span class="idx">A</span><h2>题面常驻顶栏</h2>
+        <p>把「汤面」压成一条常驻顶栏，点一下向下展开完整题面 + 事实总结；座位/房主操作收进右上角的底部抽屉。聊天区最大化。</p>
+        <ul class="wins">
+          <li>随时能看到题面，不用反复展开折叠面板</li>
+          <li>事实总结做成 chips，一眼扫完</li>
+          <li>聊天是本页主角，垂直空间最大</li>
+        </ul>
+      </div>
+      <div class="phone"><div class="screen"><div class="notch"></div>
+
+        <!-- sticky puzzle bar -->
+        <div style="padding:30px 12px 10px;border-bottom:1px solid var(--line);background:var(--paper)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="b-diff mid">中等</span>
+            <span class="puz-title" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">海上的钟声</span>
+            <span style="font-size:.72rem;color:var(--blue);font-weight:600">展开题面 ▾</span>
+          </div>
+          <p style="margin:8px 0 0;font-size:.84rem;line-height:1.55;color:#334155">
+            一个男人在海边听到钟声后，回到家就自杀了。为什么？
+          </p>
+          <div class="fact-chips">
+            <span class="chip k">✓ 他曾是灯塔看守人</span>
+            <span class="chip k">✓ 钟声是某种信号</span>
+          </div>
+        </div>
+
+        <div class="msg-scroll">
+          <div class="sys"><span>阿柯 加入了房间</span></div>
+          <div class="m-row">
+            <div class="m-meta"><b>阿柯</b><span>[2]</span><span>[访客]</span></div>
+            <div class="m-body">这个钟声是教堂的钟吗？<span class="m-time">21:04</span></div>
+          </div>
+          <div class="m-row" style="background:rgba(255,255,255,.6);border-radius:8px;padding:8px;border-bottom:0">
+            <div class="m-meta"><b>阿柯</b><span class="badge" style="background:var(--blue-soft);color:var(--blue)">询问</span></div>
+            <div class="m-body">他自杀和这次听到的钟声有直接关系吗？<span class="m-time">21:05</span></div>
+          </div>
+          <div class="ai-card ai-yes">
+            <div class="ai-name">AI 主持 · 回复</div>
+            <span class="lbl">是</span>钟声让他确认了那件他一直不愿相信的事。
+          </div>
+          <div class="typing"><span>AI 主持</span><i></i><i></i><i></i>回复中</div>
+        </div>
+
+        <div class="composer">
+          <div class="modes">
+            <span class="mode active">聊天</span>
+            <span class="mode">询问 <span class="badge b-cost">1pt</span></span>
+            <span class="mode">提示 <span class="badge b-cost">1pt</span></span>
+            <span class="mode">尝试推理 <span class="badge b-cost">2pt</span></span>
+          </div>
+          <div class="ta">
+            <textarea placeholder="输入聊天内容，Enter 发送"></textarea>
+            <button class="send">发送</button>
+          </div>
+          <div class="composer-foot">
+            <span>0/300</span>
+            <span class="pts">积分 <b>999</b>+14[临] · <button class="badge" style="border:1px solid var(--line);background:#fff;color:#334155;padding:2px 8px">座位 4/6 ⌵</button></span>
+          </div>
+        </div>
+
+      </div></div>
+    </div>
+
+    <!-- ══════════ B：分段视图 ══════════ -->
+    <div class="variant">
+      <div class="variant-cap">
+        <span class="idx">B</span><h2>顶部分段切换</h2>
+        <p>顶部一个分段控件：聊天 / 题目 / 座位，各占整屏。默认在「聊天」，并在消息上方钉一条极简题面提示条，点它直接跳到「题目」页。</p>
+        <ul class="wins">
+          <li>结构最清晰，三块内容互不挤压</li>
+          <li>题目页可放完整汤面 + 事实 + 房主切题</li>
+          <li>与现有 tab 逻辑最接近，改动风险低</li>
+        </ul>
+      </div>
+      <div class="phone"><div class="screen"><div class="notch"></div>
+
+        <div class="topbar">
+          <div class="grow">
+            <div class="rn">深夜食堂</div>
+            <div class="rc">X7K2P9</div>
+          </div>
+          <span class="top-pts">999+14[临]</span>
+        </div>
+
+        <!-- segmented -->
+        <div style="display:flex;gap:6px;padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--line)">
+          <span style="flex:1;text-align:center;padding:7px 0;border-radius:8px;background:var(--navy);color:#fff;font-size:.82rem;font-weight:600">聊天</span>
+          <span style="flex:1;text-align:center;padding:7px 0;border-radius:8px;background:#fff;border:1px solid var(--line);color:#334155;font-size:.82rem">题目</span>
+          <span style="flex:1;text-align:center;padding:7px 0;border-radius:8px;background:#fff;border:1px solid var(--line);color:#334155;font-size:.82rem">座位 <b style="color:var(--blue)">4</b></span>
+        </div>
+
+        <!-- pinned puzzle strip -->
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fffbeb;border-bottom:1px solid #fde68a">
+          <span class="b-diff mid" style="flex:0 0 auto">中等</span>
+          <span style="flex:1;font-size:.8rem;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">男人在海边听到钟声后自杀了…</span>
+          <span style="font-size:.72rem;color:var(--blue);font-weight:600">看题 ›</span>
+        </div>
+
+        <div class="msg-scroll">
+          <div class="m-row">
+            <div class="m-meta"><b>房主·小林</b><span>[1]</span><span>[注册]</span></div>
+            <div class="m-body">大家先想想他为什么要回家。<span class="m-time">21:02</span></div>
+          </div>
+          <div class="m-row">
+            <div class="m-meta"><b>阿柯</b><span>[2]</span><span>[访客]</span><span class="badge" style="background:var(--blue-soft);color:var(--blue)">询问</span></div>
+            <div class="m-body">他是渔民吗？<span class="m-time">21:05</span></div>
+          </div>
+          <div class="ai-card ai-no">
+            <div class="ai-name">AI 主持 · 回复</div>
+            <span class="lbl">否</span>他的职业和海有关，但不是捕鱼。
+          </div>
+          <div class="m-row">
+            <div class="m-meta"><b>糖糖</b><span>[3]</span><span>[注册]</span></div>
+            <div class="m-body">灯塔看守？<span class="m-time">21:06</span></div>
+          </div>
+        </div>
+
+        <div class="composer">
+          <div class="modes">
+            <span class="mode active">聊天</span>
+            <span class="mode">询问 <span class="badge b-cost">1pt</span></span>
+            <span class="mode">提示 <span class="badge b-cost">1pt</span></span>
+            <span class="mode lock">尝试推理 <span class="badge b-cost">2pt</span></span>
+          </div>
+          <div class="ta">
+            <textarea placeholder="输入聊天内容…"></textarea>
+            <button class="send">发送</button>
+          </div>
+          <div class="composer-foot"><span>0/300</span><span class="pts">提示机会 <b>2</b> 次</span></div>
+        </div>
+
+      </div></div>
+    </div>
+
+    <!-- ══════════ C：沉浸气泡 ══════════ -->
+    <div class="variant">
+      <div class="variant-cap">
+        <span class="idx">C</span><h2>沉浸气泡 + 浮层</h2>
+        <p>微信式聊天气泡（自己靠右、他人靠左、AI 居中卡片）。题面收成右下角的浮动「题」按钮，点开是半屏抽屉；座位在左下角浮标。</p>
+        <ul class="wins">
+          <li>聊天最像 IM，长会话可读性最好</li>
+          <li>身份一眼可分：我 / 他人 / AI</li>
+          <li>题面/座位随手可开，不占常驻空间</li>
+        </ul>
+      </div>
+      <div class="phone"><div class="screen"><div class="notch"></div>
+
+        <div class="topbar">
+          <div class="grow"><div class="rn">深夜食堂 <span style="font-size:.7rem;font-weight:600;color:var(--muted)">· 中等</span></div>
+            <div class="rc">X7K2P9</div></div>
+          <span class="top-pts">999+14[临]</span>
+        </div>
+
+        <div class="msg-scroll" style="position:relative">
+          <div class="sys"><span>糖糖 加入了房间</span></div>
+
+          <div class="bub">
+            <div class="ava">柯</div>
+            <div class="bub-col">
+              <div class="bub-name">阿柯 · 访客</div>
+              <div class="bub-text">他家里是不是有别人？</div>
+              <div class="bub-time">21:04</div>
+            </div>
+          </div>
+
+          <div class="bub me">
+            <div class="ava">我</div>
+            <div class="bub-col">
+              <span class="q-tag">询问 · 1pt</span>
+              <div class="bub-text">钟声是他自己敲响的吗？</div>
+              <div class="bub-time">21:05</div>
+            </div>
+          </div>
+
+          <div class="ai-card ai-yes">
+            <div class="ai-name">AI 主持 · 回复</div>
+            <span class="lbl">是</span>是他亲手敲的，这正是关键。
+          </div>
+
+          <div class="bub">
+            <div class="ava">糖</div>
+            <div class="bub-col">
+              <div class="bub-name">糖糖 · 注册</div>
+              <div class="bub-text">那钟声是给谁听的？</div>
+              <div class="bub-time">21:07</div>
+            </div>
+          </div>
+
+          <!-- floating buttons -->
+          <div style="position:sticky;bottom:6px;display:flex;justify-content:flex-end;gap:8px;pointer-events:none">
+            <button class="icon-btn" style="width:auto;padding:0 12px;gap:6px;box-shadow:0 6px 16px -6px rgba(15,23,42,.4);pointer-events:auto">👥 <b style="font-weight:700;font-size:.8rem">4</b></button>
+            <button class="icon-btn" style="width:auto;padding:0 14px;background:var(--navy);color:#fff;border-color:var(--navy);font-weight:700;font-size:.82rem;box-shadow:0 6px 16px -6px rgba(15,23,42,.5);pointer-events:auto">📄 题面</button>
+          </div>
+        </div>
+
+        <div class="composer">
+          <div class="modes">
+            <span class="mode active">聊天</span>
+            <span class="mode">询问 <span class="badge b-cost">1pt</span></span>
+            <span class="mode">提示 <span class="badge b-cost">1pt</span></span>
+            <span class="mode">推理 <span class="badge b-cost">2pt</span></span>
+          </div>
+          <div class="ta">
+            <textarea placeholder="说点什么…"></textarea>
+            <button class="send">发送</button>
+          </div>
+        </div>
+
+      </div></div>
+    </div>
+
+    <!-- ══════════ D：信息卡流 ══════════ -->
+    <div class="variant">
+      <div class="variant-cap">
+        <span class="idx">D</span><h2>题卡置顶信息流</h2>
+        <p>单列滚动：顶部一张醒目「题目卡」（汤面 + 进度 + 事实），可折叠成一行；往下是消息流；底部固定输入。座位/房主操作走一个「房间」小图标弹层。</p>
+        <ul class="wins">
+          <li>题目视觉权重最高，新人一眼知道在玩什么</li>
+          <li>题卡可折叠，读完汤面后收起给聊天让位</li>
+          <li>进度/难度/事实集中在一张卡里</li>
+        </ul>
+      </div>
+      <div class="phone"><div class="screen"><div class="notch"></div>
+
+        <div class="topbar">
+          <div class="grow"><div class="rn">深夜食堂</div><div class="rc">X7K2P9</div></div>
+          <button class="icon-btn">👥</button>
+          <span class="top-pts">999+14[临]</span>
+        </div>
+
+        <div class="msg-scroll" style="padding-top:12px">
+          <!-- puzzle card -->
+          <div style="border:1px solid var(--blue-line);border-radius:14px;background:#fff;overflow:hidden;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:8px;padding:11px 13px;background:linear-gradient(180deg,#f8fbff,#fff);border-bottom:1px solid #eef2ff">
+              <span class="b-diff mid">中等</span>
+              <span class="puz-title" style="flex:1">海上的钟声</span>
+              <span class="badge" style="background:var(--amber-bg);color:var(--amber-ink)">○ 进行中</span>
+              <span style="color:var(--muted);font-size:.9rem">▾</span>
+            </div>
+            <div style="padding:12px 13px">
+              <p style="margin:0;font-size:.88rem;line-height:1.6;color:#1f2937">
+                一个男人在海边听到钟声后，回到家就自杀了。为什么？
+              </p>
+              <div style="margin-top:11px;font-size:.72rem;color:var(--muted);font-weight:600">已确认事实</div>
+              <div class="fact-chips">
+                <span class="chip k">他曾是灯塔看守人</span>
+                <span class="chip k">钟声是某种信号</span>
+                <span class="chip k">他误以为家人已死</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="sys"><span>本局已提问 6 次 · 提示 2 次</span></div>
+
+          <div class="m-row">
+            <div class="m-meta"><b>阿柯</b><span>[2]</span><span>[访客]</span></div>
+            <div class="m-body">所以钟声是报平安的信号？<span class="m-time">21:08</span></div>
+          </div>
+          <div class="m-row">
+            <div class="m-meta"><b>我</b><span>[4]</span><span>[注册]</span><span class="badge" style="background:#ede9fe;color:#5b21b6">尝试推理</span></div>
+            <div class="m-body">他敲钟报平安，但没人回应，以为家人都死了，绝望自杀。<span class="m-time">21:09</span></div>
+          </div>
+          <div class="ai-card ai-plain" style="background:rgba(34,197,94,.10);border-color:var(--yes-line)">
+            <div class="ai-name" style="color:#166534">AI 主持 · 推理结果</div>
+            <span class="lbl" style="background:#bbf7d0;color:#14532d">✓ 正确</span>核心推理成立，本题通关！
+          </div>
+        </div>
+
+        <div class="composer">
+          <div class="modes">
+            <span class="mode active">聊天</span>
+            <span class="mode">询问 <span class="badge b-cost">1pt</span></span>
+            <span class="mode">提示 <span class="badge b-hint">2</span></span>
+            <span class="mode">尝试推理 <span class="badge b-cost">2pt</span></span>
+          </div>
+          <div class="ta">
+            <textarea placeholder="输入聊天内容…"></textarea>
+            <button class="send">发送</button>
+          </div>
+          <div class="composer-foot"><span>0/300</span><span class="pts">座位 <b>14</b>[临] + 个人 <b>999</b></span></div>
+        </div>
+
+      </div></div>
+    </div>
+
+  </div>
+
+  <p class="note">静态预览 · onlinesoup_room_mobile_previews.html · 未改动任何项目源码</p>
+</div>
+</body>
+</html>

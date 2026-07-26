@@ -8,6 +8,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { createPortal } from "react-dom";
 
 import { checkSeatSessionActive, getRoomMembershipStatus, giftPoints, kickGuest, moveSeat } from "@/app/rooms/actions";
 import type { RoomActionState } from "@/app/rooms/actions";
@@ -92,8 +93,12 @@ export function LiveRoomSeats({
     () => new Set(),
   );
   const [openSeatMenuId, setOpenSeatMenuId] = useState<string | null>(null);
-  const [seatMenuOpensUpward, setSeatMenuOpensUpward] = useState(false);
   const openSeatMenuRef = useRef<HTMLDivElement>(null);
+  const seatMenuPopoverRef = useRef<HTMLDivElement>(null);
+  const [seatMenuPosition, setSeatMenuPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
 
   // Move seat modal state
   const [movingFromSeatId, setMovingFromSeatId] = useState<string | null>(null);
@@ -207,33 +212,50 @@ export function LiveRoomSeats({
   useLayoutEffect(() => {
     if (!openSeatMenuId) return;
 
-    const menu = openSeatMenuRef.current;
-    const trigger = menu?.querySelector<HTMLElement>(".seat-menu-trigger");
-    const popover = menu?.querySelector<HTMLElement>(".seat-menu-popover");
-    if (!menu || !trigger || !popover) return;
+    const updateSeatMenuPosition = () => {
+      const trigger = openSeatMenuRef.current?.querySelector<HTMLElement>(
+        ".seat-menu-trigger",
+      );
+      const popover = seatMenuPopoverRef.current;
+      if (!trigger || !popover) return;
 
-    const container = menu.closest(".room-details-content");
-    const triggerRect = trigger.getBoundingClientRect();
-    const containerRect = container?.getBoundingClientRect();
-    const topBoundary = Math.max(8, containerRect?.top ?? 8);
-    const bottomBoundary = Math.min(
-      window.innerHeight - 8,
-      containerRect?.bottom ?? window.innerHeight - 8,
-    );
-    const spaceAbove = triggerRect.top - topBoundary;
-    const spaceBelow = bottomBoundary - triggerRect.bottom;
+      const triggerRect = trigger.getBoundingClientRect();
+      const width = popover.offsetWidth || 176;
+      const height = popover.offsetHeight;
+      const gap = 8;
+      const spaceAbove = triggerRect.top - 8;
+      const spaceBelow = window.innerHeight - 8 - triggerRect.bottom;
+      const opensUpward = spaceBelow < height + gap && spaceAbove > spaceBelow;
+      const rawTop = opensUpward
+        ? triggerRect.top - height - gap
+        : triggerRect.bottom + gap;
+      const rawLeft = triggerRect.right - width;
 
-    setSeatMenuOpensUpward(
-      spaceBelow < popover.offsetHeight + 8 && spaceAbove > spaceBelow,
-    );
+      setSeatMenuPosition({
+        top: Math.max(8, Math.min(rawTop, window.innerHeight - height - 8)),
+        left: Math.max(8, Math.min(rawLeft, window.innerWidth - width - 8)),
+      });
+    };
+
+    updateSeatMenuPosition();
+    window.addEventListener("resize", updateSeatMenuPosition);
+    window.addEventListener("scroll", updateSeatMenuPosition, true);
+    return () => {
+      window.removeEventListener("resize", updateSeatMenuPosition);
+      window.removeEventListener("scroll", updateSeatMenuPosition, true);
+    };
   }, [openSeatMenuId]);
 
   useEffect(() => {
     if (!openSeatMenuId) return;
 
     const closeMenu = (event: PointerEvent) => {
-      if (!openSeatMenuRef.current?.contains(event.target as Node)) {
+      if (
+        !openSeatMenuRef.current?.contains(event.target as Node) &&
+        !seatMenuPopoverRef.current?.contains(event.target as Node)
+      ) {
         setOpenSeatMenuId(null);
+        setSeatMenuPosition(null);
       }
     };
     const closeMenuOnEscape = (event: KeyboardEvent) => {
@@ -614,9 +636,76 @@ export function LiveRoomSeats({
 
   const movingFromSeat = movingFromSeatId ? seats.find((s) => s.id === movingFromSeatId) : null;
   const giftTargetSeat = giftTargetSeatId ? seats.find((s) => s.id === giftTargetSeatId) : null;
+  const openSeat = openSeatMenuId ? seats.find((s) => s.id === openSeatMenuId) : null;
+  const portalTarget = typeof document === "undefined" ? null : document.body;
+
+  const seatMenuPortal = portalTarget && openSeat
+    ? createPortal(
+        <div
+          ref={seatMenuPopoverRef}
+          className="seat-menu-popover seat-menu-popover-fixed"
+          style={{
+            top: seatMenuPosition?.top ?? 8,
+            left: seatMenuPosition?.left ?? 8,
+            visibility: seatMenuPosition ? "visible" : "hidden",
+          }}
+        >
+          <div className="seat-menu-info-row">
+            <span className="muted">剩余积分</span>
+            <strong>{openSeat.remaining_points}</strong>
+          </div>
+          <div className="seat-menu-info-row">
+            <span className="muted">入座时间</span>
+            <strong>
+              {openSeat.occupied_at
+                ? occupiedAtFormatter.format(new Date(openSeat.occupied_at))
+                : "未知"}
+            </strong>
+          </div>
+          {isOwner && openSeat.seat_number !== 1 && (
+            <div className="seat-menu-actions">
+              <button
+                className="seat-menu-action-btn"
+                onClick={() => {
+                  setOpenSeatMenuId(null);
+                  setSeatMenuPosition(null);
+                  setGiftTargetSeatId(openSeat.id);
+                  setGiftAmount(1);
+                }}
+                type="button"
+              >
+                赠送积分
+              </button>
+              <button
+                className="seat-menu-action-btn"
+                onClick={() => {
+                  setOpenSeatMenuId(null);
+                  setSeatMenuPosition(null);
+                  setMovingFromSeatId(openSeat.id);
+                  setMoveError(null);
+                }}
+                type="button"
+              >
+                调整位置
+              </button>
+              <RoomActionForm
+                action={kickGuest}
+                buttonClassName="seat-menu-action-btn danger"
+                buttonText="移出房间"
+                code={roomCode}
+                pendingText="正在移出..."
+                seatId={openSeat.id}
+              />
+            </div>
+          )}
+        </div>,
+        portalTarget,
+      )
+    : null;
 
   return (
     <>
+      {seatMenuPortal}
       {/* Move seat modal */}
       {movingFromSeatId && (
         <div className="move-seat-overlay" role="dialog" aria-modal="true" aria-label="选择目标座位">
@@ -907,68 +996,16 @@ export function LiveRoomSeats({
                       aria-expanded={openSeatMenuId === seat.id}
                       aria-label={`${seat.nickname}的更多操作`}
                       className="seat-menu-trigger"
-                      onClick={() =>
+                      onClick={() => {
                         setOpenSeatMenuId((current) =>
                           current === seat.id ? null : seat.id,
-                        )
-                      }
+                        );
+                        setSeatMenuPosition(null);
+                      }}
                       type="button"
                     >
                       ···
                     </button>
-                    {openSeatMenuId === seat.id && (
-                      <div
-                        className={`seat-menu-popover${seatMenuOpensUpward ? " opens-upward" : ""}`}
-                      >
-                        <div className="seat-menu-info-row">
-                          <span className="muted">剩余积分</span>
-                          <strong>{seat.remaining_points}</strong>
-                        </div>
-                        <div className="seat-menu-info-row">
-                          <span className="muted">入座时间</span>
-                          <strong>
-                            {seat.occupied_at
-                              ? occupiedAtFormatter.format(new Date(seat.occupied_at))
-                              : "未知"}
-                          </strong>
-                        </div>
-
-                        {isOwner && seat.seat_number !== 1 && (
-                          <div className="seat-menu-actions">
-                            <button
-                              className="seat-menu-action-btn"
-                              onClick={() => {
-                                setOpenSeatMenuId(null);
-                                setGiftTargetSeatId(seat.id);
-                                setGiftAmount(1);
-                              }}
-                              type="button"
-                            >
-                              赠送积分
-                            </button>
-                            <button
-                              className="seat-menu-action-btn"
-                              onClick={() => {
-                                setOpenSeatMenuId(null);
-                                setMovingFromSeatId(seat.id);
-                                setMoveError(null);
-                              }}
-                              type="button"
-                            >
-                              调整位置
-                            </button>
-                            <RoomActionForm
-                              action={kickGuest}
-                              buttonClassName="seat-menu-action-btn danger"
-                              buttonText="移出房间"
-                              code={roomCode}
-                              pendingText="正在移出..."
-                              seatId={seat.id}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 )}
               </div>

@@ -12,6 +12,9 @@ supabase/.temp/
 .vercel/
 ai-error/
 screenshots/
+archive/duplicate-public-screenshots/
+/data/puzzle-exports/
+/outputs/glm-model-eval/
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
@@ -24,14 +27,4 @@ questions*.txt
 original_questions.json
 puzzles-*.json
 *.examples-preview.json
-AGENTS.md
-CLAUDE.md
-prompts_suggestion.md
-tasks.md
-updates.md
-本地部署教程.md
-多人在线海龟汤聊天室开发设计.md
-多人项目聊天室房间设计.md
-文档索引.md
-使用教程.html
-网站使用教程.md
+# Project guidance and documentation are intentionally tracked.

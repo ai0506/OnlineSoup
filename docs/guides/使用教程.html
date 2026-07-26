@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>汤局 OnlineSoup 使用教程</title>
+<style>
+  :root {
+    --ink: #111827;
+    --muted: #6b7280;
+    --paper: #ffffff;
+    --surface: #f9fafb;
+    --navy: #1e293b;
+    --navy-dark: #0f172a;
+    --line: #e5e7eb;
+    --danger: #dc2626;
+    --accent: #2563eb;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--surface);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  /* ── Site header (matches globals.css .site-header) ── */
+  .site-header {
+    width: min(1100px, calc(100% - 32px));
+    margin: 16px auto 0;
+    padding: 11px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .brand {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--navy);
+    letter-spacing: -0.02em;
+  }
+  .site-header nav {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .site-header nav a:hover { color: var(--ink); }
+  .nav-active { color: var(--navy) !important; font-weight: 600; }
+
+  /* ── Page shell ── */
+  .page-shell {
+    width: min(1100px, calc(100% - 32px));
+    margin: 28px auto 80px;
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* ── Sidebar nav ── */
+  .doc-nav {
+    position: sticky;
+    top: 24px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 0 20px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
+  .doc-nav-title {
+    padding: 0 16px 12px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 8px;
+  }
+  .doc-nav ul { list-style: none; }
+  .doc-nav li a {
+    display: block;
+    padding: 5px 16px;
+    font-size: 0.84rem;
+    color: var(--muted);
+    transition: color 0.1s, background 0.1s;
+    border-left: 2px solid transparent;
+  }
+  .doc-nav li a:hover {
+    color: var(--ink);
+    background: var(--surface);
+    border-left-color: var(--navy);
+  }
+  .doc-nav li.group {
+    padding: 10px 16px 4px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--navy);
+  }
+  .doc-nav li.sep {
+    height: 1px;
+    background: var(--line);
+    margin: 6px 12px;
+  }
+
+  /* ── Main content ── */
+  .doc-content {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 36px 40px 52px;
+  }
+
+  .doc-content h1 {
+    font-size: 1.9rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--navy);
+    margin-bottom: 6px;
+    line-height: 1.15;
+  }
+  .doc-subtitle {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-bottom: 36px;
+  }
+
+  .doc-content h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 44px 0 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    scroll-margin-top: 20px;
+  }
+  .doc-content h2 .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    background: var(--navy);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  .doc-content h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 26px 0 10px;
+    scroll-margin-top: 20px;
+  }
+
+  .doc-content p { margin-bottom: 10px; }
+  .doc-content p:last-child { margin-bottom: 0; }
+  .doc-content ol, .doc-content ul { padding-left: 20px; margin-bottom: 10px; }
+  .doc-content li { margin-bottom: 4px; }
+  .doc-content strong { color: var(--navy); }
+
+  code {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
+    font-size: 0.82rem;
+    color: #374151;
+  }
+
+  /* ── Overview cards ── */
+  .overview-box {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--navy);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+  }
+  .flow-code {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    font-family: "SF Mono", ui-monospace, monospace;
+    font-size: 0.82rem;
+    color: var(--muted);
+    white-space: pre-wrap;
+    line-height: 2;
+  }
+  .flow-code .arr { color: var(--navy); font-weight: 700; }
+
+  /* ── Tables ── */
+  .doc-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 0.88rem;
+  }
+  .doc-table th {
+    background: var(--surface);
+    color: var(--muted);
+    font-weight: 700;
+    text-align: left;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .doc-table td {
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    vertical-align: top;
+  }
+  .doc-table tr:nth-child(even) td { background: #fafafa; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+  .badge-need { background: #fef3c7; color: #92400e; }
+  .badge-no { background: #f3f4f6; color: var(--muted); }
+  .badge-must { background: #dbeafe; color: #1e40af; }
+
+  /* ── Screenshot ── */
+  .screenshot-wrap {
+    margin: 18px 0 6px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface);
+    cursor: zoom-in;
+    transition: box-shadow 0.15s;
+  }
+  .screenshot-wrap:hover { box-shadow: 0 2px 12px rgba(17,24,39,0.1); }
+  .screenshot-wrap img { width: 100%; display: block; }
+  .screenshot-caption {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin: 0 0 18px;
+    padding: 0 2px;
+  }
+  .screenshot-pair {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin: 18px 0 6px;
+    flex-wrap: wrap;
+  }
+  .screenshot-pair .screenshot-wrap { margin: 0; flex: 1; min-width: 160px; }
+  .screenshot-pair .screenshot-wrap.phone { flex: 0 0 auto; max-width: 220px; }
+
+  /* ── Tip box ── */
+  .tip {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.86rem;
+    color: #1e40af;
+    margin: 12px 0;
+  }
+  .tip strong { color: #1e3a8a; }
+
+  /* ── AI answer tags ── */
+  .ai-tags { display: flex; gap: 7px; flex-wrap: wrap; margin: 12px 0; }
+  .ai-tag {
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+  }
+  .tag-yes { background: #d1fae5; color: #065f46; }
+  .tag-no { background: #fee2e2; color: #991b1b; }
+  .tag-irr { background: #f3f4f6; color: var(--muted); border-color: var(--line); }
+  .tag-amb { background: #fef3c7; color: #92400e; }
+
+  /* ── FAQ ── */
+  .faq-item { margin-bottom: 18px; }
+  .faq-q {
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 4px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    font-size: 0.92rem;
+  }
+  .faq-q::before {
+    content: "Q";
+    display: inline-block;
+    background: var(--navy);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .faq-a { color: var(--muted); padding-left: 28px; font-size: 0.88rem; line-height: 1.65; }
+
+  /* ── Lightbox ── */
+  #lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(17,24,39,0.82);
+    z-index: 1000;
+    cursor: zoom-out;
+    align-items: center;
+    justify-content: center;
+  }
+  #lightbox.open { display: flex; }
+  #lightbox img {
+    max-width: 95vw;
+    max-height: 92vh;
+    border-radius: 8px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+  }
+  #lightbox-close {
+    position: fixed;
+    top: 18px;
+    right: 24px;
+    color: rgba(255,255,255,0.7);
+    font-size: 26px;
+    cursor: pointer;
+    line-height: 1;
+    font-weight: 300;
+  }
+  #lightbox-close:hover { color: #fff; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+
+  /* ── Responsive ── */
+  .nav-toggle { display: none; }
+
+  /* ── Portrait / narrow: collapsed sidebar ── */
+  @media (max-width: 760px), (orientation: portrait) {
+    .page-shell {
+      grid-template-columns: 1fr;
+    }
+
+    .nav-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      padding: 10px 16px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--navy);
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .doc-nav {
+      display: none;
+      position: static;
+      max-height: none;
+    }
+
+    .doc-nav.open {
+      display: block;
+    }
+
+    .doc-content { padding: 24px 20px 40px; }
+    .doc-content h1 { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Site header ── -->
+<header class="site-header">
+  <a class="brand" href="https://onlinesoup.ai0506.com/">汤局</a>
+  <nav>
+    <a href="https://onlinesoup.ai0506.com/">大厅</a>
+    <a href="#" class="nav-active">使用教程</a>
+    <a href="https://onlinesoup.ai0506.com/login">登录</a>
+  </nav>
+</header>
+
+<div class="page-shell">
+
+<!-- ── Mobile nav toggle (hidden on landscape/wide) ── -->
+<button class="nav-toggle" id="navToggle" onclick="toggleNav()">目录 ▼</button>
+
+<!-- ── Sidebar ── -->
+<aside class="doc-nav" id="docNav">
+  <div class="doc-nav-title">目录</div>
+  <ul>
+    <li class="group">概览</li>
+    <li><a href="#overview">汤局是什么</a></li>
+    <li class="sep"></li>
+    <li class="group">玩家</li>
+    <li><a href="#s1-1">进入房间</a></li>
+    <li><a href="#s1-2">界面总览</a></li>
+    <li><a href="#s1-3">等待开题</a></li>
+    <li><a href="#s1-4">向 AI 询问</a></li>
+    <li><a href="#s1-5">请求提示</a></li>
+    <li><a href="#s1-6">尝试推理</a></li>
+    <li><a href="#s1-7">积分说明</a></li>
+    <li class="sep"></li>
+    <li class="group">房主</li>
+    <li><a href="#s2-0">注册账号</a></li>
+    <li><a href="#s2-1">创建房间</a></li>
+    <li><a href="#s2-2">临时积分</a></li>
+    <li><a href="#s2-4">赠送积分</a></li>
+    <li><a href="#s2-5">调换位置</a></li>
+    <li><a href="#s2-6">踢出玩家</a></li>
+    <li><a href="#s2-7">关闭房间</a></li>
+    <li class="sep"></li>
+    <li class="group">海龟汤</li>
+    <li><a href="#s3-1">开启题目</a></li>
+    <li><a href="#s3-3">进度与事实</a></li>
+    <li><a href="#s3-4">切换 / 停止</a></li>
+    <li class="sep"></li>
+    <li class="group">通用说明</li>
+    <li><a href="#ai-answers">AI 四种回答</a></li>
+    <li><a href="#reasoning">推理结果</a></li>
+    <li><a href="#modes">模式速查</a></li>
+    <li><a href="#faq">常见问题</a></li>
+  </ul>
+</aside>
+
+<!-- ── Main ── -->
+<main class="doc-content">
+
+<h1>使用教程</h1>
+<p class="doc-subtitle">汤局 OnlineSoup · 多人在线海龟汤推理游戏</p>
+
+<!-- Overview -->
+<section id="overview">
+  <div class="overview-box">
+    <p><strong>汤局是什么</strong>：房主创建房间并选择一道海龟汤题目，玩家进入后通过向 AI 主持人不断提问，一步步推理出真相。</p>
+    <div class="flow-code"><span class="arr">房主注册 → 创建房间 → 把房间码发给玩家
+</span><span class="arr">玩家加入（无需注册）→ 房主选题 → 玩家询问 / 提示 / 推理 → 推理成功 → 房主关闭房间</span></div>
+  </div>
+
+  <table class="doc-table">
+    <thead><tr><th>角色</th><th>需要注册</th><th>需要积分</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>访客 / 普通玩家</td>
+        <td><span class="badge badge-no">不需要</span></td>
+        <td>需要座位临时积分（房主分配）</td>
+      </tr>
+      <tr>
+        <td>注册玩家</td>
+        <td><span class="badge badge-need">推荐</span></td>
+        <td>有个人积分，也可使用座位临时积分</td>
+      </tr>
+      <tr>
+        <td>房主</td>
+        <td><span class="badge badge-must">必须</span></td>
+        <td>需要个人积分用于创建房间</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══ Part 1 ═══ -->
+<h2 id="part1"><span class="num">1</span>我收到了房间码，怎么加入？</h2>
+
+<h3 id="s1-1">1.1 进入房间</h3>
+<p>从房主那里拿到 6 位房间码，在首页输入后加入。</p>
+
+<div class="screenshot-wrap" onclick="openLightbox(this)">
+  <img src="../../public/screenshots/1.1mainpageentercode.png" alt="首页输入房间码" loading="lazy">
+</div>
+<p class="screenshot-caption">首页 — 输入房间码后点击「加入房间」</p>
+
+<ol>
+  <li>在首页输入 6 位房间码，点击「加入房间」。</li>
+  <li>如果房间有密码，先输入房主给你的 6 位数字密码。</li>
+  <li>如果你是访客（未登录），输入一个访客名。</li>
+  <li>加入成功后，你会被安排到一个座位。</li>
+</ol>
+<p><strong>访客名规则</strong>：3 到 8 位，只能使用英文字母、数字和下划线。</p>
+<div class="tip"><strong>名字冲突？</strong> 说明名字已被占用（房间里有同名访客，或与某个注册用户名重复）。换一个名字，或联系房主把同名访客移出。</div>
+
+<h3 id="s1-2">1.2 进入后先看哪里</h3>
+<p>房间页面有两个主要区域：<strong>聊天区</strong>（主区）和<strong>房间详情</strong>（右侧或折叠）。</p>
+
+<div class="screenshot-pair">
+  <div class="screenshot-wrap" onclick="openLightbox(this)">
+    <img src="../../public/screenshots/1.2inroomchatandconts_pc.png" alt="PC端房间页面" loading="lazy">
+  </div>
+  <div class="screenshot-wrap phone" onclick="openLightbox(this)">
+    <img src="../../public/screenshots/1.2inroomchatandconts_phone.png" alt="手机端房间页面" loading="lazy">
+  </div>
+</div>
+<p class="screenshot-caption">左：PC 端布局（聊天区 + 右侧房间详情）&nbsp;&nbsp;右：旧版手机端示意图；当前竖屏手机使用「聊天 / 题库 / 座位」三标签布局</p>
+
+<p>电脑端使用右侧「房间详情」。竖屏手机（宽度不超过 760px）会切换为「聊天」「题库」「座位」三个全屏标签；顶部保留当前题目和积分摘要，座位标签内再进行房间管理。</p>
+
+<h3 id="s1-3">1.3 等房主开始题目</h3>
+<p>房主还没选题前，你只能普通聊天。当房主选择题目后，「询问」「提示」「尝试推理」模式会解锁。</p>
+<div class="tip">看到"房主开始题目后，才能使用询问 / 提示 / 尝试推理"？说明还没开题，等房主在「海龟汤」里选择题目。</div>
+
+<h3 id="s1-4">1.4 怎么向 AI 询问</h3>
+<p>在聊天区底部切换到「询问」模式，输入一个<strong>可以用"是 / 否"判断的问题</strong>，发送即可。</p>
+
+<div class="screenshot-wrap" onclick="openLightbox(this)">
+  <img src="../../public/screenshots/1.4howtoask.png" alt="聊天区询问模式" loading="lazy">
+</div>
+<p class="screenshot-caption">聊天区底部 — 四种模式切换按钮和输入框</p>
+
+<p><strong>推荐问法：</strong>"死者是自杀吗？" / "故事发生在医院吗？" / "男人之前见过这个人吗？"</p>
+<p><strong>不推荐：</strong>"为什么他要这么做？"（不是是非题）/ "他是医生并且认识死者吗？"（一次问两件事）/ "直接告诉我答案。"（AI 不会透露汤底）</p>
+
+<h3 id="s1-5">1.5 怎么请求提示</h3>
+<p>切换到「提示」模式，写下你卡住的方向或直接写"给我提示"，发送后 AI 会给一条线索。</p>
+<p>请求提示需要：<strong>1 积分</strong> + <strong>1 次提示机会</strong>。提示机会获取方式：每完成 3 次询问 +1 次机会，每尝试推理 1 次 +1 次机会。按钮灰掉通常是提示机会不足。</p>
+
+<h3 id="s1-6">1.6 怎么尝试推理</h3>
+<p>切换到「尝试推理」模式，用 300 字以内写出完整推理，发送后 AI 判定。消耗 2 积分，完成后获得 1 次提示机会。</p>
+
+<h3 id="s1-7">1.7 积分说明</h3>
+
+<div class="screenshot-wrap" onclick="openLightbox(this)">
+  <img src="../../public/screenshots/1.7tempsandaccountscore.png" alt="积分显示区域" loading="lazy">
+</div>
+<p class="screenshot-caption">积分显示：<code>999+14[临]</code> 表示个人积分 999、座位临时积分 14</p>
+
+<table class="doc-table">
+  <thead><tr><th>操作</th><th>消耗</th></tr></thead>
+  <tbody>
+    <tr><td>询问</td><td>1 积分</td></tr>
+    <tr><td>提示</td><td>1 积分 + 1 次提示机会</td></tr>
+    <tr><td>尝试推理</td><td>2 积分</td></tr>
+  </tbody>
+</table>
+
+<div class="tip"><strong>访客没有个人积分</strong>，只能用座位临时积分（<code>[临]</code>）。积分不足请联系房主给座位赠送积分，或让房主下次创建房间时设置「每位玩家积分」。</div>
+<p>刷新或关掉标签页后重新打开，只要房间未关闭，访客身份和座位都会自动恢复。</p>
+
+<!-- ═══ Part 2 ═══ -->
+<h2 id="part2"><span class="num">2</span>我想当房主，怎么开房？</h2>
+
+<h3 id="s2-0">2.0 先注册账号</h3>
+<p>当房主必须登录。如果还没有账号：</p>
+
+<div class="screenshot-wrap" onclick="openLightbox(this)">
+  <img src="../../public/screenshots/2.0register.png" alt="注册页面" loading="lazy">
+</div>
+<p class="screenshot-caption">注册页 — 填写邮箱和密码，注册后会有初始积分</p>
+
+<ol>
+  <li>点击右上角「登录 / 注册」。</li>
+  <li>切到「注册」，输入邮箱和密码。</li>
+  <li>注册成功后会有初始积分，可直接用于创建房间。</li>
+</ol>
+
+<h3 id="s2-1">2.1 创建房间</h3>
+
+<div class="screenshot-wrap" onclick="openLightbox(this)">
+  <img src="../../public/screenshots/2.1createroom.png" alt="创建房间表单" loading="lazy">
+</div>
+<p class="screenshot-caption">创建房间 — 设置座位数、每位玩家积分和可选密码</p>
+
+<ol>
+  <li>登录后点击「创建房间」。</li>
+  <li>填写房间名称（2–8 字符）、座位数量（1–20）、每位玩家积分（0–100）、可选密码。</li>
+  <li>点击「创建房间」，复制房间码发给玩家。</li>
+</ol>
+<div class="tip"><strong>积分消耗 = 座位数量 × 每位玩家积分。</strong>例如 5 座 × 10 分 = 消耗 50 个人积分，这 50 分分配到 5 个座位上。关闭房间时剩余临时积分退还房主。</div>
+
+<h3 id="s2-2">2.2 临时积分建议</h3>
+<ul>
+  <li>纯聊天 / 测试：设为 0</li>
+  <li>正常海龟汤：建议 5–20</li>
+  <li>新手局 / 长题：可以更高</li>
+</ul>
+<p>访客没有个人积分，如果希望访客能问 AI，创建房间时最好给每个座位设置初始积分。</p>
+
+<h3 id="s2-4">2.4 怎么给玩家赠送积分</h3>
+
+<div class="screenshot-wrap" onclick="openLightbox(this)">
+  <img src="../../public/screenshots/2.4sendtempscore.png" alt="赠送积分操作" loading="lazy">
+</div>
+<p class="screenshot-caption">「房间管理」标签 → 座位右上角「···」菜单 → 赠送积分</p>
+
+<ol>
+  <li>打开「房间详情」→「房间管理」标签。</li>
+  <li>找到目标座位，点击右上角「···」菜单。</li>
+  <li>点击「赠送积分」，输入数量后确认。</li>
+</ol>
+<p>注意：赠送消耗<strong>房主个人积分</strong>，增加目标座位临时积分；不能赠送给自己的座位，也不能用自己座位的临时积分赠送。</p>
+
+<h3 id="s2-5">2.5 怎么调换玩家位置</h3>
+<ol>
+  <li>打开「房间详情」→「房间管理」。</li>
+  <li>找到要移动的玩家座位，点击「···」→「移动位置」。</li>
+  <li>在弹出的座位图里选择一个空位确认。</li>
+</ol>
+<p>限制：房主座位不能移动；只能移动到空座位。</p>
+
+<h3 id="s2-6">2.6 怎么踢出玩家</h3>
+<ol>
+  <li>打开「房间详情」→「房间管理」。</li>
+  <li>找到玩家座位，点击「···」→「移出房间」。</li>
+</ol>
+<p>被移出的玩家会离开房间，原座位空出来。有人说"名字被占用"时，可以检查座位列表并移出同名访客。</p>
+
+<h3 id="s2-7">2.7 怎么关闭房间</h3>
+<p>房主需使用「关闭房间」而不是直接退出。关闭后所有玩家离开，所有座位剩余临时积分汇总退还给房主个人积分。</p>
+
+<!-- ═══ Part 3 ═══ -->
+<h2 id="part3"><span class="num">3</span>我是房主，怎么开启海龟汤？</h2>
+
+<h3 id="s3-1">3.1 开启题目</h3>
+
+<div class="screenshot-pair">
+  <div class="screenshot-wrap" onclick="openLightbox(this)">
+    <img src="../../public/screenshots/3.1switchtosouptab.png" alt="切换到海龟汤标签" loading="lazy">
+  </div>
+  <div class="screenshot-wrap" onclick="openLightbox(this)">
+    <img src="../../public/screenshots/3.1chooseapuzzle.png" alt="选择题目列表" loading="lazy">
+  </div>
+</div>
+<p class="screenshot-caption">左：「海龟汤」标签 → 点击「题目 ▾」展开菜单&nbsp;&nbsp;右：题库列表，可按难度筛选</p>
+
+<ol>
+  <li>打开「房间详情」→「海龟汤」标签。</li>
+  <li>点击「题目 ▾」→「选择题目」。</li>
+  <li>在题库里选择题目，可按难度筛选，预览后点击「开始这道题」。</li>
+</ol>
+<p>开始后，所有玩家的「询问 / 提示 / 尝试推理」模式解锁。</p>
+
+<h3 id="s3-3">3.3 进度与事实总结</h3>
+<p>「海龟汤」标签里可以看到当前题目状态（进行中 / 已推理成功）和「事实总结」。事实总结像公共白板，AI 确认的关键事实会整理在这里，方便全员继续推理。</p>
+
+<h3 id="s3-4">3.4 切换 / 停止题目</h3>
+<p>「题目 ▾」菜单里：<strong>切换题目</strong> — 中止当前题，重新选题，AI 不会把旧题事实混入新题；<strong>停止题目</strong> — 暂停海龟汤，玩家回到普通聊天，直到下次选题。</p>
+
+<!-- ═══ 通用说明 ═══ -->
+<h2 id="ai-answers"><span class="num">4</span>AI 询问的四种回答</h2>
+
+<div class="ai-tags">
+  <span class="ai-tag tag-yes">是</span>
+  <span class="ai-tag tag-no">否</span>
+  <span class="ai-tag tag-irr">与此无关</span>
+  <span class="ai-tag tag-amb">模糊问题</span>
+</div>
+
+<table class="doc-table">
+  <thead><tr><th>回答</th><th>含义</th></tr></thead>
+  <tbody>
+    <tr><td><span class="ai-tag tag-yes" style="font-size:0.72rem;padding:2px 8px;">是</span></td><td>你的判断被汤底明确支持</td></tr>
+    <tr><td><span class="ai-tag tag-no" style="font-size:0.72rem;padding:2px 8px;">否</span></td><td>你的判断和汤底明确冲突</td></tr>
+    <tr><td><span class="ai-tag tag-irr" style="font-size:0.72rem;padding:2px 8px;">与此无关</span></td><td>这件事就算知道了，也不影响解谜主线</td></tr>
+    <tr><td><span class="ai-tag tag-amb" style="font-size:0.72rem;padding:2px 8px;">模糊问题</span></td><td>问法不能稳定地用是/否回答，建议换一种表述</td></tr>
+  </tbody>
+</table>
+
+<p>把"为什么他离开？"改成：</p>
+<ul>
+  <li>"他离开是因为害怕吗？"</li>
+  <li>"他离开前知道真相了吗？"</li>
+  <li>"他离开和另一个人有关吗？"</li>
+</ul>
+
+<h2 id="reasoning"><span class="num">5</span>尝试推理的三种结果</h2>
+
+<table class="doc-table">
+  <thead><tr><th>结果</th><th>含义</th><th>关键点覆盖率</th></tr></thead>
+  <tbody>
+    <tr><td><strong style="color:#065f46">推理正确</strong></td><td>覆盖大部分关键事实，题目标记为已推理成功</td><td>≥ 70%</td></tr>
+    <tr><td><strong style="color:#92400e">部分正确</strong></td><td>抓到一部分关键事实，还缺重要环节</td><td>20%–70%</td></tr>
+    <tr><td><strong style="color:#991b1b">推理不正确</strong></td><td>覆盖太少，方向可能需要调整</td><td>&lt; 20%</td></tr>
+  </tbody>
+</table>
+
+<h2 id="modes"><span class="num">6</span>聊天区四种模式速查</h2>
+
+<table class="doc-table">
+  <thead><tr><th>模式</th><th>用途</th><th>消耗</th><th>字数限制</th></tr></thead>
+  <tbody>
+    <tr><td>聊天</td><td>普通聊天，不问 AI</td><td>0</td><td>300 字</td></tr>
+    <tr><td>询问</td><td>向 AI 问一个是非判断</td><td>1 积分</td><td>100 字</td></tr>
+    <tr><td>提示</td><td>请求 AI 给一条线索</td><td>1 积分 + 1 次提示机会</td><td>50 字</td></tr>
+    <tr><td>尝试推理</td><td>提交完整推理</td><td>2 积分</td><td>300 字</td></tr>
+  </tbody>
+</table>
+
+<h2 id="faq"><span class="num">7</span>常见问题</h2>
+
+<div class="faq-item">
+  <div class="faq-q">我是访客，为什么问不了 AI？</div>
+  <div class="faq-a">座位临时积分不足。请找房主给你的座位赠送积分，或下次创建房间时设置「每位玩家积分」。</div>
+</div>
+<div class="faq-item">
+  <div class="faq-q">名字被占用怎么办？</div>
+  <div class="faq-a">换一个访客名；或联系房主把同名访客移出房间。</div>
+</div>
+<div class="faq-item">
+  <div class="faq-q">为什么只能聊天，不能询问 AI？</div>
+  <div class="faq-a">房主还没开始题目。请房主打开「海龟汤」标签，点击「题目 ▾」选择题目。</div>
+</div>
+<div class="faq-item">
+  <div class="faq-q">提示按钮为什么不能点？</div>
+  <div class="faq-a">没有提示机会。询问 3 次 +1 次机会，推理 1 次 +1 次机会。</div>
+</div>
+<div class="faq-item">
+  <div class="faq-q">AI 回"模糊问题"是为什么？</div>
+  <div class="faq-a">问题不是是非题，或一次问了多个判断。改成一个能回答"是/否"的句子。</div>
+</div>
+<div class="faq-item">
+  <div class="faq-q">AI 没有马上回答？</div>
+  <div class="faq-a">同一房间 AI 请求会排队处理，稍等即可。失败时系统会退还本次积分。</div>
+</div>
+<div class="faq-item">
+  <div class="faq-q">临时积分为什么没有跟着人走？</div>
+  <div class="faq-a">临时积分绑定座位，不绑定人。理解成贴在座位上的餐券，不是玩家口袋里的钱。</div>
+</div>
+<div class="faq-item">
+  <div class="faq-q">赠送积分消耗谁的？</div>
+  <div class="faq-a">消耗房主<strong>个人积分</strong>，增加目标座位临时积分。不能用自己座位上的临时积分赠送。</div>
+</div>
+
+</main>
+</div>
+
+<!-- ── Lightbox ── -->
+<div id="lightbox" onclick="closeLightbox()">
+  <span id="lightbox-close" onclick="closeLightbox()">✕</span>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<script>
+  function toggleNav() {
+    const nav = document.getElementById('docNav');
+    const btn = document.getElementById('navToggle');
+    const open = nav.classList.toggle('open');
+    btn.textContent = open ? '目录 ▲' : '目录 ▼';
+  }
+  // close nav when a link is clicked on mobile
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.doc-nav a').forEach(a => {
+      a.addEventListener('click', () => {
+        document.getElementById('docNav').classList.remove('open');
+        document.getElementById('navToggle').textContent = '目录 ▼';
+      });
+    });
+  });
+
+  function openLightbox(wrap) {
+    document.getElementById('lightbox-img').src = wrap.querySelector('img').src;
+    document.getElementById('lightbox').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+</script>
+</body>
+</html>

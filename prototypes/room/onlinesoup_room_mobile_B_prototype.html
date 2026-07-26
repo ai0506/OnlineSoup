@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>汤局 · 手机端房间（方案 B 交互原型）</title>
+<style>
+  :root{
+    --ink:#111827; --muted:#6b7280; --paper:#ffffff; --surface:#f9fafb;
+    --navy:#1e293b; --navy-dark:#0f172a; --line:#e5e7eb; --danger:#dc2626;
+    --blue:#1d4ed8; --blue-soft:#eff6ff; --blue-line:#bfdbfe;
+    --yes:rgba(34,197,94,.14); --yes-line:rgba(34,197,94,.4);
+    --no:rgba(239,68,68,.12); --no-line:rgba(239,68,68,.4);
+    --amber-bg:#fef3c7; --amber-ink:#92400e; --green-bg:#dcfce7; --green-ink:#166534;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:#e9edf2; color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    display:flex;flex-direction:column;align-items:center;gap:14px;padding:26px 12px 40px;
+  }
+  .hint-bar{font-size:.82rem;color:#475569;text-align:center;max-width:420px;line-height:1.6}
+  .hint-bar b{color:#1e293b}
+
+  /* phone */
+  .phone{width:390px;max-width:100%;height:812px;border-radius:44px;background:#0b1220;
+    padding:12px;box-shadow:0 22px 50px -18px rgba(15,23,42,.55);
+    flex:0 0 auto} /* never shrink: keeps phone size stable across tab switches */
+  .screen{position:relative;width:100%;height:100%;border-radius:33px;overflow:hidden;
+    background:var(--paper);display:flex;flex-direction:column}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:130px;height:26px;
+    background:#0b1220;border-radius:0 0 16px 16px;z-index:60}
+
+  .muted{color:var(--muted)}
+  .badge{display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:.68rem;font-weight:700}
+  .b-cost{background:var(--amber-bg);color:var(--amber-ink)}
+  .b-hint{background:var(--green-bg);color:var(--green-ink)}
+  .b-diff{background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:999px;font-size:.7rem;font-weight:700}
+
+  /* topbar */
+  .topbar{display:flex;align-items:center;gap:10px;padding:30px 14px 12px;border-bottom:1px solid var(--line);background:var(--paper)}
+  .topbar .grow{flex:1;min-width:0}
+  .topbar .rn{font-weight:700;font-size:.95rem;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topbar .rc{font-size:.68rem;color:var(--navy);letter-spacing:.12em;font-weight:700}
+  .top-pts{font-size:.74rem;color:#334155;background:var(--surface);border:1px solid var(--line);padding:5px 10px;border-radius:999px;white-space:nowrap}
+  .top-pts b{color:var(--ink)}
+
+  /* segmented */
+  .seg{display:flex;gap:6px;padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--line)}
+  .seg button{flex:1;padding:8px 0;border-radius:9px;border:1px solid var(--line);background:#fff;
+    color:#334155;font-size:.82rem;cursor:pointer;transition:.12s;font-weight:500}
+  .seg button.active{background:var(--navy);color:#fff;border-color:var(--navy);font-weight:600}
+  .seg .n{color:var(--blue);font-weight:700}
+  .seg button.active .n{color:#bfdbfe}
+
+  /* views */
+  .view{flex:1;min-height:0;display:none;flex-direction:column}
+  .view.active{display:flex}
+
+  /* ===== CHAT ===== */
+  .pin{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fffbeb;border-bottom:1px solid #fde68a;cursor:pointer}
+  .pin .b-diff{flex:0 0 auto}
+  .pin .txt{flex:1;font-size:.8rem;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pin .go{font-size:.72rem;color:var(--blue);font-weight:600;white-space:nowrap}
+  .pin.locked{background:#f1f5f9;border-bottom-color:var(--line)}
+  .pin.locked .txt{color:var(--muted)}
+
+  .msgs{flex:1;overflow-y:auto;background:var(--surface);padding:12px}
+  .sys{display:flex;justify-content:center;margin:6px 0 12px}
+  .sys span{padding:3px 10px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--muted);font-size:.72rem}
+  .m-row{margin-bottom:12px;padding-bottom:9px;border-bottom:1px solid rgba(229,231,235,.8)}
+  .m-row.mine .m-body{color:#0f172a}
+  .m-meta{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-bottom:3px;color:var(--muted);font-size:.75rem}
+  .m-meta b{color:var(--navy);font-weight:700}
+  .m-body{font-size:.9rem;line-height:1.55;overflow-wrap:anywhere;white-space:pre-wrap}
+  .m-time{color:var(--muted);font-size:.66rem;margin-left:6px}
+  .q-badge{background:var(--blue-soft);color:var(--blue);padding:1px 6px;border-radius:4px;font-size:.66rem;font-weight:700}
+  .q-badge.hint{background:#dcfce7;color:#166534}
+  .q-badge.reason{background:#ede9fe;color:#5b21b6}
+
+  .ai-card{margin:2px auto 14px;max-width:88%;border-radius:12px;padding:10px 12px;font-size:.86rem;line-height:1.5}
+  .ai-card .an{font-size:.68rem;color:var(--blue);font-weight:700;margin-bottom:4px;text-align:center}
+  .ai-card .lbl{display:inline-block;margin-right:8px;padding:1px 7px;border-radius:5px;font-size:.68rem;font-weight:800}
+  .ai-yes{background:var(--yes);border:1px solid var(--yes-line)} .ai-yes .lbl{background:#bbf7d0;color:#14532d}
+  .ai-no{background:var(--no);border:1px solid var(--no-line)} .ai-no .lbl{background:#fecaca;color:#7f1d1d}
+  .ai-amb{background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.4)} .ai-amb .lbl{background:#e9d5ff;color:#6b21a8}
+  .ai-plain{background:#f8fafc;border:1px solid var(--blue-line)} .ai-plain .lbl{background:#dbeafe;color:#1e40af}
+
+  .typing{display:flex;align-items:center;gap:7px;justify-content:center;color:var(--muted);font-size:.78rem;margin:2px 0 12px}
+  .typing i{width:5px;height:5px;border-radius:50%;background:var(--navy);opacity:.4;animation:bnc 1.4s infinite}
+  .typing i:nth-child(2){animation-delay:.2s} .typing i:nth-child(3){animation-delay:.4s}
+  @keyframes bnc{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+
+  /* composer */
+  .composer{border-top:1px solid var(--line);background:var(--paper);padding:8px 12px 12px}
+  .modes{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid var(--line);scrollbar-width:none}
+  .modes::-webkit-scrollbar{display:none}
+  .mode{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border:1px solid var(--line);
+    border-radius:8px;background:#fff;color:var(--muted);font-size:.8rem;font-weight:500;white-space:nowrap;cursor:pointer}
+  .mode.active{color:var(--navy);background:var(--blue-soft);border-color:var(--navy);font-weight:600}
+  .mode:disabled{opacity:.42;cursor:not-allowed}
+  .ta{display:flex;align-items:flex-end;gap:8px}
+  .ta textarea{flex:1;min-height:44px;max-height:88px;resize:none;border:1px solid var(--line);border-radius:10px;
+    padding:11px 12px;background:var(--surface);font-size:.86rem;color:var(--ink);font-family:inherit}
+  .send{flex:0 0 auto;height:42px;padding:0 16px;border:0;border-radius:10px;background:var(--navy);color:#fff;font-weight:600;font-size:.86rem;cursor:pointer}
+  .send:disabled{opacity:.4;cursor:not-allowed}
+  .cfoot{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:.73rem;color:var(--muted)}
+  .cfoot .cc.near{color:var(--danger);font-weight:600}
+  .locknote{font-size:.74rem;color:var(--muted);margin:-2px 0 8px}
+
+  /* ===== PUZZLE ===== */
+  .pane{flex:1;overflow-y:auto;padding:16px 14px 24px}
+  .p-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .p-head .lbl{font-size:.78rem;color:var(--muted);font-weight:600}
+  .btn{padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:.8rem;cursor:pointer;color:#334155;font-weight:500}
+  .btn.primary{background:var(--navy);color:#fff;border-color:var(--navy);font-weight:600}
+  .btn.danger{color:var(--danger);border-color:#fecaca}
+  .p-card{border:1px solid var(--blue-line);border-radius:14px;background:#fff;overflow:hidden}
+  .p-card .top{display:flex;align-items:center;gap:8px;padding:12px 14px;background:linear-gradient(180deg,#f8fbff,#fff);border-bottom:1px solid #eef2ff}
+  .p-title{flex:1;font-weight:700;font-size:.95rem}
+  .p-surface{padding:14px;font-size:.92rem;line-height:1.7;color:#1f2937;white-space:pre-wrap}
+  .facts{padding:0 14px 16px}
+  .facts .h{font-size:.74rem;color:var(--muted);font-weight:600;margin-bottom:8px}
+  .fact-chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{padding:4px 10px;border-radius:999px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:.76rem}
+  .facts .empty{font-size:.8rem;color:var(--muted);line-height:1.6}
+  .p-empty{text-align:center;color:var(--muted);padding:60px 20px;font-size:.9rem;line-height:1.7}
+
+  /* ===== SEATS ===== */
+  .seats-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;font-size:.76rem}
+  .seats-meta span{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:#334155}
+  .code-row{display:flex;align-items:center;gap:8px;margin-bottom:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .code-row .code{flex:1;font-size:1.2rem;font-weight:700;letter-spacing:.14em;color:var(--navy)}
+  .seat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .seat{position:relative;border:1px solid var(--line);border-radius:12px;padding:10px 11px;background:#fff;display:flex;flex-direction:column;gap:4px}
+  .seat.empty{background:var(--surface)}
+  .seat .snum{font-size:.66rem;color:var(--muted)}
+  .seat .sname{font-weight:700;font-size:.86rem;display:flex;align-items:center;gap:6px}
+  .seat .sname.empty{color:var(--muted);font-weight:500}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .dot.on{background:#16a34a} .dot.off{background:#cbd5e1}
+  .seat .row{display:flex;align-items:center;justify-content:space-between}
+  .sid{font-size:.66rem;font-weight:700}
+  .sid.owner{color:#b45309} .sid.reg{color:var(--blue)} .sid.guest{color:var(--muted)}
+  .spts{font-size:.7rem;color:#166534;font-weight:600}
+  .seat .more{position:absolute;top:8px;right:8px;width:24px;height:22px;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer;color:var(--muted);font-size:.8rem;line-height:1;display:grid;place-items:center}
+  .seat-menu{position:absolute;top:34px;right:8px;z-index:20;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 24px -8px rgba(15,23,42,.35);padding:6px;min-width:130px;display:none}
+  .seat-menu.open{display:block}
+  .seat-menu button{display:block;width:100%;text-align:left;padding:8px 10px;border:0;background:none;font-size:.8rem;color:#334155;border-radius:6px;cursor:pointer}
+  .seat-menu button:hover{background:var(--surface)}
+  .seat-menu button.danger{color:var(--danger)}
+  .owner-actions{margin-top:18px;display:flex;flex-direction:column;gap:10px}
+
+  /* dialog */
+  .backdrop{position:absolute;inset:0;z-index:100;background:rgba(15,23,42,.4);display:none;align-items:center;justify-content:center;padding:20px}
+  .backdrop.open{display:flex}
+  .dialog{width:100%;max-width:330px;background:#fff;border-radius:14px;overflow:hidden;max-height:82%;display:flex;flex-direction:column}
+  /* picker gets a FIXED height so switching difficulty filters never resizes the window */
+  .dialog.dialog-pick{height:74%}
+  .dialog.dialog-pick .db{flex:1;min-height:0}
+  .dialog .dh{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line);font-weight:600;font-size:.92rem}
+  .dialog .dh .x{border:0;background:none;font-size:1.1rem;color:var(--muted);cursor:pointer}
+  .dialog .db{padding:14px 16px;overflow-y:auto}
+
+  /* secondary dialogs: gift / move / kick */
+  .info-block{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+  .info-row{display:flex;justify-content:space-between;align-items:center;font-size:.82rem;margin:5px 0;color:#334155}
+  .info-row b{color:var(--ink)}
+  .dlg-note{font-size:.76rem;color:var(--muted);line-height:1.6;margin:0 0 12px}
+  .stepper{display:flex;align-items:center;gap:12px;margin:6px 0 4px}
+  .stepper button{width:36px;height:36px;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:1.15rem;cursor:pointer;line-height:1;color:#334155}
+  .stepper button:disabled{opacity:.4;cursor:not-allowed}
+  .stepper input{width:76px;text-align:center;height:36px;border:1px solid var(--line);border-radius:9px;font-size:1rem;font-family:inherit}
+  .dlg-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+  .legend{display:flex;gap:14px;font-size:.72rem;color:var(--muted);margin-bottom:12px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle}
+  .legend i.s{background:#f59e0b} .legend i.t{background:#16a34a} .legend i.o{background:#cbd5e1}
+  .move-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .move-card{border:1px solid var(--line);border-radius:10px;padding:10px 8px;text-align:center;font-size:.78rem;background:#fff}
+  .move-card .mn{font-size:.66rem;color:var(--muted)}
+  .move-card .mname{font-weight:700;margin:3px 0}
+  .move-card .mpts{font-size:.68rem;color:#166534}
+  .move-card .mhint{font-size:.66rem;color:#16a34a;font-weight:600;margin-top:3px}
+  .move-card.src{border-color:#f59e0b;background:#fffbeb}
+  .move-card.tgt{border-color:#16a34a;background:#f0fdf4;cursor:pointer}
+  .move-card.tgt:hover{background:#dcfce7}
+  .move-card.occ{opacity:.5}
+  .filter{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+  .filter button{padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:.76rem;cursor:pointer;color:#334155}
+  .filter button.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .plist{display:flex;flex-direction:column;gap:8px}
+  .pitem{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer;text-align:left}
+  .pitem:hover{border-color:var(--navy)}
+  .pitem.cur{border-color:var(--navy);background:var(--blue-soft)}
+  .pitem .pt{flex:1;font-size:.86rem;font-weight:600}
+  .pitem .cur-tag{font-size:.66rem;color:var(--blue);font-weight:700}
+  .toast{position:absolute;bottom:78px;left:50%;transform:translateX(-50%) translateY(10px);z-index:200;
+    background:#0f172a;color:#fff;font-size:.8rem;padding:9px 16px;border-radius:999px;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+  <div class="hint-bar">
+    <b>方案 B · 可交互静态原型</b>　纯前端，无数据库。可切换 <b>聊天/题目/座位</b>；试试切到<b>询问</b>模式发一条问题（会模拟 AI「是/否」并扣积分）；题目页可切题；座位页点 ··· 有房主菜单。
+  </div>
+
+  <div class="phone"><div class="screen"><div class="notch"></div>
+
+    <div class="topbar">
+      <div class="grow">
+        <div class="rn">深夜食堂</div>
+        <div class="rc">X7K2P9</div>
+      </div>
+      <span class="top-pts">积分 <b id="ptsPersonal">999</b><span id="ptsRoomWrap">+<b id="ptsRoom">14</b>[临]</span></span>
+    </div>
+
+    <div class="seg">
+      <button class="active" data-view="chat">聊天</button>
+      <button data-view="puzzle">题目</button>
+      <button data-view="seats">座位 <span class="n" id="segSeatCount">4</span></button>
+    </div>
+
+    <!-- ===== CHAT VIEW ===== -->
+    <div class="view active" id="view-chat">
+      <div class="pin" id="pinBar">
+        <span class="b-diff">中等</span>
+        <span class="txt" id="pinTxt">男人在海边听到钟声后自杀了…</span>
+        <span class="go">看题 ›</span>
+      </div>
+
+      <div class="msgs" id="msgs">
+        <div class="sys"><span>糖糖 加入了房间</span></div>
+        <div class="m-row">
+          <div class="m-meta"><b>房主·小林</b><span>[1]</span><span>[注册]</span></div>
+          <div class="m-body">大家先想想他为什么要回家。<span class="m-time">21:02</span></div>
+        </div>
+        <div class="m-row">
+          <div class="m-meta"><b>阿柯</b><span>[2]</span><span>[访客]</span><span class="q-badge">询问</span></div>
+          <div class="m-body">他是渔民吗？<span class="m-time">21:05</span></div>
+        </div>
+        <div class="ai-card ai-no">
+          <div class="an">AI 主持 · 回复</div>
+          <span class="lbl">否</span>他的职业和海有关，但不是捕鱼。
+        </div>
+        <div class="m-row">
+          <div class="m-meta"><b>糖糖</b><span>[3]</span><span>[注册]</span></div>
+          <div class="m-body">灯塔看守？<span class="m-time">21:06</span></div>
+        </div>
+      </div>
+
+      <form class="composer" id="composer">
+        <div class="modes" id="modes">
+          <button type="button" class="mode active" data-mode="chat">聊天</button>
+          <button type="button" class="mode" data-mode="ask">询问 <span class="badge b-cost">1pt</span></button>
+          <button type="button" class="mode" data-mode="hint">提示 <span class="badge b-cost">1pt</span></button>
+          <button type="button" class="mode" data-mode="reason">尝试推理 <span class="badge b-cost">2pt</span></button>
+        </div>
+        <div class="locknote" id="lockNote" style="display:none">房主开始题目后，才能使用询问 / 提示 / 尝试推理</div>
+        <div class="ta">
+          <textarea id="input" rows="1" maxlength="300" placeholder="输入聊天内容，Enter 发送"></textarea>
+          <button class="send" id="sendBtn" type="submit">发送</button>
+        </div>
+        <div class="cfoot">
+          <span class="cc" id="charCount">0/300</span>
+          <span id="footRight">提示机会 <b id="hintTokens">2</b> 次</span>
+        </div>
+      </form>
+    </div>
+
+    <!-- ===== PUZZLE VIEW ===== -->
+    <div class="view" id="view-puzzle">
+      <div class="pane" id="puzzlePane"><!-- filled by JS --></div>
+    </div>
+
+    <!-- ===== SEATS VIEW ===== -->
+    <div class="view" id="view-seats">
+      <div class="pane">
+        <div class="code-row">
+          <span class="code">X7K2P9</span>
+          <button class="btn" onclick="toast('已复制房间码')">复制</button>
+          <button class="btn" onclick="toast('已复制邀请链接')">分享</button>
+        </div>
+        <div class="seats-meta">
+          <span>每位玩家 5 积分</span><span>无需密码</span><span>房主：小林</span>
+        </div>
+        <div class="seat-grid" id="seatGrid"><!-- filled by JS --></div>
+        <div class="owner-actions">
+          <button class="btn danger" onclick="toast('（演示）关闭房间将退还临时积分')">关闭房间</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- puzzle picker dialog -->
+    <div class="backdrop" id="pickBackdrop">
+      <div class="dialog dialog-pick">
+        <div class="dh"><span>选择题目</span><button class="x" onclick="closePick()">✕</button></div>
+        <div class="db">
+          <div class="filter" id="pickFilter">
+            <button class="active" data-d="全部">全部</button>
+            <button data-d="简单">简单</button>
+            <button data-d="中等">中等</button>
+            <button data-d="困难">困难</button>
+            <button data-d="抽象">抽象</button>
+          </div>
+          <div class="plist" id="pickList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- seat action dialog (gift / move / kick) -->
+    <div class="backdrop" id="seatBackdrop">
+      <div class="dialog" id="seatDialog"></div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+  </div></div>
+
+<script>
+(function(){
+  // ---------- state ----------
+  var state = {
+    view:'chat', mode:'chat',
+    personal:999, room:14, hintTokens:2,
+    puzzle:{ id:1, title:'海上的钟声', diff:'中等', solved:false,
+      surface:'一个男人在海边听到钟声后，回到家就自杀了。为什么？',
+      facts:['他曾是灯塔看守人','钟声是某种信号'] },
+    seatMenuOpen:null, pickFilter:'全部'
+  };
+  var MODE_META = {
+    chat:{label:'聊天',cost:0,max:300,ph:'输入聊天内容，Enter 发送'},
+    ask:{label:'询问',cost:1,max:100,ph:'向 AI 提问（100 字以内），消耗 1 积分'},
+    hint:{label:'提示',cost:1,max:50,ph:'请求提示（50 字以内），消耗 1 积分 + 1 次提示机会'},
+    reason:{label:'尝试推理',cost:2,max:300,ph:'尝试推理（300 字以内），消耗 2 积分'}
+  };
+  var LIBRARY = [
+    {id:1,title:'海上的钟声',diff:'中等',surface:'一个男人在海边听到钟声后，回到家就自杀了。为什么？',solved:false,played:true},
+    {id:2,title:'半杯水',diff:'简单',surface:'她喝了半杯水，然后笑了。为什么？',solved:false,played:false},
+    {id:3,title:'红色的房间',diff:'困难',surface:'他走进一间全红的房间，出来时头发全白了。发生了什么？',solved:true,played:true},
+    {id:4,title:'第十三层',diff:'抽象',surface:'电梯永远停不到第十三层，直到那天。',solved:false,played:false},
+    {id:5,title:'最后一班地铁',diff:'中等',surface:'她每晚都赶最后一班地铁，某天却再也没回来。',solved:false,played:false}
+  ];
+  var SEATS = [
+    {n:1,name:'小林',id:'owner',online:true,pts:0},
+    {n:2,name:'阿柯',id:'guest',online:true,pts:5},
+    {n:3,name:'糖糖',id:'reg',online:false,pts:5},
+    {n:4,name:'我',id:'reg',online:true,pts:14},
+    {n:5,name:'',id:'',online:false,pts:0},
+    {n:6,name:'',id:'',online:false,pts:0}
+  ];
+  var AI_ANSWERS = [
+    {cls:'ai-yes',lbl:'是',text:'钟声让他确认了那件他一直不愿相信的事。'},
+    {cls:'ai-no',lbl:'否',text:'和这个没有直接关系，再想想他的身份。'},
+    {cls:'ai-yes',lbl:'是',text:'没错，这正是解开谜题的关键一步。'},
+    {cls:'ai-amb',lbl:'模糊问题',text:'这个问题不够明确，试着问一个能用是/否回答的问题。'}
+  ];
+
+  var $ = function(s){return document.querySelector(s)};
+  function now(){var d=new Date();return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
+
+  // ---------- toast ----------
+  var toastTimer;
+  window.toast = function(msg){
+    var t=$('#toast'); t.textContent=msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer=setTimeout(function(){t.classList.remove('show')},1600);
+  };
+
+  // ---------- points ----------
+  function renderPoints(){
+    $('#ptsPersonal').textContent = state.personal;
+    $('#ptsRoom').textContent = state.room;
+    $('#ptsRoomWrap').style.display = state.room>0 ? '' : 'none';
+    $('#hintTokens').textContent = state.hintTokens;
+  }
+  // spend cost: seat(room) points first, then personal
+  function spend(cost){
+    if(cost<=0) return true;
+    if(state.room>=cost){ state.room-=cost; }
+    else if(state.personal>=cost){ state.personal-=cost; }
+    else { toast('积分不足'); return false; }
+    renderPoints(); return true;
+  }
+
+  // ---------- view switch ----------
+  function setView(v){
+    state.view=v;
+    document.querySelectorAll('.seg button').forEach(function(b){b.classList.toggle('active',b.dataset.view===v)});
+    document.querySelectorAll('.view').forEach(function(el){el.classList.toggle('active',el.id==='view-'+v)});
+    if(v==='puzzle') renderPuzzle();
+    if(v==='seats') renderSeats();
+  }
+  document.querySelectorAll('.seg button').forEach(function(b){
+    b.addEventListener('click',function(){setView(b.dataset.view)});
+  });
+  $('#pinBar').addEventListener('click',function(){setView('puzzle')});
+
+  // ---------- pin bar reflects puzzle ----------
+  function renderPin(){
+    var p=state.puzzle, pin=$('#pinBar');
+    if(!p){ pin.classList.add('locked');
+      pin.querySelector('.b-diff').style.display='none';
+      $('#pinTxt').textContent='房主还没有开始题目';
+      pin.querySelector('.go').textContent=''; return; }
+    pin.classList.remove('locked');
+    pin.querySelector('.b-diff').style.display=''; pin.querySelector('.b-diff').textContent=p.diff;
+    $('#pinTxt').textContent=p.surface;
+    pin.querySelector('.go').textContent='看题 ›';
+  }
+
+  // ---------- mode tabs ----------
+  function renderModes(){
+    var has=!!state.puzzle;
+    document.querySelectorAll('.mode').forEach(function(m){
+      var k=m.dataset.mode;
+      var lock=(k!=='chat'&&!has) || (k==='hint'&&has&&state.hintTokens<1);
+      m.disabled=lock;
+      m.classList.toggle('active',k===state.mode);
+    });
+    $('#lockNote').style.display = has ? 'none':'block';
+    var meta=MODE_META[state.mode];
+    var ta=$('#input'); ta.maxLength=meta.max; ta.placeholder=meta.ph;
+    updateCount();
+    // footer right
+    $('#footRight').style.display = (has && state.mode!=='chat') ? '' : (state.mode==='chat'&&has?'':'none');
+    $('#footRight').innerHTML = ' 提示机会 <b id="hintTokens">'+state.hintTokens+'</b> 次';
+    $('#footRight').style.display = has ? '' : 'none';
+  }
+  document.querySelectorAll('.mode').forEach(function(m){
+    m.addEventListener('click',function(){
+      if(m.disabled) return;
+      state.mode=m.dataset.mode;
+      var meta=MODE_META[state.mode];
+      var ta=$('#input'); ta.value=ta.value.slice(0,meta.max);
+      renderModes();
+    });
+  });
+
+  // ---------- char count ----------
+  function updateCount(){
+    var meta=MODE_META[state.mode], ta=$('#input'), cc=$('#charCount');
+    cc.textContent=ta.value.length+'/'+meta.max;
+    cc.classList.toggle('near', ta.value.length>=Math.floor(meta.max*0.85));
+    $('#sendBtn').disabled = ta.value.trim().length===0;
+  }
+  $('#input').addEventListener('input',function(){
+    this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,88)+'px';
+    updateCount();
+  });
+  $('#input').addEventListener('keydown',function(e){
+    if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#composer').requestSubmit();}
+  });
+
+  // ---------- send ----------
+  function scrollBottom(){var m=$('#msgs');m.scrollTop=m.scrollHeight;}
+  function appendUserMsg(text,mode){
+    var badge = mode==='chat'?'' :
+      '<span class="q-badge'+(mode==='hint'?' hint':mode==='reason'?' reason':'')+'">'+MODE_META[mode].label+'</span>';
+    var row=document.createElement('div');
+    row.className='m-row mine';
+    row.innerHTML='<div class="m-meta"><b>我</b><span>[4]</span><span>[注册]</span>'+badge+'</div>'+
+      '<div class="m-body">'+escapeHtml(text)+'<span class="m-time">'+now()+'</span></div>';
+    $('#msgs').appendChild(row); scrollBottom();
+  }
+  function appendTyping(){
+    var t=document.createElement('div'); t.className='typing'; t.id='typingRow';
+    t.innerHTML='<span>AI 主持</span><i></i><i></i><i></i>回复中';
+    $('#msgs').appendChild(t); scrollBottom();
+  }
+  function appendAi(ans){
+    var el=document.createElement('div'); el.className='ai-card '+ans.cls;
+    el.innerHTML='<div class="an">AI 主持 · 回复</div><span class="lbl">'+ans.lbl+'</span>'+escapeHtml(ans.text);
+    $('#msgs').appendChild(el); scrollBottom();
+  }
+  function appendHint(){
+    var el=document.createElement('div'); el.className='ai-card ai-plain';
+    el.innerHTML='<div class="an" style="color:#1e40af">AI 主持 · 提示</div><span class="lbl">提示</span>注意他为什么要特意「回家」这个动作。';
+    $('#msgs').appendChild(el); scrollBottom();
+  }
+  function appendReason(){
+    var solved = Math.random()>0.5;
+    var el=document.createElement('div'); el.className='ai-card '+(solved?'ai-yes':'ai-plain');
+    el.innerHTML='<div class="an" style="color:'+(solved?'#166534':'#1e40af')+'">AI 主持 · 推理结果</div>'+
+      '<span class="lbl">'+(solved?'✓ 推理正确':'部分正确')+'</span>'+
+      (solved?'核心推理成立，本题通关！':'方向对了，但还差一个关键点，继续。');
+    $('#msgs').appendChild(el); scrollBottom();
+    if(solved){ state.puzzle.solved=true; state.hintTokens++; renderPoints(); }
+  }
+
+  $('#composer').addEventListener('submit',function(e){
+    e.preventDefault();
+    var ta=$('#input'), text=ta.value.trim(), mode=state.mode;
+    if(!text) return;
+    var meta=MODE_META[mode];
+    if(mode!=='chat' && !state.puzzle){ toast('需要先开始题目'); return; }
+    if(mode==='hint' && state.hintTokens<1){ toast('没有提示机会'); return; }
+    if(!spend(meta.cost)) return;
+    if(mode==='hint'){ state.hintTokens--; }
+    appendUserMsg(text,mode);
+    ta.value=''; ta.style.height='auto'; updateCount();
+    if(mode==='chat') return;
+    // simulate AI
+    appendTyping();
+    setTimeout(function(){
+      var tr=$('#typingRow'); if(tr) tr.remove();
+      if(mode==='ask') appendAi(AI_ANSWERS[Math.floor(Math.random()*AI_ANSWERS.length)]);
+      else if(mode==='hint') appendHint();
+      else appendReason();
+      renderModes();
+    }, 1100+Math.random()*700);
+  });
+
+  function escapeHtml(s){return s.replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+
+  // ---------- puzzle pane ----------
+  function renderPuzzle(){
+    var p=state.puzzle, pane=$('#puzzlePane');
+    if(!p){
+      pane.innerHTML='<div class="p-head"><span class="lbl">当前题目</span>'+
+        '<button class="btn primary" onclick="openPick()">选择题目</button></div>'+
+        '<div class="p-empty">房主还没有开始题目。<br>点右上角「选择题目」开始一局。</div>';
+      return;
+    }
+    var factsHtml = p.facts.length
+      ? '<div class="fact-chips">'+p.facts.map(function(f){return '<span class="chip">'+escapeHtml(f)+'</span>'}).join('')+'</div>'
+      : '<p class="empty">暂无已确认事实，向 AI 提问或请求提示后系统会自动归纳在这里。</p>';
+    pane.innerHTML =
+      '<div class="p-head"><span class="lbl">当前题目</span>'+
+        '<div style="display:flex;gap:6px">'+
+          '<button class="btn" onclick="openPick()">切换题目</button>'+
+          '<button class="btn danger" onclick="stopPuzzle()">停止</button>'+
+        '</div>'+
+      '</div>'+
+      '<div class="p-card">'+
+        '<div class="top"><span class="b-diff">'+p.diff+'</span>'+
+          '<span class="p-title">'+escapeHtml(p.title)+'</span>'+
+          '<span class="badge '+(p.solved?'b-hint':'b-cost')+'">'+(p.solved?'✓ 已通关':'○ 进行中')+'</span>'+
+        '</div>'+
+        '<div class="p-surface">'+escapeHtml(p.surface)+'</div>'+
+        '<div class="facts"><div class="h">已确认事实</div>'+factsHtml+'</div>'+
+      '</div>';
+  }
+  window.stopPuzzle=function(){ state.puzzle=null; state.mode='chat'; renderPin(); renderModes(); renderPuzzle(); toast('已停止题目'); };
+
+  // ---------- puzzle picker ----------
+  window.openPick=function(){ state.pickFilter='全部'; renderPickFilter(); renderPickList(); $('#pickBackdrop').classList.add('open'); };
+  window.closePick=function(){ $('#pickBackdrop').classList.remove('open'); };
+  function renderPickFilter(){
+    document.querySelectorAll('#pickFilter button').forEach(function(b){b.classList.toggle('active',b.dataset.d===state.pickFilter)});
+  }
+  document.querySelectorAll('#pickFilter button').forEach(function(b){
+    b.addEventListener('click',function(){state.pickFilter=b.dataset.d;renderPickFilter();renderPickList();});
+  });
+  function renderPickList(){
+    var list=LIBRARY.filter(function(p){return state.pickFilter==='全部'||p.diff===state.pickFilter;});
+    $('#pickList').innerHTML = list.length? list.map(function(p){
+      var cur = state.puzzle && state.puzzle.id===p.id;
+      return '<button class="pitem'+(cur?' cur':'')+'" onclick="pickPuzzle('+p.id+')">'+
+        '<span class="b-diff">'+p.diff+'</span>'+
+        '<span class="pt">'+escapeHtml(p.title)+'</span>'+
+        (cur?'<span class="cur-tag">当前</span>':'')+
+        (p.solved?'<span class="cur-tag" style="color:#166534">✓ 已成功</span>':(p.played?'<span class="cur-tag" style="color:#92400e">○ 进行中</span>':''))+
+      '</button>';
+    }).join('') : '<p class="muted" style="text-align:center;padding:20px">该难度暂无题目</p>';
+  }
+  window.pickPuzzle=function(id){
+    var p=LIBRARY.filter(function(x){return x.id===id})[0]; if(!p)return;
+    state.puzzle={id:p.id,title:p.title,diff:p.diff,surface:p.surface,solved:!!p.solved,
+      facts: p.id===1?['他曾是灯塔看守人','钟声是某种信号']:[]};
+    state.mode='chat'; closePick(); renderPin(); renderModes(); renderPuzzle();
+    toast('已开始《'+p.title+'》');
+  };
+
+  // ---------- seats ----------
+  function renderSeats(){
+    var occ=SEATS.filter(function(s){return s.name}).length;
+    $('#segSeatCount').textContent=occ;
+    $('#seatGrid').innerHTML = SEATS.map(function(s){
+      if(!s.name){
+        return '<div class="seat empty"><span class="snum">座位 '+s.n+'</span>'+
+          '<span class="sname empty"><span class="dot off"></span>等待玩家</span></div>';
+      }
+      var idLabel = s.id==='owner'?'房主':s.id==='reg'?'注册':'访客';
+      var canManage = s.id!=='owner'; // owner can't act on self here
+      return '<div class="seat">'+
+        (canManage?'<button class="more" onclick="toggleSeatMenu('+s.n+',event)">···</button>':'')+
+        '<span class="snum">座位 '+s.n+'</span>'+
+        '<span class="sname"><span class="dot '+(s.online?'on':'off')+'"></span>'+escapeHtml(s.name)+'</span>'+
+        '<div class="row"><span class="sid '+s.id+'">'+idLabel+'</span>'+
+          (s.pts>0?'<span class="spts">'+s.pts+'[临]</span>':'<span></span>')+'</div>'+
+        (canManage?('<div class="seat-menu" id="menu-'+s.n+'">'+
+          '<button onclick="seatAction('+s.n+',\'gift\')">赠送积分</button>'+
+          '<button onclick="seatAction('+s.n+',\'move\')">调整位置</button>'+
+          '<button class="danger" onclick="seatAction('+s.n+',\'kick\')">移出房间</button>'+
+        '</div>'):'')+
+      '</div>';
+    }).join('');
+  }
+  window.toggleSeatMenu=function(n,e){
+    e.stopPropagation();
+    if(state.seatMenuOpen===n){ closeSeatMenu(); return; }
+    closeSeatMenu();
+    state.seatMenuOpen=n;
+    var el=document.getElementById('menu-'+n); if(el) el.classList.add('open');
+  };
+  function closeSeatMenu(){
+    if(state.seatMenuOpen!=null){
+      var el=document.getElementById('menu-'+state.seatMenuOpen); if(el) el.classList.remove('open');
+      state.seatMenuOpen=null;
+    }
+  }
+  document.addEventListener('click',closeSeatMenu);
+
+  // ---------- seat secondary dialogs ----------
+  function openSeatDialog(html){ $('#seatDialog').innerHTML=html; $('#seatBackdrop').classList.add('open'); }
+  window.closeSeatDialog=function(){ $('#seatBackdrop').classList.remove('open'); };
+  $('#seatBackdrop').addEventListener('click',function(e){ if(e.target===this) closeSeatDialog(); });
+
+  window.seatAction=function(n,act){
+    closeSeatMenu();
+    var s=SEATS.filter(function(x){return x.n===n})[0]; if(!s) return;
+    if(act==='gift') openGift(s);
+    else if(act==='move') openMove(s);
+    else openKick(s);
+  };
+
+  // -- gift --
+  var giftAmt=1;
+  function openGift(s){
+    giftAmt=1;
+    openSeatDialog(
+      '<div class="dh"><span>赠送积分给 [<span>'+s.n+'</span>] '+escapeHtml(s.name)+'</span><button class="x" onclick="closeSeatDialog()">✕</button></div>'+
+      '<div class="db">'+
+        '<div class="info-block">'+
+          '<div class="info-row"><span class="muted">你的个人积分</span><b>'+state.personal+'</b></div>'+
+          '<div class="info-row"><span class="muted">'+escapeHtml(s.name)+' 的临时积分</span><b>'+s.pts+'[临]</b></div>'+
+        '</div>'+
+        '<p class="dlg-note">赠送将消耗你的个人积分，增加对方的临时积分。</p>'+
+        '<div class="stepper">'+
+          '<button type="button" onclick="giftStep(-1)">−</button>'+
+          '<input id="giftInput" type="number" min="1" max="'+state.personal+'" value="1" oninput="giftSet(this.value)">'+
+          '<button type="button" onclick="giftStep(1)">+</button>'+
+          '<span class="muted" style="font-size:.76rem">最多 '+state.personal+'</span>'+
+        '</div>'+
+        '<div class="dlg-actions">'+
+          '<button class="btn" onclick="closeSeatDialog()">取消</button>'+
+          '<button class="btn primary" onclick="confirmGift('+s.n+')">确认赠送</button>'+
+        '</div>'+
+      '</div>'
+    );
+  }
+  window.giftStep=function(d){ giftSet(giftAmt+d); };
+  window.giftSet=function(v){
+    v=parseInt(v,10); if(isNaN(v)) v=1;
+    giftAmt=Math.max(1,Math.min(state.personal,v));
+    var el=$('#giftInput'); if(el) el.value=giftAmt;
+  };
+  window.confirmGift=function(n){
+    var s=SEATS.filter(function(x){return x.n===n})[0]; if(!s) return;
+    if(giftAmt<1||giftAmt>state.personal){ toast('积分不足'); return; }
+    state.personal-=giftAmt; s.pts+=giftAmt;
+    renderPoints(); renderSeats(); closeSeatDialog();
+    toast('已赠送 '+giftAmt+' 积分给 '+s.name);
+  };
+
+  // -- move --
+  function openMove(s){
+    var cards=SEATS.map(function(t){
+      var isSrc=t.n===s.n, isOwnerSeat=t.n===1, isEmpty=!t.name;
+      var isTgt=!isSrc&&!isOwnerSeat&&isEmpty;
+      var cls='move-card '+(isSrc?'src':isTgt?'tgt':(!isEmpty?'occ':''));
+      var nameTxt=isSrc?s.name:(t.name||(isOwnerSeat?'房主(锁定)':'空位'));
+      return '<div class="'+cls+'"'+(isTgt?(' onclick="confirmMove('+s.n+','+t.n+')"'):'')+'>'+
+        '<div class="mn">座位 '+t.n+'</div>'+
+        '<div class="mname">'+escapeHtml(nameTxt)+'</div>'+
+        (isTgt?'<div class="mhint">点击移入</div>':'')+
+      '</div>';
+    }).join('');
+    openSeatDialog(
+      '<div class="dh"><span>移动 '+escapeHtml(s.name)+' 到新座位</span><button class="x" onclick="closeSeatDialog()">✕</button></div>'+
+      '<div class="db">'+
+        '<div class="legend"><span><i class="s"></i>当前</span><span><i class="t"></i>可移动</span><span><i class="o"></i>已占用</span></div>'+
+        '<div class="move-grid">'+cards+'</div>'+
+      '</div>'
+    );
+  }
+  window.confirmMove=function(from,to){
+    var src=SEATS.filter(function(x){return x.n===from})[0];
+    var tgt=SEATS.filter(function(x){return x.n===to})[0];
+    if(!src||!tgt||tgt.name) return;
+    tgt.name=src.name; tgt.id=src.id; tgt.online=src.online; tgt.pts=src.pts;
+    src.name=''; src.id=''; src.online=false; src.pts=0;
+    renderSeats(); closeSeatDialog();
+    toast('已把 '+tgt.name+' 移到座位 '+to);
+  };
+
+  // -- kick --
+  function openKick(s){
+    openSeatDialog(
+      '<div class="dh"><span>移出房间</span><button class="x" onclick="closeSeatDialog()">✕</button></div>'+
+      '<div class="db">'+
+        '<p class="dlg-note">确认将 <b>[' +s.n+'] '+escapeHtml(s.name)+'</b> 移出房间？<br>其座位将被释放，剩余临时积分（'+s.pts+'[临]）退还给房主。</p>'+
+        '<div class="dlg-actions">'+
+          '<button class="btn" onclick="closeSeatDialog()">取消</button>'+
+          '<button class="btn danger" style="background:#fef2f2" onclick="confirmKick('+s.n+')">确认移出</button>'+
+        '</div>'+
+      '</div>'
+    );
+  }
+  window.confirmKick=function(n){
+    var s=SEATS.filter(function(x){return x.n===n})[0]; if(!s) return;
+    var name=s.name;
+    s.name=''; s.id=''; s.online=false; s.pts=0;
+    renderSeats(); closeSeatDialog();
+    toast(name+' 已被移出房间');
+  };
+
+  // ---------- init ----------
+  renderPoints(); renderPin(); renderModes(); updateCount();
+})();
+</script>
+</body>
+</html>

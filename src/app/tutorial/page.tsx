@@ -147,12 +147,12 @@ export default function TutorialPage() {
           <div className="tutorial-tip"><strong>名字冲突？</strong> 说明名字已被占用。换一个名字，或联系房主把同名访客移出。</div>
 
           <h3 id="s1-2">1.2 进入后先看哪里</h3>
-          <p>房间页主要分成「聊天区」和「房间详情」。手机或窄屏上，房间详情默认折叠在上方。</p>
+          <p>电脑端主要分成「聊天区」和右侧「房间详情」。竖屏手机（宽度不超过 760px）会切换为「聊天」「题库」「座位」三个全屏标签，并在顶部保留当前题目和积分摘要。</p>
           <div className="tutorial-pair">
             <Shot src="/screenshots/1.2inroomchatandconts_pc.png" alt="PC 端房间页面" onZoom={zoom} />
             <Shot src="/screenshots/1.2inroomchatandconts_phone.png" alt="手机端房间页面" phone onZoom={zoom} />
           </div>
-          <p className="tutorial-caption">左：PC 端布局（聊天区 + 右侧房间详情） 右：手机端（房间详情折叠在上方）</p>
+          <p className="tutorial-caption">左：PC 端布局（聊天区 + 右侧房间详情） 右：旧版手机端示意图；当前竖屏手机使用顶部「聊天 / 题库 / 座位」三标签布局</p>
 
           <h3 id="s1-3">1.3 等房主开始题目</h3>
           <p>房主还没选题前，你只能普通聊天。房主选择题目后，「询问」「提示」「尝试推理」模式会解锁。</p>
