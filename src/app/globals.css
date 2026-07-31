@@ -5068,3 +5068,101 @@ textarea:focus {
 @media (prefers-color-scheme: dark) {
   .admin-error-badge-handled { color: #6ee7b7; background: #052e16; border-color: #14532d; }
 }
+
+/* ── Admin 响应式 ── */
+
+/* 7 个 tab 在窄屏会撑破容器并让整页横向滚动，改为在 tab 条内部横向滚动 */
+.admin-tabs {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.admin-tab {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* grid 子项默认 min-width:auto，会被 min-content 撑破父级宽度 */
+.admin-tabs-shell > section {
+  min-width: 0;
+}
+
+/* 长邮箱等不含空格的字符串是撑宽卡片的主因 */
+.admin-user-summary strong,
+.admin-user-summary span {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .admin-heading,
+  .admin-section-heading.with-action {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-search {
+    width: 100%;
+  }
+
+  .admin-section-actions .button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .admin-message-filters {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .admin-message-filters label {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .admin-filter-actions {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+  }
+
+  .admin-filter-actions > * {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .admin-subtabs {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .admin-subtab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  /* 账户卡片：双列操作区 + 输入框固有最小宽度会把卡片撑出视口 */
+  .admin-user-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-user-summary {
+    flex-wrap: wrap;
+  }
+
+  .admin-user-summary > * {
+    min-width: 0;
+  }
+
+  .inline-admin-form input,
+  .inline-admin-form label {
+    min-width: 0;
+  }
+
+  .password-reset-form {
+    justify-content: stretch;
+  }
+
+  .password-reset-form .button {
+    width: 100%;
+  }
+}
