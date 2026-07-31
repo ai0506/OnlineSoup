@@ -11,6 +11,8 @@ type LoginPageProps = {
 
 const loginErrors: Record<string, string> = {
   login_required: "请先登录后再创建房间",
+  login_required_feedback: "请先登录后再提交反馈",
+  login_required_username: "请先登录后再设置用户名",
   invalid_credentials_form: "请输入有效邮箱或用户名，密码至少需要 6 位",
   invalid_signup_form: "请填写有效邮箱、至少 6 位密码，以及 3 到 8 位英数字下划线用户名",
   invalid_credentials: "邮箱/用户名或密码不正确",

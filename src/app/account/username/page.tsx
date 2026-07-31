@@ -30,7 +30,7 @@ export default async function UsernamePage({
 
   if (!userId) {
     redirect(flashRedirectPath("/login", {
-      code: "login_required",
+      code: "login_required_username",
       kind: "error",
       scope: "login",
     }));

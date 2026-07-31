@@ -59,6 +59,8 @@ const faqItems = [
   ["为什么 AI 没有马上回答？", "同一个房间内 AI 请求会排队处理，避免多人同时提问导致事实冲突。稍等一下即可。如果失败，系统会退还本次积分。"],
   ["为什么临时积分没有跟着人走？", "临时积分绑定座位，不绑定人。可以把它理解成贴在座位上的餐券，而不是玩家口袋里的钱。"],
   ["房主给别人赠送积分时，消耗谁的积分？", "消耗房主个人积分，增加目标座位临时积分。不能用房主自己座位上的临时积分去赠送。"],
+  ["我发现了 AI 判定错误，或者想投稿一道汤，去哪里说？", "登录后点击顶部导航的「反馈」，选择对应类型写下来即可。反馈页会在新标签打开，不会影响你正在进行的房间。"],
+  ["为什么提交反馈时提示「发送太频繁」？", "每个账号每天的反馈条数有限。请把想说的内容整理到一条里，或者明天再提交。"],
 ] as const;
 
 export default function TutorialPage() {
@@ -114,6 +116,7 @@ export default function TutorialPage() {
             <li><a href="#ai-answers">AI 四种回答</a></li>
             <li><a href="#reasoning">推理结果</a></li>
             <li><a href="#modes">模式速查</a></li>
+            <li><a href="#feedback">意见反馈</a></li>
             <li><a href="#faq">常见问题</a></li>
           </ul>
         </aside>
@@ -272,7 +275,21 @@ export default function TutorialPage() {
             </tbody>
           </table>
 
-          <h2 id="faq"><span className="num">7</span>常见问题</h2>
+          <h2 id="feedback"><span className="num">7</span>意见反馈与投稿汤</h2>
+          <p>登录后点击顶部导航的「反馈」，就会在新标签打开反馈页。它和房间互不影响，你可以一边玩一边写。</p>
+          <table className="tutorial-table">
+            <thead><tr><th>反馈类型</th><th>什么时候用</th></tr></thead>
+            <tbody>
+              <tr><td>功能异常</td><td>页面报错、按钮点不动、状态不对。写清楚你在哪个页面、做了什么、结果如何，带上房间码更好定位。</td></tr>
+              <tr><td>AI 判定问题</td><td>AI 的回答明显不对。把你的提问、AI 的回答和你认为正确的答案一起写上。</td></tr>
+              <tr><td>体验建议</td><td>希望改进的地方，以及你理想中的效果。</td></tr>
+              <tr><td>投稿汤</td><td>投稿一道你自己的海龟汤。按输入框里的模板分别写汤面和汤底，也可以补充难度和关键点。</td></tr>
+              <tr><td>其他</td><td>不属于以上分类的内容。</td></tr>
+            </tbody>
+          </table>
+          <div className="tutorial-tip"><strong>访客不能提交反馈</strong>，需要先注册并登录。每条反馈最多 2000 字，每个账号每天可提交的条数有限；提示「发送太频繁」时，把内容整理到一条里，或者明天再提交。</div>
+
+          <h2 id="faq"><span className="num">8</span>常见问题</h2>
           {faqItems.map(([question, answer]) => (
             <div key={question} className="faq-item">
               <div className="faq-q">{question}</div>

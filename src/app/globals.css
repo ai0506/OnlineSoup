@@ -4979,3 +4979,92 @@ textarea:focus {
   .admin-ask-audit-item { background: var(--surface); }
   .admin-ask-audit-item span { color: var(--ink); }
 }
+
+/* 用户反馈 */
+.feedback-card {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.feedback-form textarea {
+  min-height: 220px;
+}
+
+.feedback-counter {
+  display: block;
+  text-align: right;
+  font-size: 0.78rem;
+}
+
+.admin-feedback-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-feedback-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.admin-feedback-meta {
+  flex-wrap: wrap;
+}
+
+.admin-feedback-content {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.admin-feedback-content-wrap {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.admin-feedback-expand {
+  padding: 2px 0;
+  font-size: 0.78rem;
+}
+
+.admin-feedback-actions {
+  margin-top: 0;
+}
+
+.admin-feedback-form {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  justify-items: stretch;
+}
+
+.admin-feedback-form label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.admin-feedback-source {
+  margin: 0;
+  font-size: 0.76rem;
+}
+
+.admin-error-badge-handled {
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .admin-error-badge-handled { color: #6ee7b7; background: #052e16; border-color: #14532d; }
+}

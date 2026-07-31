@@ -3,7 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-type AdminTab = "accounts" | "puzzles" | "messages" | "rooms" | "points" | "emails";
+type AdminTab =
+  | "accounts"
+  | "puzzles"
+  | "messages"
+  | "rooms"
+  | "points"
+  | "feedback"
+  | "emails";
 
 type MessageSubTab = "audit" | "errors" | "backup";
 
@@ -28,6 +35,8 @@ type AdminTabsProps = {
   roomsCount: number;
   pointsContent: React.ReactNode;
   pointsCount: number;
+  feedbackContent: React.ReactNode;
+  feedbackOpenCount: number;
   emailContent: React.ReactNode;
 };
 
@@ -45,6 +54,7 @@ const TAB_PARAMS: Record<AdminTab, string[]> = {
   ],
   rooms: [],
   points: ["ptUser", "ptType", "ptDateFrom", "ptDateTo"],
+  feedback: ["fbStatus", "fbCategory"],
   emails: [],
 };
 
@@ -79,6 +89,8 @@ export function AdminTabs({
   roomsCount,
   pointsContent,
   pointsCount,
+  feedbackContent,
+  feedbackOpenCount,
   emailContent,
 }: AdminTabsProps) {
   const router = useRouter();
@@ -202,6 +214,16 @@ export function AdminTabs({
           <span>{pointsCount}</span>
         </button>
         <button
+          aria-selected={activeTab === "feedback"}
+          className={`admin-tab${activeTab === "feedback" ? " active" : ""}`}
+          onClick={() => selectTab("feedback")}
+          role="tab"
+          type="button"
+        >
+          用户反馈
+          <span>{feedbackOpenCount}</span>
+        </button>
+        <button
           aria-selected={activeTab === "emails"}
           className={`admin-tab${activeTab === "emails" ? " active" : ""}`}
           onClick={() => selectTab("emails")}
@@ -294,6 +316,10 @@ export function AdminTabs({
 
       <section hidden={activeTab !== "points"} role="tabpanel">
         {pointsContent}
+      </section>
+
+      <section hidden={activeTab !== "feedback"} role="tabpanel">
+        {feedbackContent}
       </section>
 
       <section hidden={activeTab !== "emails"} role="tabpanel">
