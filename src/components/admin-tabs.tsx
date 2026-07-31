@@ -14,31 +14,40 @@ type AdminTab =
 
 type MessageSubTab = "audit" | "errors" | "backup";
 
+// 未加载的 tab 传 null：不显示数字，避免把「未加载」误显示成「0 条」
+type TabCount = number | null;
+
 type AdminTabsProps = {
-  accountCount: number;
+  accountCount: TabCount;
   accountContent: React.ReactNode;
   aiErrorCaseContent: React.ReactNode;
-  aiErrorCaseCount: number;
+  aiErrorCaseCount: TabCount;
   chatBackupContent: React.ReactNode;
-  chatBackupCount: number;
+  chatBackupCount: TabCount;
   cleanupContent: React.ReactNode;
-  cleanupCount: number;
+  cleanupCount: TabCount;
   createPuzzleContent: React.ReactNode;
   initialTab?: AdminTab;
   initialMessageSubTab?: MessageSubTab;
   importPuzzleContent: React.ReactNode;
   messageContent: React.ReactNode;
-  messageCount: number;
+  messageCount: TabCount;
   puzzleContent: React.ReactNode;
-  puzzleCount: number;
+  puzzleCount: TabCount;
   roomsContent: React.ReactNode;
-  roomsCount: number;
+  roomsCount: TabCount;
   pointsContent: React.ReactNode;
-  pointsCount: number;
+  pointsCount: TabCount;
   feedbackContent: React.ReactNode;
-  feedbackOpenCount: number;
+  feedbackOpenCount: TabCount;
   emailContent: React.ReactNode;
 };
+
+function TabBadge({ counts }: { counts: TabCount[] }) {
+  const known = counts.filter((count): count is number => count !== null);
+  if (known.length !== counts.length) return null;
+  return <span>{known.reduce((sum, count) => sum + count, 0)}</span>;
+}
 
 const TAB_PARAMS: Record<AdminTab, string[]> = {
   accounts: ["q"],
@@ -171,7 +180,7 @@ export function AdminTabs({
           type="button"
         >
           账户管理
-          <span>{accountCount}</span>
+          <TabBadge counts={[accountCount]} />
         </button>
         <button
           aria-selected={activeTab === "puzzles"}
@@ -181,7 +190,7 @@ export function AdminTabs({
           type="button"
         >
           题库管理
-          <span>{puzzleCount}</span>
+          <TabBadge counts={[puzzleCount]} />
         </button>
         <button
           aria-selected={activeTab === "messages"}
@@ -191,7 +200,7 @@ export function AdminTabs({
           type="button"
         >
           消息 &amp; 案例
-          <span>{messageCount + aiErrorCaseCount}</span>
+          <TabBadge counts={[messageCount, aiErrorCaseCount]} />
         </button>
         <button
           aria-selected={activeTab === "rooms"}
@@ -201,7 +210,7 @@ export function AdminTabs({
           type="button"
         >
           房间管理
-          <span>{roomsCount + cleanupCount}</span>
+          <TabBadge counts={[roomsCount, cleanupCount]} />
         </button>
         <button
           aria-selected={activeTab === "points"}
@@ -211,7 +220,7 @@ export function AdminTabs({
           type="button"
         >
           积分流水
-          <span>{pointsCount}</span>
+          <TabBadge counts={[pointsCount]} />
         </button>
         <button
           aria-selected={activeTab === "feedback"}
@@ -221,7 +230,7 @@ export function AdminTabs({
           type="button"
         >
           用户反馈
-          <span>{feedbackOpenCount}</span>
+          <TabBadge counts={[feedbackOpenCount]} />
         </button>
         <button
           aria-selected={activeTab === "emails"}
@@ -278,7 +287,7 @@ export function AdminTabs({
             type="button"
           >
             消息审计
-            <span>{messageCount}</span>
+            <TabBadge counts={[messageCount]} />
           </button>
           <button
             aria-selected={msgSubTab === "errors"}
@@ -288,7 +297,7 @@ export function AdminTabs({
             type="button"
           >
             AI 错误案例
-            <span>{aiErrorCaseCount}</span>
+            <TabBadge counts={[aiErrorCaseCount]} />
           </button>
           <button
             aria-selected={msgSubTab === "backup"}
@@ -298,7 +307,7 @@ export function AdminTabs({
             type="button"
           >
             聊天备份
-            <span>{chatBackupCount}</span>
+            <TabBadge counts={[chatBackupCount]} />
           </button>
         </div>
         <div hidden={msgSubTab !== "audit"}>{messageContent}</div>
@@ -309,7 +318,7 @@ export function AdminTabs({
       <section hidden={activeTab !== "rooms"} role="tabpanel">
         {roomsContent}
         <div className="admin-tab-divider">
-          <span>待清理房间 · {cleanupCount} 个</span>
+          <span>待清理房间 · {cleanupCount ?? 0} 个</span>
         </div>
         {cleanupContent}
       </section>

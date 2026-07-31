@@ -624,6 +624,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const loadAccounts = activeTab === "accounts";
   const loadPuzzles = activeTab === "puzzles";
   const loadMessages = activeTab === "messages";
+  const loadRooms = activeTab === "rooms";
   const loadPoints = activeTab === "points";
   const loadFeedback = activeTab === "feedback";
 
@@ -666,27 +667,33 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     );
   }
 
-  const adminMessagesPromise = adminMessagesQuery
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(200)
-    .returns<AdminMessage[]>();
-  const cleanupRoomsPromise = admin.rpc(
-    "admin_list_room_cleanup_candidates",
-  ) as unknown as SupabaseResult<AdminCleanupRoom[]>;
+  const adminMessagesPromise = loadMessages
+    ? adminMessagesQuery
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(200)
+        .returns<AdminMessage[]>()
+    : Promise.resolve({ data: [] as AdminMessage[], error: null });
+  const cleanupRoomsPromise = loadRooms
+    ? (admin.rpc(
+        "admin_list_room_cleanup_candidates",
+      ) as unknown as SupabaseResult<AdminCleanupRoom[]>)
+    : Promise.resolve({ data: [] as AdminCleanupRoom[], error: null });
   const chatBackupDaysPromise = loadMessages
     ? (admin.rpc(
         "admin_list_chat_backup_days",
       ) as unknown as SupabaseResult<ChatBackupDay[]>)
     : Promise.resolve({ data: [] as ChatBackupDay[], error: null });
 
-  const activeRoomsPromise = admin
-    .from("rooms")
-    .select("id, code, name, status, max_members, points_per_seat, created_at, owner_id, current_puzzle_id")
-    .in("status", ["waiting", "playing"])
-    .order("created_at", { ascending: false })
-    .limit(100)
-    .returns<AdminActiveRoomRaw[]>();
+  const activeRoomsPromise = loadRooms
+    ? admin
+        .from("rooms")
+        .select("id, code, name, status, max_members, points_per_seat, created_at, owner_id, current_puzzle_id")
+        .in("status", ["waiting", "playing"])
+        .order("created_at", { ascending: false })
+        .limit(100)
+        .returns<AdminActiveRoomRaw[]>()
+    : Promise.resolve({ data: [] as AdminActiveRoomRaw[], error: null });
 
   let ptTxnsQuery = admin
     .from("points_transactions")
@@ -1581,28 +1588,28 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       )}
 
       <AdminTabs
-        accountCount={visibleUsers.length}
+        accountCount={loadAccounts ? visibleUsers.length : null}
         accountContent={accountContent}
         aiErrorCaseContent={aiErrorCaseContent}
-        aiErrorCaseCount={visibleAiErrorCases.length}
+        aiErrorCaseCount={loadMessages ? visibleAiErrorCases.length : null}
         chatBackupContent={chatBackupContent}
-        chatBackupCount={(chatBackupDays ?? []).length}
+        chatBackupCount={loadMessages ? (chatBackupDays ?? []).length : null}
         createPuzzleContent={createPuzzleContent}
         cleanupContent={cleanupContent}
-        cleanupCount={cleanupRooms?.length ?? 0}
+        cleanupCount={loadRooms ? (cleanupRooms?.length ?? 0) : null}
         initialTab={activeTab}
         initialMessageSubTab={initialMessageSubTab}
         importPuzzleContent={importPuzzleContent}
         messageContent={messageContent}
-        messageCount={adminMessages?.length ?? 0}
+        messageCount={loadMessages ? (adminMessages?.length ?? 0) : null}
         puzzleContent={puzzleContent}
-        puzzleCount={visiblePuzzles.length}
+        puzzleCount={loadPuzzles ? visiblePuzzles.length : null}
         roomsContent={roomsContent}
-        roomsCount={activeRooms.length}
+        roomsCount={loadRooms ? activeRooms.length : null}
         pointsContent={pointsContent}
-        pointsCount={visibleTxns.length}
+        pointsCount={loadPoints ? visibleTxns.length : null}
         feedbackContent={feedbackContent}
-        feedbackOpenCount={feedbackOpenCount}
+        feedbackOpenCount={loadFeedback ? feedbackOpenCount : null}
         emailContent={emailContent}
       />
     </section>

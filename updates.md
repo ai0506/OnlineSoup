@@ -281,3 +281,19 @@
 [ClaudeCode][260731192255] file updated
 [ClaudeCode][260731192259] file updated
 [Claude Code][260731195500] 修正未登录访问 /account/username 时误显示创建房间提示（新增 login_required_username 文案）
+[ClaudeCode][260731205447] file updated
+[ClaudeCode][260731205453] file updated
+[ClaudeCode][260731205458] file updated
+[ClaudeCode][260731205513] file updated
+[ClaudeCode][260731205525] file updated
+[Claude Code][260731205656] 管理端性能与排版优化：消息/清理房间/活跃房间查询补上 tab 判断，未加载 tab 不再显示错误的 0 徽章，新增后台响应式样式
+[ClaudeCode][260731210140] file updated
+[ClaudeCode][260731210151] file updated
+[ClaudeCode][260731210717] file updated
+[ClaudeCode][260731210823] file updated
+[Claude Code][260731211551] 新增仅本地生效的开发用管理员账号（凭据不入库），并修复管理端移动端横向溢出：admin-tabs-shell 子 section 加 min-width:0、长邮箱换行、账户卡片操作区窄屏改单列
+[ClaudeCode][260731211607] file updated
+[ClaudeCode][260731211616] file updated
+[ClaudeCode][260731212013] file updated
+[ClaudeCode][260731212022] file updated
+[ClaudeCode][260731212028] file updated
