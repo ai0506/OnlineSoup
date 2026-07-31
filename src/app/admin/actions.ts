@@ -32,6 +32,11 @@ const aiErrorCaseSchema = z.object({
 const aiErrorCaseUpdateSchema = aiErrorCaseSchema.extend({
   status: aiErrorStatusSchema,
 });
+const feedbackIdSchema = z.uuid();
+const feedbackUpdateSchema = z.object({
+  status: z.enum(["open", "handled", "ignored"]),
+  adminNote: z.string().trim().max(1000).default(""),
+});
 const puzzleSchema = z.object({
   title: z.string().trim().min(1).max(60),
   surface: z.string().trim().min(5).max(1000),
@@ -98,7 +103,7 @@ function normalizeImportItem(item: unknown) {
   return record;
 }
 
-type AdminResultTab = "puzzles" | "messages" | "cleanup" | "ai-errors" | "rooms" | "points" | "emails";
+type AdminResultTab = "puzzles" | "messages" | "cleanup" | "ai-errors" | "rooms" | "points" | "emails" | "feedback";
 
 // 尽量跳回操作前所在的 URL（保留 tab、筛选条件），而不是丢弃状态回到 /admin 首屏
 async function resolveRedirectTarget(tab?: AdminResultTab) {
@@ -993,4 +998,33 @@ export async function batchUpdateAiErrorCaseStatus(formData: FormData) {
 
   revalidatePath("/admin");
   return await redirectAdminResult("message", "ai_error_cases_updated", "ai-errors");
+}
+
+export async function updateFeedbackStatus(formData: FormData) {
+  await requireAdmin();
+
+  const feedbackId = feedbackIdSchema.safeParse(formData.get("feedbackId"));
+  const parsed = feedbackUpdateSchema.safeParse({
+    status: formData.get("status"),
+    adminNote: formData.get("adminNote") ?? "",
+  });
+
+  if (!feedbackId.success || !parsed.success) {
+    return await redirectAdminResult("error", "invalid_feedback", "feedback");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.rpc("admin_update_feedback", {
+    p_feedback_id: feedbackId.data,
+    p_status: parsed.data.status,
+    p_admin_note: parsed.data.adminNote,
+  });
+
+  if (error) {
+    console.error("Admin feedback update failed", error);
+    return await redirectAdminResult("error", "feedback_update_failed", "feedback");
+  }
+
+  revalidatePath("/admin");
+  return await redirectAdminResult("message", "feedback_updated", "feedback");
 }

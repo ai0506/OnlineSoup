@@ -36,6 +36,10 @@ export async function SiteHeader() {
         {email ? (
           <>
             <Link href="/rooms/new">创建房间</Link>
+            {/* 单独新标签打开，避免打断正在进行的房间 */}
+            <Link href="/feedback" rel="noopener" target="_blank">
+              反馈
+            </Link>
             {points !== undefined && (
               <span className="user-points">{points} 积分</span>
             )}

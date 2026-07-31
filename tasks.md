@@ -123,6 +123,7 @@
 - [x] 房间在线人数/在线状态追踪
 - [x] 移动端竖屏房间页三标签全屏布局（聊天/题库/座位，`live-room-seats.tsx` + `puzzle-panel.tsx`，仅作用于 `(orientation: portrait) and (max-width: 760px)`）
 - [x] 自动深色模式（`prefers-color-scheme`，`globals.css`，无手动切换开关）
+- [x] 用户反馈页面 `/feedback`（仅注册用户，5 类含投稿汤，2000 字，每账号每天 3 条限流；后台「用户反馈」tab 支持状态流转、内部备注和筛选）
 - [ ] **待做**：后台题库编辑表单、弹窗在窄屏下的进一步验证
 - [ ] **待做**：公开房间大厅（展示公开房间列表，含筛选和一键加入）
 
@@ -167,4 +168,5 @@
 | `src/components/live-room-seats.tsx` | 座位实时展示 |
 | `src/components/room-chat.tsx` | 聊天组件 |
 | `src/app/rooms/[code]/messages/route.ts` | 消息服务端路由 |
+| `src/app/feedback/page.tsx` | 用户反馈页面与提交 Action |
 | `supabase/migrations/` | 全部数据库迁移（按文件名顺序） |

@@ -18,6 +18,7 @@
   batchUpdateAiErrorCaseStatus,
   updatePuzzle,
   updateUserPassword,
+  updateFeedbackStatus,
   adjustUserPoints,
   updateUserUsername,
 } from "@/app/admin/actions";
@@ -44,6 +45,10 @@ import {
   AdminChatBackupList,
   type ChatBackupDay,
 } from "@/components/admin-chat-backup-list";
+import {
+  AdminFeedbackList,
+  type AdminFeedbackEntry,
+} from "@/components/admin-feedback-list";
 import { AdminFilterForm } from "@/components/admin-filter-form";
 import { AdminEmailForm } from "@/components/admin-email-form";
 import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
@@ -70,6 +75,8 @@ type AdminPageProps = {
     ptType?: string;
     ptDateFrom?: string;
     ptDateTo?: string;
+    fbStatus?: string;
+    fbCategory?: string;
   }>;
 };
 
@@ -80,7 +87,14 @@ type AdminPuzzle = Required<Pick<AdminPuzzleFormValue, "id">> &
     created_at: string;
   };
 
-type AdminTab = "accounts" | "puzzles" | "messages" | "rooms" | "points" | "emails";
+type AdminTab =
+  | "accounts"
+  | "puzzles"
+  | "messages"
+  | "rooms"
+  | "points"
+  | "feedback"
+  | "emails";
 type AiErrorStatus = "open" | "reviewed" | "fixed" | "ignored";
 
 type AdminMessageRoom = {
@@ -247,6 +261,8 @@ const errors: Record<string, string> = {
   invalid_email: "邮件信息不完整，请检查收件邮箱、标题和正文。",
   email_not_configured: "邮件服务还没有配置，请先设置 RESEND_API_KEY 和 ADMIN_EMAIL_FROM。",
   email_send_failed: "邮件发送失败，请检查发件域名、收件人或 Resend 配置。",
+  invalid_feedback: "反馈处理信息无效，请检查状态和备注。",
+  feedback_update_failed: "反馈状态保存失败，请稍后重试。",
 };
 
 const messages: Record<string, string> = {
@@ -268,6 +284,7 @@ const messages: Record<string, string> = {
   cache_entry_updated: "缓存答案已修改。",
   cache_cleared: "整题缓存已清空。",
   email_sent: "邮件已发送。",
+  feedback_updated: "反馈已更新。",
 };
 
 const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -281,7 +298,14 @@ const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
 });
 
 function getAdminTab(value?: string): AdminTab {
-  if (value === "puzzles" || value === "messages" || value === "rooms" || value === "points" || value === "emails") {
+  if (
+    value === "puzzles" ||
+    value === "messages" ||
+    value === "rooms" ||
+    value === "points" ||
+    value === "feedback" ||
+    value === "emails"
+  ) {
     return value;
   }
   // 旧 tab 值向后兼容
@@ -320,6 +344,22 @@ function getPointsTypeFilter(value?: string): PointsTransactionType | "" {
     return value;
   }
   return "";
+}
+
+function getFeedbackStatusFilter(value?: string) {
+  return value === "open" || value === "handled" || value === "ignored"
+    ? value
+    : "";
+}
+
+function getFeedbackCategoryFilter(value?: string) {
+  return value === "bug" ||
+    value === "ai" ||
+    value === "suggestion" ||
+    value === "puzzle" ||
+    value === "other"
+    ? value
+    : "";
 }
 
 function getAiErrorStatusFilter(value?: string) {
@@ -568,6 +608,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const ptTypeFilter = getPointsTypeFilter(params.ptType);
   const ptDateFrom = params.ptDateFrom?.trim() ?? "";
   const ptDateTo = params.ptDateTo?.trim() ?? "";
+  const fbStatusFilter = getFeedbackStatusFilter(params.fbStatus);
+  const fbCategoryFilter = getFeedbackCategoryFilter(params.fbCategory);
   const messageExportParams = new URLSearchParams();
   if (roomCodeFilter) messageExportParams.set("roomCode", roomCodeFilter);
   if (modeFilter) messageExportParams.set("mode", modeFilter);
@@ -583,6 +625,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const loadPuzzles = activeTab === "puzzles";
   const loadMessages = activeTab === "messages";
   const loadPoints = activeTab === "points";
+  const loadFeedback = activeTab === "feedback";
 
   let adminMessagesQuery = admin
     .from("room_messages")
@@ -676,6 +719,25 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         .limit(500)
         .returns<AdminAiErrorCase[]>()
     : Promise.resolve({ data: [] as AdminAiErrorCase[], error: null });
+  let feedbackQuery = admin
+    .from("user_feedback")
+    .select(
+      "id, category, content, status, admin_note, display_name, page_path, device_label, location_label, created_at",
+    );
+
+  if (fbStatusFilter) {
+    feedbackQuery = feedbackQuery.eq("status", fbStatusFilter);
+  }
+  if (fbCategoryFilter) {
+    feedbackQuery = feedbackQuery.eq("category", fbCategoryFilter);
+  }
+
+  const feedbackPromise = loadFeedback
+    ? feedbackQuery
+        .order("created_at", { ascending: false })
+        .limit(300)
+        .returns<AdminFeedbackEntry[]>()
+    : Promise.resolve({ data: [] as AdminFeedbackEntry[], error: null });
   const cacheEntriesPromise = loadPuzzles
     ? admin
         .from("puzzle_qa_cache")
@@ -697,6 +759,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     { data: ptTxnsRaw, error: ptTxnsError },
     { data: cacheEntriesRaw, error: cacheEntriesError },
     { data: chatBackupDays, error: chatBackupDaysError },
+    { data: feedbackEntries, error: feedbackError },
   ] = await Promise.all([
     loadAccounts
       ? admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
@@ -717,6 +780,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     ptTxnsPromise,
     cacheEntriesPromise,
     chatBackupDaysPromise,
+    feedbackPromise,
   ]);
 
   if (usersError) {
@@ -749,6 +813,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   if (cacheEntriesError) {
     throw new Error(`读取问答缓存失败：${cacheEntriesError.message}`);
+  }
+
+  if (feedbackError) {
+    throw new Error(`读取用户反馈失败：${feedbackError.message}`);
   }
 
   // 聊天备份列表不影响其他 tab，报错时降级为空列表，避免整页崩溃。
@@ -1379,6 +1447,65 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     </div>
   );
 
+  const visibleFeedback = feedbackEntries ?? [];
+  const feedbackOpenCount = visibleFeedback.filter(
+    (item) => item.status === "open",
+  ).length;
+  const feedbackTruncated = visibleFeedback.length >= 300;
+
+  const feedbackContent = (
+    <div className="admin-section" key="feedback-section">
+      <div className="admin-section-heading">
+        <h2>用户反馈</h2>
+        <p className="muted">
+          注册用户通过 /feedback 提交的反馈和投稿，每个账号每天最多 3 条。
+        </p>
+        {feedbackTruncated && (
+          <p className="admin-truncated-hint">
+            已达到本次查询上限（300 条），请用状态或类型筛选缩小范围查看。
+          </p>
+        )}
+      </div>
+
+      <AdminFilterForm className="admin-message-filters">
+        <input name="tab" type="hidden" value="feedback" />
+        <label>
+          状态
+          <select defaultValue={fbStatusFilter} name="fbStatus">
+            <option value="">全部</option>
+            <option value="open">待处理</option>
+            <option value="handled">已处理</option>
+            <option value="ignored">忽略</option>
+          </select>
+        </label>
+        <label>
+          类型
+          <select defaultValue={fbCategoryFilter} name="fbCategory">
+            <option value="">全部</option>
+            <option value="bug">功能异常</option>
+            <option value="ai">AI 判定问题</option>
+            <option value="suggestion">体验建议</option>
+            <option value="puzzle">投稿汤</option>
+            <option value="other">其他</option>
+          </select>
+        </label>
+        <div className="admin-filter-actions">
+          <button className="button secondary" type="submit">
+            筛选
+          </button>
+          <a className="button ghost" href="/admin?tab=feedback">
+            清空
+          </a>
+        </div>
+      </AdminFilterForm>
+
+      <AdminFeedbackList
+        entries={visibleFeedback}
+        updateAction={updateFeedbackStatus}
+      />
+    </div>
+  );
+
   const emailContent = (
     <div className="admin-section" key="emails-section">
       <div className="admin-section-heading">
@@ -1420,6 +1547,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             {activeTab === "messages" && `共 ${(adminMessages ?? []).length} 条消息`}
             {activeTab === "rooms" && `${cleanupRooms?.length ?? 0} 个待清理，${activeRooms.length} 个活跃房间`}
             {activeTab === "points" && `共 ${visibleTxns.length} 条积分记录`}
+            {activeTab === "feedback" &&
+              `共 ${visibleFeedback.length} 条反馈，${feedbackOpenCount} 条待处理`}
             {activeTab === "emails" && "发送系统邮件"}
           </p>
         </div>
@@ -1472,6 +1601,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         roomsCount={activeRooms.length}
         pointsContent={pointsContent}
         pointsCount={visibleTxns.length}
+        feedbackContent={feedbackContent}
+        feedbackOpenCount={feedbackOpenCount}
         emailContent={emailContent}
       />
     </section>

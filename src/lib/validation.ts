@@ -64,6 +64,23 @@ export const roomSchema = z.object({
     ),
 });
 
+export const feedbackCategories = [
+  "bug",
+  "ai",
+  "suggestion",
+  "puzzle",
+  "other",
+] as const;
+
+export const feedbackSchema = z.object({
+  category: z.enum(feedbackCategories, "请选择反馈类型"),
+  content: z
+    .string()
+    .trim()
+    .min(1, "请填写反馈内容")
+    .max(2000, "反馈内容最多 2000 字"),
+});
+
 export const guestJoinSchema = z.object({
   code: z
     .string()

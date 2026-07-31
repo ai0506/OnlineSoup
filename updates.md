@@ -220,3 +220,64 @@
 [CodeX][260726135549] 补充整理后的项目资料索引，并修正迁移文档中的相对路径
 [CodeX][260726140331] 核对教程截图引用并按当前移动端、AI、环境变量和安全功能更新项目文档
 [CodeX][260726142417] 修复座位操作菜单被滚动容器裁剪的问题：通过 Portal 固定定位显示赠送积分、调整位置和移出房间
+[ClaudeCode][260731190041] file updated
+[ClaudeCode][260731190045] file updated
+[ClaudeCode][260731190056] file updated
+[ClaudeCode][260731190116] file updated
+[ClaudeCode][260731190127] file updated
+[ClaudeCode][260731190132] file updated
+[ClaudeCode][260731190141] file updated
+[ClaudeCode][260731190145] file updated
+[ClaudeCode][260731190155] file updated
+[ClaudeCode][260731190214] file updated
+[ClaudeCode][260731190218] file updated
+[ClaudeCode][260731190222] file updated
+[ClaudeCode][260731190226] file updated
+[ClaudeCode][260731190230] file updated
+[ClaudeCode][260731190234] file updated
+[ClaudeCode][260731190239] file updated
+[ClaudeCode][260731190243] file updated
+[ClaudeCode][260731190247] file updated
+[ClaudeCode][260731190250] file updated
+[ClaudeCode][260731190256] file updated
+[ClaudeCode][260731190300] file updated
+[ClaudeCode][260731190303] file updated
+[ClaudeCode][260731190310] file updated
+[ClaudeCode][260731190314] file updated
+[ClaudeCode][260731190319] file updated
+[ClaudeCode][260731190325] file updated
+[ClaudeCode][260731190331] file updated
+[ClaudeCode][260731190335] file updated
+[ClaudeCode][260731190338] file updated
+[ClaudeCode][260731190343] file updated
+[ClaudeCode][260731190354] file updated
+[ClaudeCode][260731190357] file updated
+[ClaudeCode][260731190402] file updated
+[ClaudeCode][260731190523] file updated
+[ClaudeCode][260731190530] file updated
+[Claude Code][260731191500] 新增用户反馈功能：独立 /feedback 页面（仅注册用户，5 类含投稿汤，2000 字，每账号每天 3 条限流），user_feedback 表与 submit_user_feedback/admin_update_feedback RPC，后台新增用户反馈 tab 支持状态流转与筛选
+[ClaudeCode][260731191156] file updated
+[ClaudeCode][260731191200] file updated
+[ClaudeCode][260731191212] file updated
+[ClaudeCode][260731191223] file updated
+[ClaudeCode][260731191244] file updated
+[ClaudeCode][260731191254] file updated
+[ClaudeCode][260731191311] file updated
+[Claude Code][260731193000] 教程补充意见反馈与投稿汤章节：/tutorial 页面新增第 7 节和 2 条 FAQ，常见问题改为第 8 节，同步更新 docs/guides/网站使用教程.md 和 使用教程.html
+[ClaudeCode][260731191841] file updated
+[ClaudeCode][260731191845] file updated
+[ClaudeCode][260731191849] file updated
+[ClaudeCode][260731192010] file updated
+[ClaudeCode][260731192015] file updated
+[ClaudeCode][260731192019] file updated
+[ClaudeCode][260731192024] file updated
+[ClaudeCode][260731192046] file updated
+[ClaudeCode][260731192059] file updated
+[ClaudeCode][260731192104] file updated
+[ClaudeCode][260731192108] file updated
+[ClaudeCode][260731192117] file updated
+[Claude Code][260731194500] 修正未登录进入 /feedback 时误显示创建房间提示（新增 login_required_feedback 文案），并同步更新 CLAUDE.md、AGENTS.md、tasks.md、README.md 中的用户反馈说明
+[ClaudeCode][260731192252] file updated
+[ClaudeCode][260731192255] file updated
+[ClaudeCode][260731192259] file updated
+[Claude Code][260731195500] 修正未登录访问 /account/username 时误显示创建房间提示（新增 login_required_username 文案）

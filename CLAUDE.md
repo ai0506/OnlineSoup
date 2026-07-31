@@ -58,6 +58,7 @@ ZHIPU_MODEL=
 - `supabase/migrations`：按文件名顺序执行的数据库迁移
 - `src/app/rooms/[code]/ask/route.ts`：AI 询问、提示、推理的服务端入口
 - `src/app/rooms/[code]/messages/route.ts`：成员聊天消息的服务端读写入口
+- `src/app/feedback/page.tsx`、`src/app/feedback/actions.ts`、`src/components/feedback-form.tsx`：用户反馈页面、提交 Server Action 和表单组件
 - `src/app/admin/page.tsx`、`src/app/admin/actions.ts`、`src/components/admin-*.tsx`：管理后台页面、Server Actions 和后台组件
 
 使用 `@/*` 导入 `src/*` 下的模块。
@@ -102,7 +103,7 @@ RPC 清单会随迁移变化，不在本文件维护完整表。处理具体任�
 ## 管理后台约束
 
 - 管理端入口在 `/admin`，访问前需要管理员身份和二次验证；可信设备通过 HttpOnly HMAC Cookie 记住，不把验证码或设备信任状态暴露给前端脚本。
-- 管理后台现有主标签包括账户、题库、消息与案例、房间、积分流水、邮件发送；消息下有审计、AI 错误案例和聊天备份子标签。
+- 管理后台现有主标签包括账户、题库、消息与案例、房间、积分流水、用户反馈、邮件发送；消息下有审计、AI 错误案例和聊天备份子标签。
 - 后台新增复杂操作优先使用按钮进入弹窗、二级界面或子标签，不直接把大表单塞进列表。
 - 后台筛选和写操作应尽量保留原 tab、子 tab 和筛选参数；避免用户操作后被带回默认页面。
 - 消息、房间等会自动刷新；输入框聚焦或弹窗打开时不要强制刷新打断管理员操作。
@@ -146,6 +147,15 @@ RPC 清单会随迁移变化，不在本文件维护完整表。处理具体任�
 - 房间消息只允许当前房主或持有有效 Cookie 的成员读写；消息读写统一经过 `/rooms/[code]/messages` 路由，`room_messages` 不向 `anon`/`authenticated` 开放直接表权限。
 - Realtime 用于及时刷新界面，不能作为唯一事实来源；页面重新可见、订阅断开时，应通过服务端接口补拉最新状态。
 - 房间页并行使用 Supabase Realtime（`postgres_changes`）和轮询兜底，保证状态可靠性。
+
+## 用户反馈
+
+- 反馈入口是独立页面 `/feedback`，从站点头部新标签打开；它不调用任何房间 RPC，不能影响房间座位、设备锁或会话状态。
+- 只有注册用户可提交，访客不可；页面和 Server Action 都要各自校验登录态，不能只靠前端隐藏入口。
+- 分类固定为 `bug`/`ai`/`suggestion`/`puzzle`/`other`，正文统一 1–2000 字，前端和数据库都要验证。
+- 每账号每天（`Asia/Shanghai` 自然日）限 3 条，判定在 `submit_user_feedback` RPC 内配合 advisory lock 完成；超限只对玩家提示“发送太频繁”，不暴露具体额度。
+- `user_feedback` 表只授 `service_role`；玩家侧走 `submit_user_feedback`（`authenticated`），管理端状态流转走 `admin_update_feedback`（`service_role`）。
+- 内部备注、来源页面、设备和地点标签只在管理端展示，不返回给玩家；不记录原始 IP。
 
 ## 海龟汤题库与 AI 主持
 

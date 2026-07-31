@@ -27,7 +27,7 @@ export async function updateUsername(formData: FormData) {
 
   if (!claimsData?.claims?.sub) {
     await redirectWithFlash("/login", {
-      code: "login_required",
+      code: "login_required_username",
       kind: "error",
       scope: "login",
     });
