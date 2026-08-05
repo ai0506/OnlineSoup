@@ -40,7 +40,7 @@ OnlineSoup（汤局）是一个多人在线海龟汤房间应用。玩家可以�
 | 项目 | 当前信息 |
 | --- | --- |
 | 语言 | TypeScript（严格模式）、SQL |
-| Framework | Next.js 16.2.2（App Router）、React 19.2.0 |
+| Framework | Next.js 16.2.9（本机锁定依赖实际构建版本；`package.json` 声明 `^16.2.2`）、React 19.2.0 |
 | Runtime | Node.js 20.9+；本机检查为 Node.js 24.16.0 |
 | 包管理 | npm，锁定文件为 `package-lock.json`；本机 npm 11.13.0 |
 | 数据库 | Supabase PostgreSQL；77 个版本化迁移位于 `supabase/migrations/` |

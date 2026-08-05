@@ -298,3 +298,4 @@
 [ClaudeCode][260731212022] file updated
 [ClaudeCode][260731212028] file updated
 [CodeX][260805150642] added computer-migration handoff and file transfer inventory
+[CodeX][260805151000] corrected handoff framework version from verified production build
