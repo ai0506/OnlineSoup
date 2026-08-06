@@ -28,3 +28,6 @@ original_questions.json
 puzzles-*.json
 *.examples-preview.json
 # Project guidance and documentation are intentionally tracked.
+
+# macOS finder metadata
+.DS_Store

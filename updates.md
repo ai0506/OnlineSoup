@@ -300,3 +300,5 @@
 [CodeX][260805150642] added computer-migration handoff and file transfer inventory
 [CodeX][260805151000] corrected handoff framework version from verified production build
 [Claude Code][260806123600] 管理后台：切 tab/子 tab 显示加载状态而非空结果，消息 tab 按子 tab 收紧取数，AI 错误案例改服务端筛选，账户 profiles 并行查询，轮询降到 10 秒
+[Claude Code][260806190751] 房间清理改为先归档再删除：新增 room_messages_archive 表，admin_force_close_and_clear_room 归档后删消息，聊天备份统计与 CSV 导出合并归档数据
+[Claude Code][260806205755] 待清理房间规则重做：改以最后消息时间为基准（已关闭 3 天 / 未关闭 7 天），排除 0 消息房间以消除反复上榜的死循环，新增 backup_pending 标记且未备份房间默认不勾选

@@ -1873,6 +1873,22 @@ textarea:focus {
   font-weight: 700;
 }
 
+.admin-cleanup-tags span.admin-cleanup-tag-warning {
+  color: #fff;
+  background: var(--danger);
+}
+
+.admin-cleanup-warning {
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--danger);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
 .admin-subtabs {
   display: inline-flex;
   width: fit-content;
@@ -4978,6 +4994,15 @@ textarea:focus {
   .admin-subtab span { background: #272b38; color: var(--muted); }
   .admin-message-badges span,
   .admin-cleanup-tags span { background: #272b38; color: var(--ink); }
+  .admin-cleanup-tags span.admin-cleanup-tag-warning {
+    background: var(--danger);
+    color: #fff;
+  }
+  .admin-cleanup-warning {
+    background: #2a1a1c;
+    border-color: #7f1d1d;
+    color: #fca5a5;
+  }
   .admin-message-content,
   .admin-ai-error-story div,
   .admin-ai-error-sample div,

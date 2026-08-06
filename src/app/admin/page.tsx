@@ -129,7 +129,8 @@ type AdminCleanupRoom = {
   updated_at: string;
   last_message_at: string | null;
   message_count: number;
-  cleanup_reason: "closed_over_3_days" | "inactive_over_1_day";
+  cleanup_reason: "closed_over_3_days" | "abandoned_over_7_days";
+  backup_pending: boolean;
 };
 
 type AdminActiveRoomRaw = {

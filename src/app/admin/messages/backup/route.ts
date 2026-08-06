@@ -25,6 +25,12 @@ type BackupMessage = {
   } | null;
 };
 
+type ArchivedBackupMessage = Omit<BackupMessage, "rooms"> & {
+  room_code: string;
+  room_name: string;
+  room_status: "waiting" | "playing" | "closed";
+};
+
 const csvColumns: Array<[string, (message: BackupMessage) => string]> = [
   ["message_id", (message) => String(message.id)],
   ["created_at", (message) => message.created_at],
@@ -120,6 +126,48 @@ export async function GET(request: Request) {
       break;
     }
   }
+
+  // 已被管理端清理的房间，其消息保存在归档表里，导出时一并合并。
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await admin
+      .from("room_messages_archive")
+      .select(
+        "id, room_id, seat_id, sender_name, sender_seat_number, sender_type, message_type, message_mode, content, puzzle_id, created_at, room_code, room_name, room_status",
+      )
+      .gte("created_at", range.startIso)
+      .lt("created_at", range.endIso)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1)
+      .returns<ArchivedBackupMessage[]>();
+
+    if (error) {
+      console.error("Admin daily chat backup (archive) failed", error);
+      return Response.json(
+        { error: "导出当日聊天记录失败，请稍后重试。" },
+        { status: 500 },
+      );
+    }
+
+    for (const row of data ?? []) {
+      const { room_code, room_name, room_status, ...rest } = row;
+      messages.push({
+        ...rest,
+        rooms: { code: room_code, name: room_name, status: room_status },
+      });
+    }
+
+    if (!data || data.length < pageSize) {
+      break;
+    }
+  }
+
+  messages.sort((a, b) => {
+    if (a.created_at !== b.created_at) {
+      return a.created_at < b.created_at ? -1 : 1;
+    }
+    return a.id - b.id;
+  });
 
   const { error: markError } = await admin.rpc(
     "admin_mark_chat_backup_downloaded",
