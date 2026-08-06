@@ -299,3 +299,4 @@
 [ClaudeCode][260731212028] file updated
 [CodeX][260805150642] added computer-migration handoff and file transfer inventory
 [CodeX][260805151000] corrected handoff framework version from verified production build
+[Claude Code][260806123600] 管理后台：切 tab/子 tab 显示加载状态而非空结果，消息 tab 按子 tab 收紧取数，AI 错误案例改服务端筛选，账户 profiles 并行查询，轮询降到 10 秒

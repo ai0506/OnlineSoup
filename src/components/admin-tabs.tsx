@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 type AdminTab =
   | "accounts"
@@ -29,6 +29,9 @@ type AdminTabsProps = {
   createPuzzleContent: React.ReactNode;
   initialTab?: AdminTab;
   initialMessageSubTab?: MessageSubTab;
+  // 服务端本次实际取数的 tab / 子 tab，用来区分「还没加载」和「真的没有数据」
+  loadedTab: AdminTab;
+  loadedMessageSubTab: MessageSubTab;
   importPuzzleContent: React.ReactNode;
   messageContent: React.ReactNode;
   messageCount: TabCount;
@@ -43,11 +46,26 @@ type AdminTabsProps = {
   emailContent: React.ReactNode;
 };
 
+function AdminTabLoading({ label }: { label: string }) {
+  return (
+    <div className="admin-tab-loading" role="status" aria-live="polite">
+      <span className="admin-tab-loading-spinner" aria-hidden="true" />
+      <span>正在加载{label}…</span>
+    </div>
+  );
+}
+
 function TabBadge({ counts }: { counts: TabCount[] }) {
   const known = counts.filter((count): count is number => count !== null);
   if (known.length !== counts.length) return null;
   return <span>{known.reduce((sum, count) => sum + count, 0)}</span>;
 }
+
+const MSG_SUB_TAB_PARAM: Record<MessageSubTab, string> = {
+  audit: "messages",
+  errors: "ai-errors",
+  backup: "chat-backup",
+};
 
 const TAB_PARAMS: Record<AdminTab, string[]> = {
   accounts: ["q"],
@@ -89,6 +107,8 @@ export function AdminTabs({
   createPuzzleContent,
   initialTab = "accounts",
   initialMessageSubTab = "audit",
+  loadedTab,
+  loadedMessageSubTab,
   importPuzzleContent,
   messageContent,
   messageCount,
@@ -107,32 +127,40 @@ export function AdminTabs({
   const [msgSubTab, setMsgSubTab] = useState<MessageSubTab>(initialMessageSubTab);
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [, startTransition] = useTransition();
+
+  // 邮件 tab 不需要取数，其他 tab 只有服务端本次加载过才算就绪
+  const tabReady = (tab: AdminTab) => tab === "emails" || tab === loadedTab;
+  const msgSubTabReady = (sub: MessageSubTab) =>
+    loadedTab === "messages" && sub === loadedMessageSubTab;
 
   function selectTab(tab: AdminTab) {
     setActiveTab(tab);
     const url = new URL(window.location.href);
     if (tab === "accounts") {
       url.searchParams.delete("tab");
+    } else if (tab === "messages") {
+      // 保留当前子 tab，避免服务端按审计取数、界面却停在错误案例
+      url.searchParams.set("tab", MSG_SUB_TAB_PARAM[msgSubTab]);
     } else {
       url.searchParams.set("tab", tab);
     }
     cleanUrlForTab(url, tab);
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-    // messages 和 rooms 有专用的 useEffect 轮询处理刷新，其他 tab 需手动触发服务端重取
-    if (tab !== "messages" && tab !== "rooms") {
-      router.refresh();
+    if (tab === "messages" ? !msgSubTabReady(msgSubTab) : !tabReady(tab)) {
+      startTransition(() => router.refresh());
     }
   }
 
   function selectMsgSubTab(sub: MessageSubTab) {
     setMsgSubTab(sub);
     const url = new URL(window.location.href);
-    url.searchParams.set(
-      "tab",
-      sub === "errors" ? "ai-errors" : sub === "backup" ? "chat-backup" : "messages",
-    );
+    url.searchParams.set("tab", MSG_SUB_TAB_PARAM[sub]);
     cleanUrlForTab(url, "messages");
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    if (!msgSubTabReady(sub)) {
+      startTransition(() => router.refresh());
+    }
   }
 
   useEffect(() => {
@@ -149,7 +177,10 @@ export function AdminTabs({
   }, [createOpen, importOpen]);
 
   useEffect(() => {
-    if (activeTab !== "messages" && activeTab !== "rooms") return;
+    // 只有会实时变化且当前可见的列表才轮询：消息审计和房间总览
+    const shouldPoll =
+      activeTab === "rooms" || (activeTab === "messages" && msgSubTab === "audit");
+    if (!shouldPoll) return;
 
     const refreshMessages = () => {
       if (document.visibilityState !== "visible") return;
@@ -163,11 +194,11 @@ export function AdminTabs({
 
       router.refresh();
     };
-    refreshMessages();
-    const intervalId = window.setInterval(refreshMessages, 5000);
+    // 切 tab 时已经触发过一次取数，这里只保留定时兜底
+    const intervalId = window.setInterval(refreshMessages, 10000);
 
     return () => window.clearInterval(intervalId);
-  }, [activeTab, router]);
+  }, [activeTab, msgSubTab, router]);
 
   return (
     <div className="admin-tabs-shell">
@@ -245,7 +276,7 @@ export function AdminTabs({
       </div>
 
       <section hidden={activeTab !== "accounts"} role="tabpanel">
-        {accountContent}
+        {tabReady("accounts") ? accountContent : <AdminTabLoading label="账户" />}
       </section>
 
       <section hidden={activeTab !== "puzzles"} role="tabpanel">
@@ -274,7 +305,7 @@ export function AdminTabs({
             </button>
           </div>
         </div>
-        {puzzleContent}
+        {tabReady("puzzles") ? puzzleContent : <AdminTabLoading label="题库" />}
       </section>
 
       <section hidden={activeTab !== "messages"} role="tabpanel">
@@ -310,25 +341,45 @@ export function AdminTabs({
             <TabBadge counts={[chatBackupCount]} />
           </button>
         </div>
-        <div hidden={msgSubTab !== "audit"}>{messageContent}</div>
-        <div hidden={msgSubTab !== "errors"}>{aiErrorCaseContent}</div>
-        <div hidden={msgSubTab !== "backup"}>{chatBackupContent}</div>
+        <div hidden={msgSubTab !== "audit"}>
+          {msgSubTabReady("audit") ? messageContent : <AdminTabLoading label="消息" />}
+        </div>
+        <div hidden={msgSubTab !== "errors"}>
+          {msgSubTabReady("errors") ? (
+            aiErrorCaseContent
+          ) : (
+            <AdminTabLoading label="AI 错误案例" />
+          )}
+        </div>
+        <div hidden={msgSubTab !== "backup"}>
+          {msgSubTabReady("backup") ? (
+            chatBackupContent
+          ) : (
+            <AdminTabLoading label="聊天备份" />
+          )}
+        </div>
       </section>
 
       <section hidden={activeTab !== "rooms"} role="tabpanel">
-        {roomsContent}
-        <div className="admin-tab-divider">
-          <span>待清理房间 · {cleanupCount ?? 0} 个</span>
-        </div>
-        {cleanupContent}
+        {tabReady("rooms") ? (
+          <>
+            {roomsContent}
+            <div className="admin-tab-divider">
+              <span>待清理房间 · {cleanupCount ?? 0} 个</span>
+            </div>
+            {cleanupContent}
+          </>
+        ) : (
+          <AdminTabLoading label="房间" />
+        )}
       </section>
 
       <section hidden={activeTab !== "points"} role="tabpanel">
-        {pointsContent}
+        {tabReady("points") ? pointsContent : <AdminTabLoading label="积分流水" />}
       </section>
 
       <section hidden={activeTab !== "feedback"} role="tabpanel">
-        {feedbackContent}
+        {tabReady("feedback") ? feedbackContent : <AdminTabLoading label="用户反馈" />}
       </section>
 
       <section hidden={activeTab !== "emails"} role="tabpanel">

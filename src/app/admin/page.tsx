@@ -627,6 +627,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const loadRooms = activeTab === "rooms";
   const loadPoints = activeTab === "points";
   const loadFeedback = activeTab === "feedback";
+  // 消息 tab 再按子 tab 收紧：审计、错误案例、聊天备份互不相干，不必一次全拉
+  const loadMessageAudit = loadMessages && initialMessageSubTab === "audit";
+  const loadAiErrors = loadMessages && initialMessageSubTab === "errors";
+  const loadChatBackup = loadMessages && initialMessageSubTab === "backup";
 
   let adminMessagesQuery = admin
     .from("room_messages")
@@ -667,7 +671,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     );
   }
 
-  const adminMessagesPromise = loadMessages
+  const adminMessagesPromise = loadMessageAudit
     ? adminMessagesQuery
         .order("created_at", { ascending: false })
         .order("id", { ascending: false })
@@ -679,7 +683,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         "admin_list_room_cleanup_candidates",
       ) as unknown as SupabaseResult<AdminCleanupRoom[]>)
     : Promise.resolve({ data: [] as AdminCleanupRoom[], error: null });
-  const chatBackupDaysPromise = loadMessages
+  const chatBackupDaysPromise = loadChatBackup
     ? (admin.rpc(
         "admin_list_chat_backup_days",
       ) as unknown as SupabaseResult<ChatBackupDay[]>)
@@ -716,16 +720,33 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         .limit(300)
         .returns<AdminPointsTransaction[]>()
     : Promise.resolve({ data: [] as AdminPointsTransaction[], error: null });
-  const aiErrorCasesPromise = loadMessages
-    ? admin
-        .from("ai_error_cases")
-        .select(
-          "id, room_id, puzzle_id, question_message_id, ai_message_id, question_content, ai_content, correct_answer, note, status, puzzle_title, puzzle_surface, puzzle_bottom, created_at, updated_at, rooms(code, name, status)",
-        )
+  let aiErrorCasesQuery = admin
+    .from("ai_error_cases")
+    .select(
+      "id, room_id, puzzle_id, question_message_id, ai_message_id, question_content, ai_content, correct_answer, note, status, puzzle_title, puzzle_surface, puzzle_bottom, created_at, updated_at, rooms(code, name, status)",
+    );
+
+  if (aiErrorStatusFilter) {
+    aiErrorCasesQuery = aiErrorCasesQuery.eq("status", aiErrorStatusFilter);
+  }
+
+  const aiErrorCasesPromise = loadAiErrors
+    ? aiErrorCasesQuery
         .order("created_at", { ascending: false })
         .limit(500)
         .returns<AdminAiErrorCase[]>()
     : Promise.resolve({ data: [] as AdminAiErrorCase[], error: null });
+  // 审计子 tab 只需要知道哪些 AI 回复已收录，不必拉整份案例正文
+  const markedAiMessagesPromise = loadMessageAudit
+    ? admin
+        .from("ai_error_cases")
+        .select("ai_message_id")
+        .not("ai_message_id", "is", null)
+        .returns<{ ai_message_id: number | null }[]>()
+    : Promise.resolve({
+        data: [] as { ai_message_id: number | null }[],
+        error: null,
+      });
   let feedbackQuery = admin
     .from("user_feedback")
     .select(
@@ -767,6 +788,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     { data: cacheEntriesRaw, error: cacheEntriesError },
     { data: chatBackupDays, error: chatBackupDaysError },
     { data: feedbackEntries, error: feedbackError },
+    { data: markedAiMessages },
+    { data: profiles, error: profilesError },
   ] = await Promise.all([
     loadAccounts
       ? admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
@@ -788,6 +811,23 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     cacheEntriesPromise,
     chatBackupDaysPromise,
     feedbackPromise,
+    markedAiMessagesPromise,
+    // profiles 不依赖 auth 用户列表，和 listUsers 并行拉，少一次串行往返
+    loadAccounts
+      ? admin
+          .from("profiles")
+          .select("id, display_name, username, points, created_at")
+          .limit(1000)
+      : Promise.resolve({
+          data: [] as {
+            id: string;
+            display_name: string | null;
+            username: string | null;
+            points: number;
+            created_at: string;
+          }[],
+          error: null,
+        }),
   ]);
 
   if (usersError) {
@@ -862,13 +902,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   }
 
   const users = usersData.users;
-  const userIds = users.map((user) => user.id);
-  const { data: profiles, error: profilesError } = userIds.length
-    ? await admin
-        .from("profiles")
-        .select("id, display_name, username, points, created_at")
-        .in("id", userIds)
-    : { data: [], error: null };
 
   if (profilesError) {
     throw new Error(`读取积分失败：${profilesError.message}`);
@@ -1000,13 +1033,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     );
   });
   const markedAiMessageIds = new Set(
-    (aiErrorCases ?? [])
+    (markedAiMessages ?? [])
       .map((item) => item.ai_message_id)
       .filter((id): id is number => typeof id === "number"),
   );
-  const visibleAiErrorCases = (aiErrorCases ?? []).filter((item) =>
-    aiErrorStatusFilter ? item.status === aiErrorStatusFilter : true,
-  );
+  const visibleAiErrorCases = aiErrorCases ?? [];
 
   // 查询命中硬编码上限时给出提示，避免管理员误以为数据就这么多
   const usersTruncated = users.length >= 1000;
@@ -1551,7 +1582,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <p className="lead">
             {activeTab === "accounts" && `共 ${users.length} 个账户`}
             {activeTab === "puzzles" && `共 ${(puzzles ?? []).length} 道题目`}
-            {activeTab === "messages" && `共 ${(adminMessages ?? []).length} 条消息`}
+            {activeTab === "messages" &&
+              (loadAiErrors
+                ? `共 ${visibleAiErrorCases.length} 条 AI 错误案例`
+                : loadChatBackup
+                  ? `共 ${(chatBackupDays ?? []).length} 天聊天备份`
+                  : `共 ${(adminMessages ?? []).length} 条消息`)}
             {activeTab === "rooms" && `${cleanupRooms?.length ?? 0} 个待清理，${activeRooms.length} 个活跃房间`}
             {activeTab === "points" && `共 ${visibleTxns.length} 条积分记录`}
             {activeTab === "feedback" &&
@@ -1591,17 +1627,19 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         accountCount={loadAccounts ? visibleUsers.length : null}
         accountContent={accountContent}
         aiErrorCaseContent={aiErrorCaseContent}
-        aiErrorCaseCount={loadMessages ? visibleAiErrorCases.length : null}
+        aiErrorCaseCount={loadAiErrors ? visibleAiErrorCases.length : null}
         chatBackupContent={chatBackupContent}
-        chatBackupCount={loadMessages ? (chatBackupDays ?? []).length : null}
+        chatBackupCount={loadChatBackup ? (chatBackupDays ?? []).length : null}
         createPuzzleContent={createPuzzleContent}
         cleanupContent={cleanupContent}
         cleanupCount={loadRooms ? (cleanupRooms?.length ?? 0) : null}
         initialTab={activeTab}
         initialMessageSubTab={initialMessageSubTab}
+        loadedTab={activeTab}
+        loadedMessageSubTab={initialMessageSubTab}
         importPuzzleContent={importPuzzleContent}
         messageContent={messageContent}
-        messageCount={loadMessages ? (adminMessages?.length ?? 0) : null}
+        messageCount={loadMessageAudit ? (adminMessages?.length ?? 0) : null}
         puzzleContent={puzzleContent}
         puzzleCount={loadPuzzles ? visiblePuzzles.length : null}
         roomsContent={roomsContent}

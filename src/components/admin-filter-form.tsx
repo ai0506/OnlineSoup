@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type { FormEvent, ReactNode } from "react";
+import { useTransition, type FormEvent, type ReactNode } from "react";
 
 type AdminFilterFormProps = {
   children: ReactNode;
@@ -10,6 +10,7 @@ type AdminFilterFormProps = {
 
 export function AdminFilterForm({ children, className }: AdminFilterFormProps) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -29,12 +30,21 @@ export function AdminFilterForm({ children, className }: AdminFilterFormProps) {
 
     const query = params.toString();
     const action = form.getAttribute("action") ?? form.action;
-    router.push(`${action}${query ? `?${query}` : ""}`);
+    startTransition(() => router.push(`${action}${query ? `?${query}` : ""}`));
   }
 
   return (
-    <form action="/admin" className={className} onSubmit={handleSubmit}>
+    <form
+      action="/admin"
+      className={`${className ?? ""}${isPending ? " is-loading" : ""}`}
+      onSubmit={handleSubmit}
+    >
       {children}
+      {isPending && (
+        <p className="admin-filter-pending" role="status" aria-live="polite">
+          正在查询…
+        </p>
+      )}
     </form>
   );
 }
