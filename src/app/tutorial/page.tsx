@@ -258,9 +258,9 @@ export default function TutorialPage() {
           <table className="tutorial-table">
             <thead><tr><th>结果</th><th>含义</th></tr></thead>
             <tbody>
-              <tr><td><strong style={{ color: "#065f46" }}>推理正确</strong></td><td>覆盖了大部分关键事实，题目会标记为已推理成功。</td></tr>
-              <tr><td><strong style={{ color: "#92400e" }}>部分正确</strong></td><td>抓到了一部分关键事实，但还缺重要环节。</td></tr>
-              <tr><td><strong style={{ color: "#991b1b" }}>推理不正确</strong></td><td>关键事实太少，方向可能需要调整。</td></tr>
+              <tr><td><strong className="tutorial-verdict-ok">推理正确</strong></td><td>覆盖了大部分关键事实，题目会标记为已推理成功。</td></tr>
+              <tr><td><strong className="tutorial-verdict-partial">部分正确</strong></td><td>抓到了一部分关键事实，但还缺重要环节。</td></tr>
+              <tr><td><strong className="tutorial-verdict-bad">推理不正确</strong></td><td>关键事实太少，方向可能需要调整。</td></tr>
             </tbody>
           </table>
 

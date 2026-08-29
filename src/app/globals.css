@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light dark;
   --ink: #111827;
   --muted: #6b7280;
   --paper: #ffffff;
@@ -490,6 +491,12 @@ textarea {
   padding: 9px 11px;
   line-height: 1.55;
   resize: vertical;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
 }
 
 input:focus,
@@ -2900,7 +2907,7 @@ textarea:focus {
   flex: 0 0 auto;
   padding: 2px 6px;
   color: var(--muted);
-  background: #f8fafc;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 999px;
   font-size: 0.74rem;
@@ -2966,7 +2973,7 @@ textarea:focus {
   display: grid;
   gap: 10px;
   padding: 12px;
-  background: #f8fafc;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
 }
@@ -3063,7 +3070,7 @@ textarea:focus {
   width: 36px;
   height: 36px;
   color: var(--ink);
-  background: #f8fafc;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 999px;
   font-size: 1.25rem;
@@ -4389,6 +4396,10 @@ textarea:focus {
 
 .tutorial-tip strong { color: #1e3a8a; }
 
+.tutorial-content .tutorial-verdict-ok { color: #065f46; }
+.tutorial-content .tutorial-verdict-partial { color: #92400e; }
+.tutorial-content .tutorial-verdict-bad { color: #991b1b; }
+
 /* ── AI tags ── */
 .tutorial-ai-tags { display: flex; gap: 7px; flex-wrap: wrap; margin: 12px 0; }
 
@@ -4882,6 +4893,7 @@ textarea:focus {
 
 @media (prefers-color-scheme: dark) {
   :root {
+    color-scheme: dark;
     --ink: #e2e8f0;
     --muted: #94a3b8;
     --paper: #1c1e26;
@@ -5041,6 +5053,65 @@ textarea:focus {
   .admin-error-badge-ignored { color: #9ca3af; background: #1c1e26; border-color: #374151; }
   .admin-ask-audit-item { background: var(--surface); }
   .admin-ask-audit-item span { color: var(--ink); }
+
+  /* 浅底 + 继承 --ink：背景写死成浅色但没写文字色，深色下是白底白字 */
+  .puzzle-list-item.current { background: #1e1c11; border-color: #3d3520; }
+  .puzzle-menu-item-danger:hover { background: #450a0a; color: #fca5a5; }
+  .tutorial-table tr:nth-child(even) td { background: rgba(255, 255, 255, 0.03); }
+
+  /* 深色文字落在深色底上 */
+  .tutorial-content code { color: #cbd5e1; }
+  .tutorial-tip { background: #10203a; border-color: #1e3a5f; color: #bfdbfe; }
+
+  /* 语义色：浅色模式用深色值，深色模式必须换成浅色值 */
+  .admin-cache-answer.yes { color: #6ee7b7; }
+  .admin-cache-answer.no { color: #fca5a5; }
+  .admin-points-amount.positive { color: #4ade80 !important; }
+  .points-loss { color: #f87171; }
+  .tutorial-content .tutorial-verdict-ok { color: #6ee7b7; }
+  .tutorial-content .tutorial-verdict-partial { color: #fcd34d; }
+  .tutorial-content .tutorial-verdict-bad { color: #fca5a5; }
+
+  /* 徽章：浅灰底配 --muted 在深色下是灰底灰字 */
+  .badge-no { background: #272b38; color: var(--muted); }
+  .badge-need { background: #451a03; color: #fcd34d; }
+  .badge-must { background: #1e2535; color: #93c5fd; }
+  .tag-yes { background: #052e16; color: #6ee7b7; }
+  .tag-no { background: #450a0a; color: #fca5a5; }
+  .tag-irr { background: #272b38; color: var(--muted); }
+  .tag-amb { background: #451a03; color: #fcd34d; }
+  .puzzle-solved-badge { background: #052e16; color: #6ee7b7; }
+  .puzzle-unsolved-badge { background: #272b38; color: var(--muted); }
+  .puzzle-diff-easy { background: #052e16; color: #6ee7b7; }
+  .puzzle-diff-medium { background: #451a03; color: #fcd34d; }
+  .puzzle-diff-hard { background: #450a0a; color: #fca5a5; }
+  .puzzle-diff-abstract { background: #2a1e3d; color: #d8b4fe; }
+  .puzzle-current-tag { background: #78350f; color: #fcd34d; }
+  .admin-room-status-badge.waiting { background: #272b38; color: var(--muted); }
+  .admin-room-status-badge.playing { background: #052e16; color: #6ee7b7; }
+  .admin-truncated-hint { background: #451a03; border-color: #78350f; color: #fcd34d; }
+  .admin-puzzle-tags span { background: #272b38; color: #cbd5e1; }
+  .admin-points-type.signup_bonus { background: #1e2535 !important; color: #93c5fd; }
+  .admin-points-type.room_reservation { background: #2a1e3d !important; color: #d8b4fe; }
+  .admin-points-type.room_refund { background: #052e16 !important; color: #6ee7b7; }
+  .admin-points-type.gift_sent { background: #451a03 !important; color: #fcd34d; }
+  .admin-points-type.seat_query { background: #0b2f36 !important; color: #67e8f9; }
+
+  /* 半透明白叠加在深底上会混出中灰，把亮色文字吃掉 */
+  .puzzle-facts-list.long { background: rgba(0, 0, 0, 0.25); border-color: #3d3520; }
+
+  /* opacity 在浅底是"变淡"，在深底是"沉进背景"，禁用态改为显式颜色 */
+  .chat-mode-tab:disabled { opacity: 1; color: #6b7280; border-color: #1f2430; }
+
+  /* 竖屏房间页：原补丁块里没有任何竖屏覆盖 */
+  @media (orientation: portrait) and (max-width: 760px) {
+    .room-seg-btn { color: var(--ink); }
+    .room-portrait-points { color: #cbd5e1; }
+    .room-pinned-puzzle { background: #1e1c11; border-bottom-color: #3d3520; }
+    .room-pinned-diff { background: #2a2a45; color: #c7d2fe; }
+    .room-pinned-text { color: #cbd5e1; }
+    .room-pinned-go { color: #93c5fd; }
+  }
 }
 
 /* 用户反馈 */
