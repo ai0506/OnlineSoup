@@ -30,6 +30,9 @@ puzzles-*.json
 paper/api_key.txt
 paper/api_keys.env
 paper/runs/
+paper/logs/
+paper/logs_*/
+paper/anchoring_divergence.html
 __pycache__/
 # Project guidance and documentation are intentionally tracked.
 
