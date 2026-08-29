@@ -304,3 +304,4 @@
 [Claude Code][260806205755] 待清理房间规则重做：改以最后消息时间为基准（已关闭 3 天 / 未关闭 7 天），排除 0 消息房间以消除反复上榜的死循环，新增 backup_pending 标记且未备份房间默认不勾选
 [Claude Code][260829214954] 修复深色模式 24 处未覆盖样式：新增 color-scheme 与 ::placeholder 规则；补齐竖屏房间页、教程页、题库徽章、积分语义色与后台浅底区块的深色覆盖；tutorial 页三处内联颜色改为 class
 [Claude Code][260829220906] 深色模式补修：--navy 在深色下翻转为浅色，.card.accent、.faq-q::before、.puzzle-filter-tab.active、.room-seg-btn.active、h2 .num 五处拿它当填充配白字导致 1.48:1；另修 .admin-cleanup-tag-warning 与上次误删的 .tutorial-tip strong 覆盖
+[Claude Code][260829223438] 教程页四类回答标签对齐聊天区实际配色：与此无关由灰改黄、模糊问题由黄改紫，四个标签补回同色系描边；「不需要」徽章加深文字并补描边

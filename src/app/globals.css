@@ -4347,7 +4347,7 @@ textarea:focus {
 .tutorial-table tr:nth-child(even) td { background: #fafafa; }
 
 .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
-.badge-no   { background: #f3f4f6; color: var(--muted); }
+.badge-no   { background: #e5e7eb; color: #4b5563; box-shadow: inset 0 0 0 1px #d1d5db; }
 .badge-need { background: #fef3c7; color: #92400e; }
 .badge-must { background: #dbeafe; color: #1e40af; }
 
@@ -4412,10 +4412,10 @@ textarea:focus {
   border: 1px solid transparent;
 }
 
-.tag-yes { background: #d1fae5; color: #065f46; }
-.tag-no  { background: #fee2e2; color: #991b1b; }
-.tag-irr { background: #f3f4f6; color: var(--muted); border-color: var(--line); }
-.tag-amb { background: #fef3c7; color: #92400e; }
+.tag-yes { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+.tag-no  { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+.tag-irr { background: #fef9c3; color: #854d0e; border-color: #fde047; }
+.tag-amb { background: #f3e8ff; color: #6b21a8; border-color: #d8b4fe; }
 
 /* ── FAQ ── */
 .faq-item { margin-bottom: 18px; }
@@ -5073,13 +5073,13 @@ textarea:focus {
   .tutorial-content .tutorial-verdict-bad { color: #fca5a5; }
 
   /* 徽章：浅灰底配 --muted 在深色下是灰底灰字 */
-  .badge-no { background: #272b38; color: var(--muted); }
+  .badge-no { background: #272b38; color: #cbd5e1; box-shadow: inset 0 0 0 1px #3f4658; }
   .badge-need { background: #451a03; color: #fcd34d; }
   .badge-must { background: #1e2535; color: #93c5fd; }
-  .tag-yes { background: #052e16; color: #6ee7b7; }
-  .tag-no { background: #450a0a; color: #fca5a5; }
-  .tag-irr { background: #272b38; color: var(--muted); }
-  .tag-amb { background: #451a03; color: #fcd34d; }
+  .tag-yes { background: #052e16; color: #6ee7b7; border-color: #14532d; }
+  .tag-no { background: #450a0a; color: #fca5a5; border-color: #7f1d1d; }
+  .tag-irr { background: #422006; color: #fde047; border-color: #854d0e; }
+  .tag-amb { background: #2e1065; color: #d8b4fe; border-color: #6b21a8; }
   .puzzle-solved-badge { background: #052e16; color: #6ee7b7; }
   .puzzle-unsolved-badge { background: #272b38; color: var(--muted); }
   .puzzle-diff-easy { background: #052e16; color: #6ee7b7; }
