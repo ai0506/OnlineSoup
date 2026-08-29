@@ -5103,9 +5103,20 @@ textarea:focus {
   /* opacity 在浅底是"变淡"，在深底是"沉进背景"，禁用态改为显式颜色 */
   .chat-mode-tab:disabled { opacity: 1; color: #6b7280; border-color: #1f2430; }
 
+  /* --navy 在深色下翻转成浅色 (#cbd5e1)，但这些规则拿它当填充色配白字 */
+  .card.accent { background: #374151; color: #f1f5f9; }
+  .faq-q::before { background: #374151; color: #f1f5f9; }
+  .puzzle-filter-tab.active { background: #374151; color: #f1f5f9; border-color: #4b5563; }
+  .tutorial-content h2 .num { background: #374151; color: #f1f5f9; }
+  .admin-cleanup-tags span.admin-cleanup-tag-warning { background: #450a0a; color: #fca5a5; }
+
+  /* .tutorial-tip strong 与 .tutorial-content strong 优先级相同且更靠后，会胜出 */
+  .tutorial-tip strong { color: #dbeafe; }
+
   /* 竖屏房间页：原补丁块里没有任何竖屏覆盖 */
   @media (orientation: portrait) and (max-width: 760px) {
     .room-seg-btn { color: var(--ink); }
+    .room-seg-btn.active { background: #374151; color: #f1f5f9; border-color: #4b5563; }
     .room-portrait-points { color: #cbd5e1; }
     .room-pinned-puzzle { background: #1e1c11; border-bottom-color: #3d3520; }
     .room-pinned-diff { background: #2a2a45; color: #c7d2fe; }
