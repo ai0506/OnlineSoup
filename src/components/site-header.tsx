@@ -1,13 +1,14 @@
 import Link from "next/link";
 
-import { LogoutButton } from "@/components/logout-button";
+import { SiteNav } from "@/components/site-nav";
 import { hasSupabaseEnv } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
 export async function SiteHeader() {
   let email: string | undefined;
-  let username: string | null | undefined;
-  let points: number | undefined;
+  let username: string | null = null;
+  let points: number | null = null;
+  let activeRoomCode: string | null = null;
 
   if (hasSupabaseEnv()) {
     const supabase = await createClient();
@@ -20,8 +21,12 @@ export async function SiteHeader() {
         .select("username, points")
         .eq("id", userId)
         .maybeSingle();
-      username = profile?.username;
-      points = profile?.points;
+      username = profile?.username ?? null;
+      points = profile?.points ?? null;
+
+      // 已在房间时，创建房间会被重定向回原房间，顶部栏直接改成返回入口
+      const { data: roomCode } = await supabase.rpc("get_my_active_room");
+      activeRoomCode = (roomCode as string | null) ?? null;
     }
   }
 
@@ -30,28 +35,12 @@ export async function SiteHeader() {
       <Link className="brand" href="/">
         汤局
       </Link>
-      <nav>
-        <Link href="/">大厅</Link>
-        <Link href="/tutorial">教程</Link>
-        {email ? (
-          <>
-            <Link href="/rooms/new">创建房间</Link>
-            {/* 单独新标签打开，避免打断正在进行的房间 */}
-            <Link href="/feedback" rel="noopener" target="_blank">
-              反馈
-            </Link>
-            {points !== undefined && (
-              <span className="user-points">{points} 积分</span>
-            )}
-            <Link href={username ? "/profile" : "/account/username"}>
-              {username ?? "设置用户名"}
-            </Link>
-            <LogoutButton />
-          </>
-        ) : (
-          <Link href="/login">登录</Link>
-        )}
-      </nav>
+      <SiteNav
+        activeRoomCode={activeRoomCode}
+        points={points}
+        signedIn={Boolean(email)}
+        username={username}
+      />
     </header>
   );
 }

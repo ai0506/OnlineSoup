@@ -27,6 +27,8 @@ questions*.txt
 original_questions.json
 puzzles-*.json
 *.examples-preview.json
+paper/
+__pycache__/
 # Project guidance and documentation are intentionally tracked.
 
 # macOS finder metadata

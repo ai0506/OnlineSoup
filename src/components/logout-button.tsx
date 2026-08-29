@@ -3,17 +3,19 @@
 import { useState } from "react";
 
 import { logout } from "@/app/auth/actions";
+import { IconLogOut } from "@/components/icons";
 
-export function LogoutButton() {
+export function LogoutButton({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <button
-        className="link-button"
+        className={className ? `link-button ${className}` : "link-button"}
         onClick={() => setOpen(true)}
         type="button"
       >
+        <IconLogOut />
         退出登录
       </button>
       {open && (
