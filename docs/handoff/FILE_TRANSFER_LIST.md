@@ -2,6 +2,8 @@
 
 生成日期：2026-08-05。GitHub 状态按本次盘点时的 `main` 与 `origin/main` 完全同步记录。
 
+> 归档文档：迁移已完成。本文描述 2026-08-05 当时的目录结构，其中 `HANDOFF.md` 与 `FILE_TRANSFER_LIST.md` 已移入 `docs/handoff/`，`logo-archive/` 已移入 `archive/logo-archive/`。当前目录结构以 `文档索引.md` 和仓库实际内容为准。
+
 | 文件/目录 | GitHub状态 | 是否进入压缩包 | 说明 |
 | --- | --- | --- | --- |
 | `src/` | 已提交到 GitHub | 是 | 应用页面、组件、路由和业务代码。 |

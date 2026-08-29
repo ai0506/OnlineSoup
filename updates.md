@@ -343,3 +343,4 @@
 [CodeX][260829224853] 将 FRONTEND_SPEC.md 的界面稳定原则扩展为全站约束，明确标签、筛选、选项、空加载错误态和滚动容器切换均不得造成大幅变形、位移或跳转
 [Claude Code][260829225154] 顶部栏对齐 FRONTEND_SPEC：窄屏触控区恢复 44x44，展开面板关闭态改 visibility 隐藏移出 Tab 顺序，账户菜单补焦点管理（点击打开进入首项、Escape 回到触发按钮、悬停不抢焦点），补 prefers-reduced-motion 降级与 user-select/focus-visible，清理窄屏重复的 .user-points 与失效的 .nav-account 规则
 [Claude Code][260829225827] 顶部栏新增房间态图标：SiteHeader 调用 get_my_active_room，存在未关闭房间时把"创建房间"加号换成门图标并直达 /rooms/{code}，提示显示房间码；icons.tsx 新增 IconDoor
+[Claude Code][260829231941] 整理根目录：HANDOFF.md 与 FILE_TRANSFER_LIST.md 移入 docs/handoff/ 并加归档说明，logo-archive/ 移入 archive/logo-archive/；文档索引补登两处新位置并修复两份规划文档脱离主表的表格格式；.agents/skills 与 dev.ps1 保留
