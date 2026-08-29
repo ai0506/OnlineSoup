@@ -104,6 +104,10 @@ Supabase Postgres
             <tr><td><code>/rooms/[code]/messages</code></td><td>GET 补拉聊天，POST 发送普通聊天</td><td>调用 <code>get_room_chat_bootstrap</code> / <code>send_room_chat_message</code></td></tr>
             <tr><td><code>/rooms/[code]/ask</code></td><td>提交询问、提示、推理</td><td>服务端校验输入、题目版本、积分和 AI 配置</td></tr>
             <tr><td><code>/auth/*</code>、<code>/account/*</code></td><td>登录回调、用户名和账号操作</td><td>Supabase SSR Cookie；用户名设置后才进入需要账号资料的页面</td></tr>
+            <tr><td><code>/profile</code></td><td>个人资料，含积分流水预览</td><td>需要登录；积分记录通过 <code>get_my_points_history</code> 读取本人数据</td></tr>
+            <tr><td><code>/points-history</code></td><td>完整积分流水，分页查看每笔变动和变动后余额</td><td>需要登录；未登录跳转 <code>/login</code></td></tr>
+            <tr><td><code>/feedback</code></td><td>提交使用反馈</td><td>仅注册用户；分类与每日条数限制由 <code>submit_user_feedback</code> 校验</td></tr>
+            <tr><td><code>/tutorial</code>、<code>/docs</code></td><td>玩家教程与本技术说明</td><td>公开页面，无需登录，不读取房间或账号数据</td></tr>
             <tr><td><code>/admin/*</code></td><td>题库、缓存、错误案例、用户和备份管理</td><td>管理员身份 + 二次验证；私密操作仅在服务端执行</td></tr>
           </tbody></table>
         </section>
@@ -146,7 +150,7 @@ Supabase Postgres
           </div>
 
           <h3 className="docs-subheading">询问 ask：双路是非判断</h3>
-          <p>玩家输入最多 50 字的询问。服务端把当前题目的 surface、bottom、权威隐含事实、同题近期问答和对应 examples 放入 prompt，并并行执行两种读法：</p>
+          <p>玩家输入最多 100 字的询问。服务端把当前题目的 surface、bottom、权威隐含事实、同题近期问答和对应 examples 放入 prompt，并并行执行两种读法：</p>
           <table className="docs-table"><thead><tr><th>阶段</th><th>机制</th><th>输出</th></tr></thead><tbody>
             <tr><td>严格读法</td><td>只在真相或权威事实直接、明确支持或否定时提交 yes/no；不确定时倾向 irrelevant 或 ambiguous。</td><td rowSpan={2}><code>yes</code>、<code>no</code>、<code>irrelevant</code>、<code>ambiguous</code></td></tr>
             <tr><td>推断读法</td><td>允许一次方向唯一的必要推断，也处理明确的反讽或隐含表达，但不补造身份、动机、关系和外部事件。</td></tr>
@@ -225,7 +229,7 @@ Supabase Postgres
 
         <section className="docs-section" id="operations">
           <div className="docs-section-heading"><span>13</span><h2>运维入口</h2></div>
-          <div className="docs-ops"><code>npm.cmd run dev</code><span>本地启动开发服务器</span><code>npm.cmd run typecheck</code><span>TypeScript 检查</span><code>npm.cmd run lint</code><span>ESLint 检查</span><code>npm.cmd run build</code><span>生产构建检查</span><code>supabase/migrations</code><span>按文件名顺序维护数据库变化；已部署迁移不修改，新增变化新建迁移</span></div>
+          <div className="docs-ops"><code>npm run dev</code><span>本地启动开发服务器</span><code>npm run typecheck</code><span>TypeScript 检查</span><code>npm run lint</code><span>ESLint 检查</span><code>npm run build</code><span>生产构建检查</span><code>supabase/migrations</code><span>按文件名顺序维护数据库变化；已部署迁移不修改，新增变化新建迁移</span></div>
           <p className="docs-small">环境变量以 <code>.env.example</code> 为准。密钥只允许服务端读取，不应提交到 Git、日志或页面。</p>
         </section>
 
