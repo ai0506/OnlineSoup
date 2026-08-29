@@ -52,6 +52,7 @@ export async function updateSession(request: NextRequest) {
       pathname === "/account/username" ||
       pathname === "/login" ||
       pathname === "/tutorial" ||
+      pathname === "/docs" ||
       pathname.startsWith("/auth/") ||
       pathname.startsWith("/reset-password");
 

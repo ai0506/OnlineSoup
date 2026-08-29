@@ -27,6 +27,10 @@ questions*.txt
 original_questions.json
 puzzles-*.json
 *.examples-preview.json
+paper/api_key.txt
+paper/api_keys.env
+paper/runs/
+__pycache__/
 # Project guidance and documentation are intentionally tracked.
 
 # macOS finder metadata

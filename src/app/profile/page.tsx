@@ -40,7 +40,7 @@ export default async function ProfilePage() {
 
   const { data: historyData } = await supabase.rpc("get_my_points_history", {
     p_page: 1,
-    p_page_size: 20,
+    p_page_size: 5,
   });
 
   const initialTransactions: PointsTransaction[] =
@@ -136,13 +136,19 @@ export default async function ProfilePage() {
       </section>
 
       {/* 积分流水 */}
-      <section className="profile-section">
-        <h2>积分流水</h2>
-        <PointsHistory
-          initialTransactions={initialTransactions}
-          initialTotal={initialTotal}
-          pageSize={20}
-        />
+      <section className="profile-section profile-points-history">
+        <div className="profile-section-heading">
+          <h2>积分流水</h2>
+          <Link href="/points-history">查看全部</Link>
+        </div>
+        <div className="points-history-preview">
+          <PointsHistory
+            initialTransactions={initialTransactions}
+            initialTotal={initialTotal}
+            pageSize={5}
+            showPagination={false}
+          />
+        </div>
       </section>
     </div>
   );

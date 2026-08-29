@@ -51,12 +51,12 @@ function Shot({
 
 const faqItems = [
   ["我是访客，为什么问不了 AI？", "你可能没有座位临时积分。请找房主给你的座位赠送积分，或者让房主下次创建房间时设置「每位玩家积分」。"],
-  ["我是访客，名字被占用了怎么办？", "先换一个访客名。如果你必须使用这个名字，联系房主检查房间座位，把占名字的访客移出。"],
-  ["为什么我只能聊天，不能询问 AI？", "通常是房主还没有开始题目。请让房主打开「房间详情」里的「海龟汤」，点击「题目 ▾」选择题目。"],
-  ["为什么提示按钮不能点？", "可能是没有提示机会。每询问 3 次会获得 1 次提示机会，每尝试推理 1 次也会获得 1 次提示机会。"],
+  ["我是访客，名字被占用了怎么办？", "这个名字可能已被当前房间的访客或全站注册用户名使用。先换一个名字；若房间内确有同名访客，可请房主移出该玩家。"],
+  ["为什么我只能聊天，不能询问 AI？", "通常是房主还没有开始题目。请让房主在电脑端打开「房间详情」的「海龟汤」页，或在手机端点顶部「题目」，再选择题目。"],
+  ["为什么提示按钮不能点？", "请先确认房主已开始题目；开始后仍不能点，通常是没有提示机会。每询问 3 次会获得 1 次提示机会，每尝试推理 1 次也会获得 1 次提示机会。"],
   ["为什么显示积分不足？", "AI 操作需要积分。访客只能用座位临时积分，耗尽时请联系房主在房间详情中赠送积分。登录用户注册即送 100 积分，用完后可发邮件至 support@ai0506.com 联系管理员补充。"],
   ["为什么我问了问题，AI 回「模糊问题」？", "你的问题可能不是是非问题，或者一次问了多个判断。把问题改成一个能回答「是/否」的句子。"],
-  ["为什么 AI 没有马上回答？", "同一个房间内 AI 请求会排队处理，避免多人同时提问导致事实冲突。稍等一下即可。如果失败，系统会退还本次积分。"],
+  ["为什么 AI 没有马上回答？", "同一房间一次只处理一条 AI 请求。已有请求处理时，新请求不会进入队列，也不会扣积分；请等当前回复出现后再重试。其他失败情况会退还本次积分。"],
   ["为什么临时积分没有跟着人走？", "临时积分绑定座位，不绑定人。可以把它理解成贴在座位上的餐券，而不是玩家口袋里的钱。"],
   ["房主给别人赠送积分时，消耗谁的积分？", "消耗房主个人积分，增加目标座位临时积分。不能用房主自己座位上的临时积分去赠送。"],
   ["我发现了 AI 判定错误，或者想投稿一道汤，去哪里说？", "登录后点击顶部导航的「反馈」，选择对应类型写下来即可。反馈页会在新标签打开，不会影响你正在进行的房间。"],
@@ -103,7 +103,7 @@ export default function TutorialPage() {
             <li><a href="#s2-1">创建房间</a></li>
             <li><a href="#s2-2">临时积分</a></li>
             <li><a href="#s2-4">赠送积分</a></li>
-            <li><a href="#s2-5">调换位置</a></li>
+            <li><a href="#s2-5">移动座位</a></li>
             <li><a href="#s2-6">踢出玩家</a></li>
             <li><a href="#s2-7">关闭房间</a></li>
             <li className="sep" />
@@ -129,16 +129,16 @@ export default function TutorialPage() {
             <div className="tutorial-overview">
               <p><strong>汤局是什么？</strong> 房主创建房间并选择一道海龟汤题目，玩家进入后向 AI 主持人提问，一步步拼出真相。</p>
               <pre className="tutorial-flow">
-                {"房主注册 → 创建房间 → 把房间码发给玩家\n玩家加入（无需注册）→ 房主选题 → 玩家询问 / 提示 / 推理 → 推理成功 → 房主关闭房间"}
+                {"房主注册 → 创建房间 → 把房间码发给玩家\n玩家加入（无需注册）→ 房主选题 → 玩家询问 / 提示 / 推理 → 推理正确后公布汤底并结束本题 → 房主选择下一题或关闭房间"}
               </pre>
             </div>
 
             <table className="tutorial-table">
-              <thead><tr><th>角色</th><th>需要注册吗</th><th>需要积分吗</th></tr></thead>
+              <thead><tr><th>想做什么</th><th>是否注册</th><th>使用 AI 时的积分</th></tr></thead>
               <tbody>
-                <tr><td>访客 / 普通玩家</td><td><span className="badge badge-no">不需要</span></td><td>需要座位临时积分（房主分配）</td></tr>
-                <tr><td>注册玩家</td><td><span className="badge badge-need">推荐</span></td><td>有个人积分，也可以用座位临时积分</td></tr>
-                <tr><td>房主</td><td><span className="badge badge-must">必须</span></td><td>需要个人积分用于创建房间</td></tr>
+                <tr><td>以访客身份参与</td><td><span className="badge badge-no">不需要</span></td><td>只能使用座位临时积分（由房主分配）</td></tr>
+                <tr><td>使用个人积分或提交反馈</td><td><span className="badge badge-need">需要</span></td><td>可使用座位临时积分或个人积分</td></tr>
+                <tr><td>创建房间</td><td><span className="badge badge-must">需要</span></td><td>创建房间使用个人积分；游戏中也可使用两类积分</td></tr>
               </tbody>
             </table>
           </section>
@@ -147,19 +147,19 @@ export default function TutorialPage() {
           <h3 id="s1-1">1.1 进入房间</h3>
           <p>从房主那里拿到 6 位房间码，在首页输入后加入。如果房间有密码，先输入房主给你的 6 位数字密码；访客还需要填写一个 3 到 8 位的名字。</p>
           <Shot src="/screenshots/1.1mainpageentercode.png" alt="首页输入房间码" caption="首页：输入房间码后点击「加入房间」" onZoom={zoom} />
-          <div className="tutorial-tip"><strong>名字冲突？</strong> 说明名字已被占用。换一个名字，或联系房主把同名访客移出。</div>
+          <div className="tutorial-tip"><strong>名字冲突？</strong> 这个名字可能已被当前房间的访客或全站注册用户名使用。先换一个名字；若房间内确有同名访客，可请房主移出该玩家。</div>
 
           <h3 id="s1-2">1.2 进入后先看哪里</h3>
-          <p>电脑端主要分成「聊天区」和右侧「房间详情」。竖屏手机（宽度不超过 760px）会切换为「聊天」「题库」「座位」三个全屏标签，并在顶部保留当前题目和积分摘要。</p>
+          <p>电脑端主要分成「聊天区」和右侧「房间详情」。竖屏手机（宽度不超过 760px）会切换为「聊天」「题目」「座位」三个全屏标签，并在顶部保留当前题目和积分摘要。</p>
           <div className="tutorial-pair">
             <Shot src="/screenshots/1.2inroomchatandconts_pc.png" alt="PC 端房间页面" onZoom={zoom} />
             <Shot src="/screenshots/1.2inroomchatandconts_phone.png" alt="手机端房间页面" phone onZoom={zoom} />
           </div>
-          <p className="tutorial-caption">左：PC 端布局（聊天区 + 右侧房间详情） 右：旧版手机端示意图；当前竖屏手机使用顶部「聊天 / 题库 / 座位」三标签布局</p>
+          <p className="tutorial-caption">左：电脑端布局（聊天区 + 右侧房间详情） 右：手机端房间页面。</p>
 
           <h3 id="s1-3">1.3 等房主开始题目</h3>
-          <p>房主还没选题前，你只能普通聊天。房主选择题目后，「询问」「提示」「尝试推理」模式会解锁。</p>
-          <div className="tutorial-tip">看到“房主开始题目后，才能使用询问 / 提示 / 尝试推理”？说明还没开题，等房主在「海龟汤」里选择题目。</div>
+          <p>房主还没选题前，你只能普通聊天。房主选择题目后，AI 模式会开启；其中「提示」需要先获得提示机会，才能使用。</p>
+          <div className="tutorial-tip">看到“房主开始题目后，AI 模式才会开启”？说明还没开题，等房主在「海龟汤」里选择题目。开始后，获得提示机会才能使用「提示」。</div>
 
           <h3 id="s1-4">1.4 怎么向 AI 询问</h3>
           <p>切换到「询问」模式，输入一个可以用“是 / 否”判断的问题，再发送。</p>
@@ -172,7 +172,7 @@ export default function TutorialPage() {
           <p>提示机会的获得方式：每完成 3 次询问 +1 次，每尝试推理 1 次 +1 次。</p>
 
           <h3 id="s1-6">1.6 怎么尝试推理</h3>
-          <p>切换到「尝试推理」模式，用 300 字以内写出完整推理。发送后 AI 会判定「推理正确」「部分正确」或「推理不正确」。</p>
+          <p>切换到「尝试推理」模式，用 300 字以内写出完整推理。AI 会按题目的关键点判定结果：若「推理正确」，系统会在聊天区公布汤底并自动结束本题，房主随后可选择下一题；「部分正确」和「推理不正确」则可继续推理。</p>
 
           <h3 id="s1-7">1.7 积分说明</h3>
           <Shot src="/screenshots/1.7tempsandaccountscore.png" alt="积分显示区域" caption="积分显示：个人积分 + 座位临时积分 [临]" onZoom={zoom} />
@@ -189,8 +189,8 @@ export default function TutorialPage() {
 
           <h2 id="part2"><span className="num">2</span>我想当房主，怎么开房？</h2>
           <h3 id="s2-0">2.0 先注册账号</h3>
-          <p>当房主必须登录账号。没有账号时，点击右上角「登录 / 注册」，切到注册并填写邮箱和密码。</p>
-          <Shot src="/screenshots/2.0register.png" alt="注册页面" caption="注册页：填写邮箱和密码，注册后会有初始积分" onZoom={zoom} />
+          <p>当房主必须登录账号。没有账号时，点击右上角「登录 / 注册」，为自己起一个全站唯一的用户名，再填写邮箱和密码；完成邮箱验证后即可登录。</p>
+          <Shot src="/screenshots/2.0register.png" alt="注册页面" caption="注册页：起一个全站唯一的用户名，填写邮箱和密码" onZoom={zoom} />
 
           <h3 id="s2-1">2.1 创建房间</h3>
           <Shot src="/screenshots/2.1createroom.png" alt="创建房间表单" caption="创建房间：设置座位数量、每位玩家积分和可选密码" onZoom={zoom} />
@@ -213,8 +213,8 @@ export default function TutorialPage() {
           <Shot src="/screenshots/2.4sendtempscore.png" alt="赠送积分操作" caption="「房间管理」标签 → 座位右上角菜单 → 赠送积分" onZoom={zoom} />
           <p>打开「房间详情」里的「房间管理」，找到目标座位，点右上角菜单选择「赠送积分」。赠送消耗房主个人积分，增加目标座位临时积分。</p>
 
-          <h3 id="s2-5">2.5 怎么调换玩家位置</h3>
-          <p>在「房间管理」里找到要移动的玩家座位，点击菜单里的「移动位置」，再选择一个空座位。房主座位不能移动。</p>
+          <h3 id="s2-5">2.5 怎么移动玩家座位</h3>
+          <p>在「房间管理」里找到要移动的玩家座位，点击菜单里的「移动位置」，再选择一个空座位。房主所在的 1 号座位不能移动。</p>
 
           <h3 id="s2-6">2.6 怎么踢出玩家</h3>
           <p>在「房间管理」中找到玩家座位，点击菜单里的「移出房间」。被移出的玩家会离开房间，原座位空出来。</p>
@@ -228,11 +228,11 @@ export default function TutorialPage() {
             <Shot src="/screenshots/3.1switchtosouptab.png" alt="切换到海龟汤标签" onZoom={zoom} />
             <Shot src="/screenshots/3.1chooseapuzzle.png" alt="选择题目列表" onZoom={zoom} />
           </div>
-          <p className="tutorial-caption">左：「海龟汤」标签 → 点击「题目 ▾」展开菜单 右：题库列表，可按难度筛选</p>
-          <p>打开「房间详情」里的「海龟汤」标签，点击「题目 ▾」选择题目。开始后所有玩家的 AI 模式都会可用。</p>
+          <p className="tutorial-caption">左：电脑端「海龟汤」页的「题目 ▾」菜单 右：题目列表，可按难度筛选</p>
+          <p>电脑端在「房间详情」打开「海龟汤」页，手机端点顶部「题目」，再点击「题目 ▾」选择题目。开始后，AI 模式会开启；其中「提示」需要先获得提示机会。</p>
 
           <h3 id="s3-3">3.3 进度与事实总结</h3>
-          <p>「事实总结」像公共白板。AI 确认过的关键事实会整理到这里，方便大家继续推理。</p>
+          <p>「事实总结」像公共白板。系统会把问答和提示中的可参考信息整理到这里，方便大家继续推理。</p>
 
           <h3 id="s3-4">3.4 切换 / 停止题目</h3>
           <p>「切换题目」会中止当前题目并选择新题，AI 不会把旧题事实混进新题；「停止题目」会让玩家回到普通聊天状态。</p>
@@ -258,7 +258,7 @@ export default function TutorialPage() {
           <table className="tutorial-table">
             <thead><tr><th>结果</th><th>含义</th></tr></thead>
             <tbody>
-              <tr><td><strong className="tutorial-verdict-ok">推理正确</strong></td><td>覆盖了大部分关键事实，题目会标记为已推理成功。</td></tr>
+              <tr><td><strong className="tutorial-verdict-ok">推理正确</strong></td><td>覆盖了大部分关键事实。系统会标记题目为已推理成功、在聊天区公布汤底，并自动结束本题。</td></tr>
               <tr><td><strong className="tutorial-verdict-partial">部分正确</strong></td><td>抓到了一部分关键事实，但还缺重要环节。</td></tr>
               <tr><td><strong className="tutorial-verdict-bad">推理不正确</strong></td><td>关键事实太少，方向可能需要调整。</td></tr>
             </tbody>

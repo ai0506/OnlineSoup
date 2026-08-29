@@ -18,12 +18,14 @@ type PointsHistoryProps = {
   initialTransactions: PointsTransaction[];
   initialTotal: number;
   pageSize?: number;
+  showPagination?: boolean;
 };
 
 export function PointsHistory({
   initialTransactions,
   initialTotal,
   pageSize = 20,
+  showPagination = true,
 }: PointsHistoryProps) {
   const [page, setPage] = useState(1);
   const [transactions, setTransactions] = useState(initialTransactions);
@@ -89,7 +91,7 @@ export function PointsHistory({
         </table>
       )}
 
-      {totalPages > 1 && (
+      {showPagination && totalPages > 1 && (
         <div className="points-history-pagination">
           <button
             className="button secondary"
