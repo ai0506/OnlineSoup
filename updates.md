@@ -1,3 +1,5 @@
+[Claude Code][260807010000] paper/ 追加 v2 验证（仍不改 deepseek.ts）：logprobs-verify-v2-no-reason.mjs 把 max_tokens 改 640、temperature 改 0.1、去掉 reason 字段后重测，10/10 未再截断；但去掉 reason 并未改变单次调用 ~100% 过度自信的现象，JSD 趋势与 v1 一致，结论写入 verification-summary.md
+[Claude Code][260807000000] 新增 paper/ 目录做 DeepSeek logprobs 可行性独立验证（不改 deepseek.ts）：paper/scripts/logprobs-verify.mjs 实测 logprobs.content 可取、token 可定位、strict/inferential 两路 JS 散度可算且随问题清晰度合理变化；paper/verification-summary.md 记录结论，并发现意外坑——deepseek-v4-flash 会自发内部推理挤占 max_tokens，线上 ASK_MAX_TOKENS=320 在较难问题上有截断风险（4/10 命中），已用更大 max_tokens 复测验证根因
 [Claude Code][260715134340] 更新过时文档：README.md 补充 RESEND_API_KEY/ADMIN_EMAIL_FROM/ZHIPU_API_KEY/ZHIPU_MODEL 等环境变量说明和 GLM 备用模型/管理端邮件/移动端三标签布局功能点；tasks.md（未纳入 git）勾选已完成的移动端竖屏三标签布局、自动深色模式、管理端筛选状态保留、GLM 备用模型项，更新下一步优先建议
 ﻿[Claude Code][260709230000] 事实总结展示调整：聊天气泡里提示(hint)和是/否回答(answer)底下用小字(.ai-message-fact)显示各自 fact_summary；题目面板事实板给来源为 hint 的条目加「提示」标签(.puzzle-fact-source)，room-chat 广播的 facts 由 string[] 改为 {text,source}[]，puzzle-panel 同步类型；补浅色/深色 CSS
 [Claude Code][260709223000] 在 glm-fallback-model-plan.md 末尾追加「Claude Code 补充提醒」：AI_HOST_TOTAL_TIMEOUT_MS 需做成包住 ask 三次调用(并发两路+仲裁)+GLM fallback 的 wall-clock 总闸，且 15+12=27>25 的超时数字要对齐
@@ -302,6 +304,42 @@
 [Claude Code][260806123600] 管理后台：切 tab/子 tab 显示加载状态而非空结果，消息 tab 按子 tab 收紧取数，AI 错误案例改服务端筛选，账户 profiles 并行查询，轮询降到 10 秒
 [Claude Code][260806190751] 房间清理改为先归档再删除：新增 room_messages_archive 表，admin_force_close_and_clear_room 归档后删消息，聊天备份统计与 CSV 导出合并归档数据
 [Claude Code][260806205755] 待清理房间规则重做：改以最后消息时间为基准（已关闭 3 天 / 未关闭 7 天），排除 0 消息房间以消除反复上榜的死循环，新增 backup_pending 标记且未备份房间默认不勾选
+[CodeX][260814202119] 通过 Homebrew 安装 Python 3.14.7，并确认 python3 与 pip3 已指向 /opt/homebrew/bin
+[CodeX][260814202352] 通过 Homebrew 安装 PyCharm 2026.2.1 到 /Applications/PyCharm.app，并启用 pycharm 命令行启动器
+[CodeX][260814204050] 为 OnlineSoup 创建独立 Python 3.14.7 虚拟环境 /Users/shuwenai/Desktop/Projects/OnlineSoup/.venv，待 PyCharm 窗口恢复焦点后选择该解释器
+[CodeX][260814204950] 在 paper/runner.py 新增独立 DeepSeek 受控实验跑批脚本：支持 test 或按 G1/G2/G3 选择 API key、两阶段串行调用、断点续跑、重试、JSONL 原始结果、prompt 留痕、manifest 和 summary；新增 paper/README.md 与敏感输出忽略规则
+[CodeX][260814205300] 按 DeepSeek 官方文档将 paper/runner.py 的 HTTP 调用改为 OpenAI Python SDK，保留 JSON Output、usage/cache tokens、finish reason 和完整 SDK 响应留痕；确认 paper/questions_v8.tsv 101 行、paper/puzzles.json 5 个谜面可读取
+[CodeX][260814205500] 新增被 git 忽略的 paper/api_keys.env 本地 key 文件，runner.py 自动读取并按 test 或 G1/G2/G3 profile 选择 key，环境变量优先且 key 不写入日志或 manifest
+[CodeX][260814230000] 将受控实验默认 thinking 设置为 disabled，通过 OpenAI SDK extra_body 传入；保留 max_tokens=640，并把 thinking 配置写入 manifest 与调用记录
+[CodeX][260814231500] 新增 paper/score_results.py，按 QA/QB/QC/QD/QE 分类规则离线判定 calls.jsonl，输出逐条 score_details.jsonl 与分组 score_summary.json
+[CodeX][260814232000] 修正 G2 neutral_a/neutral_b 仲裁 prompt 标签，区分 G2 与 G3 仲裁样本文件，并在判分汇总中增加 group|variant 维度
+[CodeX][260814233000] 加强跑批截断防护：finish_reason=length 无论 JSON 是否可解析都触发重试，耗尽后记 failed，并记录 reasoning_tokens 与截断计数
+[CodeX][260814234000] 为 runner.py 增加 PyCharm Terminal 实时进度输出、重试提示和结束汇总，所有 stdout 输出即时 flush
+[CodeX][260814234500] 统一论文分析入口为已有的 paper/analyze_results.py，使用题目级预注册指标 UER/CDR/OIR/RFR、divergence 与数据完整性报告，不再将旧 score_results.py 作为主分析
+[CodeX][260815001000] 将 DoubleAgent 最新 analyze_results.py 的 system_fingerprint 完整性检查与成本分析移植到 OnlineSoup paper/analyze_results.py，新增实际成本、独立部署成本和暖缓存下界
+[CodeX][260815083000] 按 DoubleAgent 当前版本补齐 blind/anchored 按 divergent 子集分层、McNemar 配对检验和正式分析输出；已重新生成 formal-v1/analysis.json
+[CodeX][260815001500] 将实验配置统一为所有正式与 pilot run 使用 DEEPSEEK_API_KEY_TEST，README 更新正式实验命令与 token 成本计算说明
+[CodeX][260815003000] 按最新确认将正式实验 key profile 改为 G1，保留 pilot 使用 test key；未启动任何实验调用
+[CodeX][260815091149] 新增 paper/anchoring_divergence.html 静态分歧展示页，内嵌 10 道题与 32 个分歧轮次的原题、expected answer、各组答案及 reason，无需上传实验数据
+[CodeX][260815091451] 将分歧展示页改为简洁可读样式，移除深色渐变、大面积装饰和阴影，改用白底、低饱和标记与清晰分组
+[CodeX][260815132553] 将 questions_v8.tsv 的 P3-QD4 expected 从 no 修正为 yes，并重新生成 formal-v1 的 analysis.json、item_metrics.jsonl 与 anchoring_stability.json
+[CodeX][260826232713] 新增 /docs 技术说明页，补充技术栈、数据流、房间规则、AI 主持、身份安全和运维入口；新增站点导航并允许无用户名登录用户访问
+[CodeX][260826232713] 按要求移除站点导航中的技术文档入口，避免提供跳转到 /docs 的 href；扩充路由、数据模型、AI 状态机和失败补偿技术细节
+[CodeX][260826232713] 扩充技术特点与设计取舍说明，增加数据库原子性、服务端优先、题目隔离、可恢复性、渐进式降级、缓存门槛、隐私最小化和可审计性；/docs 强制浅色模式
+[CodeX][260826232713] 将浅色模式变量提升到包含站点头部的 docs 页面 body 范围，确保系统深色模式下导航、背景和文档内容均保持浅色
+[CodeX][260826232713] 详细补充题库字段、key_points/examples 作用，以及 ask 双路判断、hint 引导机制、reason 关键点评分和对应的积分与失败处理规则
+[CodeX][260828171932] 将项目特点前置并扩充为独立章节，说明多人房间、AI 主持、访客参与、房间积分、共享事实白板、题库上下文、实时恢复和管理员质量控制；保留实现层技术取舍说明
+[CodeX][260829213257] 新增站内通知功能计划，明确管理员全体或指定注册用户通知、主页已读状态、私有表与受保护 RPC、验收项，以及不涉及邮件、推送和访客离线通知
+[CodeX][260829214319] 新增用户档案与好友功能计划，基于现有 profiles、房间成员、通知和账户删除流程规划预设头像、最小公开档案及分阶段好友申请
+[CodeX][260829214745] 更新用户档案与好友计划：好友改为顶部图标打开的同页二级抽屉，并规划全局头部的图标化、可访问性和服务端数据加载边界
 [Claude Code][260829214954] 修复深色模式 24 处未覆盖样式：新增 color-scheme 与 ::placeholder 规则；补齐竖屏房间页、教程页、题库徽章、积分语义色与后台浅底区块的深色覆盖；tutorial 页三处内联颜色改为 class
-[Claude Code][260829220906] 深色模式补修：--navy 在深色下翻转为浅色，.card.accent、.faq-q::before、.puzzle-filter-tab.active、.room-seg-btn.active、h2 .num 五处拿它当填充配白字导致 1.48:1；另修 .admin-cleanup-tag-warning 与上次误删的 .tutorial-tip strong 覆盖
-[Claude Code][260829223438] 教程页四类回答标签对齐聊天区实际配色：与此无关由灰改黄、模糊问题由黄改紫，四个标签补回同色系描边；「不需要」徽章加深文字并补描边
+[Claude Code][260829215630] 顶部菜单栏改为线性描边图标：新增 src/components/icons.tsx，site-header 与 logout-button 换用图标（积分/用户名保留文字），globals.css 补 .nav-icon/.nav-account 样式与 44px 点击区和窄屏收缩
+[Claude Code][260829220107] 顶部菜单栏窄屏修复：品牌禁止折行，520px 以下隐藏首页图标与积分币图标并收紧间距，解决登录态在 375px 下溢出裁切；登录图标箭头方向修正为指向门内
+[Claude Code][260829221704] 顶部栏交互重做：退出登录移入账户悬停菜单（含用户名与积分），nav 拆为客户端组件 site-nav.tsx，用自定义悬停面板替换原生 title 提示（普通项 100ms 展开/80ms 关闭，账户项 600ms 关闭），窄屏积分改在账户菜单显示并保留首页图标
+[Claude Code][260829222522] 顶部栏展开层修正：展开状态提升到 SiteNav 统一管理，同时只允许一个展开层；积分移出账户容器（悬停积分不再展开或维持账户菜单），改用独立分隔线；账户菜单拆为"个人资料"和"积分流水"两个按钮，暂均指向 /profile
+[CodeX][260829222918] 修订 /tutorial 玩家教程文字：补全全站唯一用户名和邮箱验证、推理正确后的公布汤底与自动结束、AI 请求不排队且需重试的真实行为；统一手机端「题目」命名，优化角色积分说明、移动座位、姓名冲突和事实总结表述
+[CodeX][260829223444] 个人资料页积分流水改为固定 292px 的最近 5 条预览并新增“查看全部”入口；新增 /points-history 完整分页页面，账户菜单同步指向该页面
+[CodeX][260829224324] 新增仅适用于 OnlineSoup 的 FRONTEND_SPEC.md，明确聊天不中断、稳定布局、房间横竖屏、积分列表、管理端刷新与可访问性要求，并加入文档索引
+[CodeX][260829224853] 将 FRONTEND_SPEC.md 的界面稳定原则扩展为全站约束，明确标签、筛选、选项、空加载错误态和滚动容器切换均不得造成大幅变形、位移或跳转
+[Claude Code][260829225154] 顶部栏对齐 FRONTEND_SPEC：窄屏触控区恢复 44x44，展开面板关闭态改 visibility 隐藏移出 Tab 顺序，账户菜单补焦点管理（点击打开进入首项、Escape 回到触发按钮、悬停不抢焦点），补 prefers-reduced-motion 降级与 user-select/focus-visible，清理窄屏重复的 .user-points 与失效的 .nav-account 规则
+[Claude Code][260829225827] 顶部栏新增房间态图标：SiteHeader 调用 get_my_active_room，存在未关闭房间时把"创建房间"加号换成门图标并直达 /rooms/{code}，提示显示房间码；icons.tsx 新增 IconDoor

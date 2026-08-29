@@ -441,7 +441,7 @@
     <li><a href="#s2-1">创建房间</a></li>
     <li><a href="#s2-2">临时积分</a></li>
     <li><a href="#s2-4">赠送积分</a></li>
-    <li><a href="#s2-5">调换位置</a></li>
+    <li><a href="#s2-5">移动座位</a></li>
     <li><a href="#s2-6">踢出玩家</a></li>
     <li><a href="#s2-7">关闭房间</a></li>
     <li class="sep"></li>
@@ -470,26 +470,26 @@
   <div class="overview-box">
     <p><strong>汤局是什么</strong>：房主创建房间并选择一道海龟汤题目，玩家进入后通过向 AI 主持人不断提问，一步步推理出真相。</p>
     <div class="flow-code"><span class="arr">房主注册 → 创建房间 → 把房间码发给玩家
-</span><span class="arr">玩家加入（无需注册）→ 房主选题 → 玩家询问 / 提示 / 推理 → 推理成功 → 房主关闭房间</span></div>
+</span><span class="arr">玩家加入（无需注册）→ 房主选题 → 玩家询问 / 提示 / 推理 → 推理正确后公布汤底并结束本题 → 房主选择下一题或关闭房间</span></div>
   </div>
 
   <table class="doc-table">
-    <thead><tr><th>角色</th><th>需要注册</th><th>需要积分</th></tr></thead>
+    <thead><tr><th>想做什么</th><th>是否注册</th><th>使用 AI 时的积分</th></tr></thead>
     <tbody>
       <tr>
-        <td>访客 / 普通玩家</td>
+        <td>以访客身份参与</td>
         <td><span class="badge badge-no">不需要</span></td>
-        <td>需要座位临时积分（房主分配）</td>
+        <td>只能使用座位临时积分（由房主分配）</td>
       </tr>
       <tr>
-        <td>注册玩家</td>
-        <td><span class="badge badge-need">推荐</span></td>
-        <td>有个人积分，也可使用座位临时积分</td>
+        <td>使用个人积分或提交反馈</td>
+        <td><span class="badge badge-need">需要</span></td>
+        <td>可使用座位临时积分或个人积分</td>
       </tr>
       <tr>
-        <td>房主</td>
-        <td><span class="badge badge-must">必须</span></td>
-        <td>需要个人积分用于创建房间</td>
+        <td>创建房间</td>
+        <td><span class="badge badge-must">需要</span></td>
+        <td>创建房间使用个人积分；游戏中也可使用两类积分</td>
       </tr>
     </tbody>
   </table>
@@ -513,7 +513,7 @@
   <li>加入成功后，你会被安排到一个座位。</li>
 </ol>
 <p><strong>访客名规则</strong>：3 到 8 位，只能使用英文字母、数字和下划线。</p>
-<div class="tip"><strong>名字冲突？</strong> 说明名字已被占用（房间里有同名访客，或与某个注册用户名重复）。换一个名字，或联系房主把同名访客移出。</div>
+<div class="tip"><strong>名字冲突？</strong> 这个名字可能已被当前房间的访客或全站注册用户名使用。先换一个名字；若房间内确有同名访客，可请房主移出该玩家。</div>
 
 <h3 id="s1-2">1.2 进入后先看哪里</h3>
 <p>房间页面有两个主要区域：<strong>聊天区</strong>（主区）和<strong>房间详情</strong>（右侧或折叠）。</p>
@@ -526,13 +526,13 @@
     <img src="../../public/screenshots/1.2inroomchatandconts_phone.png" alt="手机端房间页面" loading="lazy">
   </div>
 </div>
-<p class="screenshot-caption">左：PC 端布局（聊天区 + 右侧房间详情）&nbsp;&nbsp;右：旧版手机端示意图；当前竖屏手机使用「聊天 / 题库 / 座位」三标签布局</p>
+<p class="screenshot-caption">左：电脑端布局（聊天区 + 右侧房间详情）&nbsp;&nbsp;右：手机端房间页面</p>
 
-<p>电脑端使用右侧「房间详情」。竖屏手机（宽度不超过 760px）会切换为「聊天」「题库」「座位」三个全屏标签；顶部保留当前题目和积分摘要，座位标签内再进行房间管理。</p>
+<p>电脑端使用右侧「房间详情」。竖屏手机（宽度不超过 760px）会切换为「聊天」「题目」「座位」三个全屏标签；顶部保留当前题目和积分摘要，座位标签内再进行房间管理。</p>
 
 <h3 id="s1-3">1.3 等房主开始题目</h3>
-<p>房主还没选题前，你只能普通聊天。当房主选择题目后，「询问」「提示」「尝试推理」模式会解锁。</p>
-<div class="tip">看到"房主开始题目后，才能使用询问 / 提示 / 尝试推理"？说明还没开题，等房主在「海龟汤」里选择题目。</div>
+<p>房主还没选题前，你只能普通聊天。当房主选择题目后，AI 模式会开启；其中「提示」需要先获得提示机会，才能使用。</p>
+<div class="tip">看到"房主开始题目后，AI 模式才会开启"？说明还没开题，等房主在「海龟汤」里选择题目。开始后，获得提示机会才能使用「提示」。</div>
 
 <h3 id="s1-4">1.4 怎么向 AI 询问</h3>
 <p>在聊天区底部切换到「询问」模式，输入一个<strong>可以用"是 / 否"判断的问题</strong>，发送即可。</p>
@@ -580,12 +580,12 @@
 <div class="screenshot-wrap" onclick="openLightbox(this)">
   <img src="../../public/screenshots/2.0register.png" alt="注册页面" loading="lazy">
 </div>
-<p class="screenshot-caption">注册页 — 填写邮箱和密码，注册后会有初始积分</p>
+<p class="screenshot-caption">注册页 — 起一个全站唯一的用户名，填写邮箱和密码</p>
 
 <ol>
   <li>点击右上角「登录 / 注册」。</li>
-  <li>切到「注册」，输入邮箱和密码。</li>
-  <li>注册成功后会有初始积分，可直接用于创建房间。</li>
+  <li>切到「注册」，为自己起一个全站唯一的用户名，再填写邮箱和密码。</li>
+  <li>完成邮箱验证后登录；注册账号会有初始积分，可用于创建房间。</li>
 </ol>
 
 <h3 id="s2-1">2.1 创建房间</h3>
@@ -624,13 +624,13 @@
 </ol>
 <p>注意：赠送消耗<strong>房主个人积分</strong>，增加目标座位临时积分；不能赠送给自己的座位，也不能用自己座位的临时积分赠送。</p>
 
-<h3 id="s2-5">2.5 怎么调换玩家位置</h3>
+<h3 id="s2-5">2.5 怎么移动玩家座位</h3>
 <ol>
   <li>打开「房间详情」→「房间管理」。</li>
   <li>找到要移动的玩家座位，点击「···」→「移动位置」。</li>
   <li>在弹出的座位图里选择一个空位确认。</li>
 </ol>
-<p>限制：房主座位不能移动；只能移动到空座位。</p>
+<p>限制：房主所在的 1 号座位不能移动；只能移动到空座位。</p>
 
 <h3 id="s2-6">2.6 怎么踢出玩家</h3>
 <ol>
@@ -655,17 +655,17 @@
     <img src="../../public/screenshots/3.1chooseapuzzle.png" alt="选择题目列表" loading="lazy">
   </div>
 </div>
-<p class="screenshot-caption">左：「海龟汤」标签 → 点击「题目 ▾」展开菜单&nbsp;&nbsp;右：题库列表，可按难度筛选</p>
+<p class="screenshot-caption">左：电脑端「海龟汤」页的「题目 ▾」菜单&nbsp;&nbsp;右：题目列表，可按难度筛选</p>
 
 <ol>
-  <li>打开「房间详情」→「海龟汤」标签。</li>
+  <li>电脑端打开「房间详情」→「海龟汤」页；手机端点顶部「题目」。</li>
   <li>点击「题目 ▾」→「选择题目」。</li>
-  <li>在题库里选择题目，可按难度筛选，预览后点击「开始这道题」。</li>
+  <li>在题目列表里选择题目，可按难度筛选，预览后点击「开始这道题」。</li>
 </ol>
-<p>开始后，所有玩家的「询问 / 提示 / 尝试推理」模式解锁。</p>
+<p>开始后，AI 模式会开启；其中「提示」需要先获得提示机会。</p>
 
 <h3 id="s3-3">3.3 进度与事实总结</h3>
-<p>「海龟汤」标签里可以看到当前题目状态（进行中 / 已推理成功）和「事实总结」。事实总结像公共白板，AI 确认的关键事实会整理在这里，方便全员继续推理。</p>
+<p>电脑端「海龟汤」页、手机端「题目」页可以看到当前题目状态和「事实总结」。事实总结像公共白板，系统会把问答和提示中的可参考信息整理到这里，方便全员继续推理。</p>
 
 <h3 id="s3-4">3.4 切换 / 停止题目</h3>
 <p>「题目 ▾」菜单里：<strong>切换题目</strong> — 中止当前题，重新选题，AI 不会把旧题事实混入新题；<strong>停止题目</strong> — 暂停海龟汤，玩家回到普通聊天，直到下次选题。</p>
@@ -702,7 +702,7 @@
 <table class="doc-table">
   <thead><tr><th>结果</th><th>含义</th><th>关键点覆盖率</th></tr></thead>
   <tbody>
-    <tr><td><strong style="color:#065f46">推理正确</strong></td><td>覆盖大部分关键事实，题目标记为已推理成功</td><td>≥ 70%</td></tr>
+    <tr><td><strong style="color:#065f46">推理正确</strong></td><td>覆盖大部分关键事实；系统会公布汤底并自动结束本题</td><td>≥ 70%</td></tr>
     <tr><td><strong style="color:#92400e">部分正确</strong></td><td>抓到一部分关键事实，还缺重要环节</td><td>20%–70%</td></tr>
     <tr><td><strong style="color:#991b1b">推理不正确</strong></td><td>覆盖太少，方向可能需要调整</td><td>&lt; 20%</td></tr>
   </tbody>
@@ -745,15 +745,15 @@
 </div>
 <div class="faq-item">
   <div class="faq-q">名字被占用怎么办？</div>
-  <div class="faq-a">换一个访客名；或联系房主把同名访客移出房间。</div>
+  <div class="faq-a">这个名字可能已被当前房间的访客或全站注册用户名使用。先换一个名字；若房间内确有同名访客，可请房主移出该玩家。</div>
 </div>
 <div class="faq-item">
   <div class="faq-q">为什么只能聊天，不能询问 AI？</div>
-  <div class="faq-a">房主还没开始题目。请房主打开「海龟汤」标签，点击「题目 ▾」选择题目。</div>
+  <div class="faq-a">房主还没开始题目。请房主在电脑端打开「房间详情」的「海龟汤」页，或在手机端点顶部「题目」，再选择题目。</div>
 </div>
 <div class="faq-item">
   <div class="faq-q">提示按钮为什么不能点？</div>
-  <div class="faq-a">没有提示机会。询问 3 次 +1 次机会，推理 1 次 +1 次机会。</div>
+  <div class="faq-a">请先确认房主已开始题目；开始后仍不能点，通常是没有提示机会。询问 3 次 +1 次机会，推理 1 次 +1 次机会。</div>
 </div>
 <div class="faq-item">
   <div class="faq-q">AI 回"模糊问题"是为什么？</div>
@@ -761,7 +761,7 @@
 </div>
 <div class="faq-item">
   <div class="faq-q">AI 没有马上回答？</div>
-  <div class="faq-a">同一房间 AI 请求会排队处理，稍等即可。失败时系统会退还本次积分。</div>
+  <div class="faq-a">同一房间一次只处理一条 AI 请求。已有请求处理时，新请求不会进入队列，也不会扣积分；请等当前回复出现后再重试。其他失败情况会退还本次积分。</div>
 </div>
 <div class="faq-item">
   <div class="faq-q">临时积分为什么没有跟着人走？</div>
