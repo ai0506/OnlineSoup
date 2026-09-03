@@ -5375,6 +5375,42 @@ textarea:focus {
   margin: 0 auto;
 }
 
+/* 临时网络性能测试页：删除 debug/network-test 目录后可一并移除。 */
+.network-test-page { max-width: 1100px; margin: 0 auto; }
+.network-test-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+.network-test-heading h1 { margin: 0 0 10px; }
+.network-test-heading .lead { margin: 0; }
+.eyebrow { margin: 0 0 8px; color: var(--muted); font-size: 0.72rem; letter-spacing: 0.12em; }
+.network-test-actions, .network-test-export-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.network-test-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 24px; }
+.network-test-meta div { min-width: 0; }
+.network-test-meta span, .network-test-stats span { display: block; color: var(--muted); font-size: 0.73rem; }
+.network-test-meta strong { display: block; margin-top: 5px; overflow-wrap: anywhere; font-size: 0.9rem; }
+.network-test-toolbar { display: flex; align-items: center; justify-content: space-between; min-height: 62px; gap: 16px; }
+.network-test-notice { min-height: 1.4em; color: var(--muted); font-size: 0.82rem; }
+.network-test-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.network-test-card { min-height: 214px; }
+.network-test-card-heading { display: flex; justify-content: space-between; gap: 16px; min-height: 56px; }
+.network-test-card h2 { margin: 0 0 5px; font-size: 1rem; }
+.network-test-card-heading p { margin: 0; color: var(--muted); font-size: 0.78rem; line-height: 1.5; }
+.network-test-status { flex: none; height: fit-content; padding: 4px 8px; border-radius: 999px; font-size: 0.72rem; }
+.network-test-status.idle { color: var(--muted); background: var(--surface); }
+.network-test-status.ok { color: #166534; background: #dcfce7; }
+.network-test-status.failed { color: #991b1b; background: #fee2e2; }
+.network-test-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 8px; margin-top: 20px; }
+.network-test-stats strong { display: block; margin-top: 3px; font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+.network-test-card-note { min-height: 1.3em; margin: 18px 0 0; color: var(--muted); font-size: 0.76rem; overflow-wrap: anywhere; }
+.network-test-safety { margin-top: 16px; color: var(--muted); font-size: 0.82rem; line-height: 1.6; }
+.network-test-safety p { margin: 6px 0 0; }
+
+@media (max-width: 760px) {
+  .network-test-heading { display: block; }
+  .network-test-actions { margin-top: 18px; }
+  .network-test-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .network-test-toolbar { align-items: flex-start; flex-direction: column; justify-content: center; }
+  .network-test-grid { grid-template-columns: 1fr; }
+}
+
 .feedback-form textarea {
   min-height: 220px;
 }

@@ -344,3 +344,5 @@
 [Claude Code][260829225154] 顶部栏对齐 FRONTEND_SPEC：窄屏触控区恢复 44x44，展开面板关闭态改 visibility 隐藏移出 Tab 顺序，账户菜单补焦点管理（点击打开进入首项、Escape 回到触发按钮、悬停不抢焦点），补 prefers-reduced-motion 降级与 user-select/focus-visible，清理窄屏重复的 .user-points 与失效的 .nav-account 规则
 [Claude Code][260829225827] 顶部栏新增房间态图标：SiteHeader 调用 get_my_active_room，存在未关闭房间时把"创建房间"加号换成门图标并直达 /rooms/{code}，提示显示房间码；icons.tsx 新增 IconDoor
 [Claude Code][260829231941] 整理根目录：HANDOFF.md 与 FILE_TRANSFER_LIST.md 移入 docs/handoff/ 并加归档说明，logo-archive/ 移入 archive/logo-archive/；文档索引补登两处新位置并修复两份规划文档脱离主表的表格格式；.agents/skills 与 dev.ps1 保留
+[Claude Code][260830001606] 修正 /docs 技术说明页：询问字数上限 50 改为实际的 100（对齐 ask/route.ts 与数据库 max_length），路由表补齐 /profile、/points-history、/feedback、/tutorial、/docs 五条，运维命令去掉 Windows 专用的 .cmd 后缀
+[CodeX][260903122210] 新增临时 /debug/network-test 网络性能测试页及 no-store Route Handler：并行测量 Next.js 往返、Supabase REST SELECT、只读 is_username_available RPC、Auth 用户请求和 Realtime 建连，提供 Run once/Run 20 tests、latest/average/min/max/p95/failures 统计及 JSON 复制导出；Realtime 不写业务数据。
