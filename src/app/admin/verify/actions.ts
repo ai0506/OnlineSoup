@@ -10,6 +10,7 @@ import {
   setAdminVerified,
 } from "@/lib/admin-verification";
 import { getClientIp, getDeviceLabel, getLocationLabel } from "@/lib/request-context";
+import { getSiteOrigin } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
 function redirectVerify(params: Record<string, string>): never {
@@ -24,7 +25,14 @@ export async function sendAdminEmailCode() {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.reauthenticate();
+  const siteUrl = await getSiteOrigin();
+  const { error } = await supabase.auth.signInWithOtp({
+    email: user.email,
+    options: {
+      emailRedirectTo: `${siteUrl}/auth/callback?next=/admin/verify/complete`,
+      shouldCreateUser: false,
+    },
+  });
 
   if (error) {
     console.error("Send admin verification code failed", {
@@ -41,16 +49,15 @@ export async function verifyAdminEmailCode(formData: FormData) {
   const user = await requireAdmin({ requireVerified: false });
   const token = String(formData.get("token") ?? "").trim();
 
-  if (!user.email || !/^\d{8}$/.test(token)) {
+  if (!user.email || !/^\d{6,8}$/.test(token)) {
     redirectVerify({ error: "invalid_code" });
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.updateUser({
-    data: {
-      admin_reauthenticated_at: new Date().toISOString(),
-    },
-    nonce: token,
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: user.email,
+    token,
+    type: "email",
   });
 
   if (error) {
@@ -58,6 +65,11 @@ export async function verifyAdminEmailCode(formData: FormData) {
       code: error.code,
       message: error.message,
     });
+    redirectVerify({ error: "verify_failed" });
+  }
+
+  if (data.user?.id !== user.id || data.user.email?.toLowerCase() !== user.email.toLowerCase()) {
+    await clearAdminVerified();
     redirectVerify({ error: "verify_failed" });
   }
 

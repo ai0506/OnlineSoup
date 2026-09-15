@@ -2,20 +2,9 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { sanitizeRoomMessagesForPlayer } from "@/lib/room-message";
 import { createClient } from "@/lib/supabase/server";
 import type { RoomChatBootstrap, RoomMessage } from "@/lib/types";
-
-function stripInternalFields(msg: RoomMessage): RoomMessage {
-  if (msg.message_type !== "ai") return msg;
-  try {
-    const parsed = JSON.parse(msg.content) as Record<string, unknown>;
-    let changed = false;
-    if ("ask_audit" in parsed) { delete parsed.ask_audit; changed = true; }
-    if ("cache_hit" in parsed) { delete parsed.cache_hit; changed = true; }
-    if (changed) return { ...msg, content: JSON.stringify(parsed) };
-  } catch { /* not JSON */ }
-  return msg;
-}
 
 type MessageRouteContext = {
   params: Promise<{ code: string }>;
@@ -23,8 +12,7 @@ type MessageRouteContext = {
 
 const messageSchema = z.object({
   content: z.string().trim().min(1).max(300),
-  message_mode: z.enum(["chat", "ask", "hint", "reason"]).default("chat"),
-  use_personal_points: z.boolean().default(false),
+  message_mode: z.literal("chat").default("chat"),
 });
 
 function chatErrorResponse(error: { message: string }) {
@@ -82,7 +70,7 @@ export async function GET(
   }
 
   const bootstrap = data as RoomChatBootstrap;
-  return NextResponse.json({ messages: bootstrap.messages.map(stripInternalFields) });
+  return NextResponse.json({ messages: sanitizeRoomMessagesForPlayer(bootstrap.messages) });
 }
 
 export async function POST(
@@ -104,7 +92,7 @@ export async function POST(
     );
   }
 
-  const { content, message_mode, use_personal_points } = parsed.data;
+  const { content, message_mode } = parsed.data;
 
   const supabase = await createClient();
   const guestToken = await getGuestToken(code);
@@ -113,7 +101,7 @@ export async function POST(
     message_content: content,
     guest_token: guestToken,
     message_mode,
-    use_personal_points,
+    use_personal_points: false,
   });
 
   if (error) {

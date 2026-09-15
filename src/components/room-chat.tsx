@@ -643,6 +643,7 @@ export function RoomChat({
           }
         } else {
           setMessages((cur) => cur.filter((m) => m.id !== tempId));
+          setContent((current) => current || text);
           if (response.status === 429) {
             setShowRateLimitNotice(true);
           } else {
@@ -670,6 +671,7 @@ export function RoomChat({
         setPendingSends((cur) => ({ ...cur, [tempId]: { content: text, mode: msgMode } }));
       } else {
         setMessages((cur) => cur.filter((m) => m.id !== tempId));
+        setContent((current) => current || text);
         setErrorNotice("消息发送失败，请稍后重试");
       }
     } finally {
@@ -944,7 +946,6 @@ export function RoomChat({
                 onClick={() => {
                   if (locked) return;
                   setMode(m.key);
-                  setContent((c) => c.slice(0, m.maxLength));
                 }}
                 title={title}
                 type="button"
@@ -965,6 +966,7 @@ export function RoomChat({
           maxLength={currentMode.maxLength}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               e.currentTarget.form?.requestSubmit();

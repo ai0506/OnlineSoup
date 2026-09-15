@@ -347,3 +347,7 @@
 [Claude Code][260830001606] 修正 /docs 技术说明页：询问字数上限 50 改为实际的 100（对齐 ask/route.ts 与数据库 max_length），路由表补齐 /profile、/points-history、/feedback、/tutorial、/docs 五条，运维命令去掉 Windows 专用的 .cmd 后缀
 [CodeX][260903122210] 新增临时 /debug/network-test 网络性能测试页及 no-store Route Handler：并行测量 Next.js 往返、Supabase REST SELECT、只读 is_username_available RPC、Auth 用户请求和 Realtime 建连，提供 Run once/Run 20 tests、latest/average/min/max/p95/failures 统计及 JSON 复制导出；Realtime 不写业务数据。
 [CodeX][260904122549] 新增安全房间清理迁移：清理前保留仍被 room_ai_requests 或 room_message_events 引用的消息，避免级联删除其它引用；清理候选只统计实际可删除的消息，并返回保留消息数量；不恢复历史数据、不修改个人资料统计。
+
+[CodeX][260905212627] 新增全项目只读评估报告与 AI 架构专项归档：按功能、架构和交互整理保留/修复/补缺项，记录 25 组问题的源码证据、优先级与验收要求；完成 typecheck、lint、build、生产依赖审计及公开权限零行探针，未修改业务代码、数据库或部署。
+
+[CodeX][260914215934] 落实全项目评估止损批：新增迁移固定公开注册 100 积分、管理员建号改用 service_role 积分调整、退出/踢人保留座位余额、限制建房 1–20 座/2–8 字/6 位数字密码、普通聊天 RPC 仅允许 chat，并在聊天 bootstrap 及首屏/HTTP/AI 响应统一剥离审计缓存与推理评分点；管理员二次认证改为消费邮箱 OTP 或经受控回调的验证链接，可信设备改为默认不勾选且 30 天有效，移除公开 key 签名回退；修复用户名 ILIKE 通配、跳转反斜杠、中文输入 Enter、普通聊天失败草稿恢复；Next.js 与 eslint-config-next 升至 16.3.3。

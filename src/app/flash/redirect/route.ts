@@ -8,9 +8,17 @@ import {
   type FlashKind,
 } from "@/lib/flash";
 
-function safeNextPath(value: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/";
-  return value;
+function safeNextPath(value: string | null, origin: string) {
+  if (!value || !value.startsWith("/") || /\\|%2f|%5c/i.test(value)) return "/";
+
+  try {
+    const target = new URL(value, origin);
+    return target.origin === origin
+      ? `${target.pathname}${target.search}${target.hash}`
+      : "/";
+  } catch {
+    return "/";
+  }
 }
 
 function getKind(value: string | null): FlashKind {
@@ -20,7 +28,7 @@ function getKind(value: string | null): FlashKind {
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code") ?? "operation_done";
   const scope = request.nextUrl.searchParams.get("scope") ?? "home";
-  const nextPath = safeNextPath(request.nextUrl.searchParams.get("next"));
+  const nextPath = safeNextPath(request.nextUrl.searchParams.get("next"), request.nextUrl.origin);
   const response = NextResponse.redirect(new URL(nextPath, request.url));
 
   response.cookies.set(

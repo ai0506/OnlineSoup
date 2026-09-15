@@ -76,6 +76,7 @@ export async function createRoom(
       invalid_seat_count: "座位数量不合法，请填写 1 到 20 的整数",
       invalid_seat_points: "每位玩家积分需要填写 0 到 100 的整数",
       invalid_room_name: "房间名称需要 2 到 8 个字",
+      invalid_room_password: "房间密码必须是 6 位数字",
     };
 
     const matched = Object.keys(errorMessages).find((key) =>

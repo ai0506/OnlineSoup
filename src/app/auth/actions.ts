@@ -21,6 +21,10 @@ async function redirectLoginWithFlash(
   });
 }
 
+function escapeIlikePattern(value: string) {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
 export async function login(formData: FormData) {
   const parsed = loginIdentitySchema.safeParse({
     identity: formData.get("email"),
@@ -43,7 +47,7 @@ export async function login(formData: FormData) {
     const { data: profile } = await admin
       .from("profiles")
       .select("id")
-      .ilike("username", identity)
+      .ilike("username", escapeIlikePattern(identity))
       .single();
 
     if (!profile) {

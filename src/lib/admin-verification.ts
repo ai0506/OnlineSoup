@@ -1,11 +1,12 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { cookies } from "next/headers";
+import type { NextResponse } from "next/server";
 
 export const ADMIN_VERIFICATION_COOKIE = "online_soup_admin_verified";
 export const ADMIN_DEVICE_COOKIE = "online_soup_admin_device";
 const ADMIN_VERIFICATION_MAX_AGE_SECONDS = 12 * 60 * 60;
-const ADMIN_DEVICE_MAX_AGE_SECONDS = 10 * 365 * 24 * 60 * 60;
+const ADMIN_DEVICE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 const cookieOptions = {
   httpOnly: true,
@@ -24,17 +25,29 @@ const deviceCookieOptions = {
 };
 
 function getVerificationSecret() {
-  return (
-    process.env.SUPABASE_SECRET_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    "online-soup-admin-verification-dev"
-  );
+  return process.env.ADMIN_VERIFICATION_SECRET ?? process.env.SUPABASE_SECRET_KEY;
 }
 
 function sign(payload: string) {
-  return createHmac("sha256", getVerificationSecret())
+  const secret = getVerificationSecret();
+  if (!secret) return null;
+  return createHmac("sha256", secret)
     .update(payload)
     .digest("base64url");
+}
+
+function createAdminVerifiedCookie(userId: string, sessionId: string) {
+  const expiresAt = Date.now() + ADMIN_VERIFICATION_MAX_AGE_SECONDS * 1000;
+  const payload = `${userId}.${sessionId}.${expiresAt}`;
+  const signature = sign(payload);
+  if (!signature) {
+    throw new Error("ADMIN_VERIFICATION_SECRET or SUPABASE_SECRET_KEY is required");
+  }
+  return {
+    name: ADMIN_VERIFICATION_COOKIE,
+    value: `${payload}.${signature}`,
+    options: cookieOptions,
+  };
 }
 
 function safeEqual(a: string, b: string) {
@@ -45,13 +58,17 @@ function safeEqual(a: string, b: string) {
 
 export async function setAdminVerified(userId: string, sessionId: string) {
   const cookieStore = await cookies();
-  const expiresAt = Date.now() + ADMIN_VERIFICATION_MAX_AGE_SECONDS * 1000;
-  const payload = `${userId}.${sessionId}.${expiresAt}`;
-  cookieStore.set(
-    ADMIN_VERIFICATION_COOKIE,
-    `${payload}.${sign(payload)}`,
-    cookieOptions,
-  );
+  const cookie = createAdminVerifiedCookie(userId, sessionId);
+  cookieStore.set(cookie.name, cookie.value, cookie.options);
+}
+
+export function setAdminVerifiedOnResponse(
+  response: NextResponse,
+  userId: string,
+  sessionId: string,
+) {
+  const cookie = createAdminVerifiedCookie(userId, sessionId);
+  response.cookies.set(cookie.name, cookie.value, cookie.options);
 }
 
 export async function setAdminDeviceTrusted(userId: string) {
@@ -90,7 +107,8 @@ export async function isAdminVerified(userId: string, sessionId: string) {
         expiresAt > Date.now()
       ) {
         const payload = `${parts[0]}.${parts[1]}.${expiresAtText}`;
-        if (safeEqual(sign(payload), signature)) {
+        const expectedSignature = sign(payload);
+        if (expectedSignature && safeEqual(expectedSignature, signature)) {
           return true;
         }
       }
@@ -116,5 +134,6 @@ export async function isAdminVerified(userId: string, sessionId: string) {
   }
 
   const payload = `${cookieUserId}.${cookieSessionId}.${expiresAtText}`;
-  return safeEqual(sign(payload), signature);
+  const expectedSignature = sign(payload);
+  return Boolean(expectedSignature && safeEqual(expectedSignature, signature));
 }

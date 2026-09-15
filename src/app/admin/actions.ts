@@ -388,13 +388,12 @@ export async function createAdminUser(formData: FormData) {
   const internalEmail = username.toLowerCase() + NOEMAIL_DOMAIN;
 
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.createUser({
+  const { data, error } = await admin.auth.admin.createUser({
     email: internalEmail,
     password,
     email_confirm: true,
     user_metadata: {
       username,
-      initial_points: points,
     },
   });
 
@@ -410,6 +409,36 @@ export async function createAdminUser(formData: FormData) {
         ? "username_taken"
         : "create_user_failed";
     return await redirectAdminResult("error", code);
+  }
+
+  if (!data.user) {
+    return await redirectAdminResult("error", "create_user_failed");
+  }
+
+  const adjustment = points - 100;
+  if (adjustment !== 0) {
+    const { error: adjustmentError } = await admin.rpc("admin_adjust_user_points", {
+      p_user_id: data.user.id,
+      p_amount: adjustment,
+      p_note: "管理员建号初始积分调整",
+    });
+
+    if (adjustmentError) {
+      console.error("Admin initial points adjustment failed", {
+        code: adjustmentError.code,
+        message: adjustmentError.message,
+        userId: data.user.id,
+      });
+      const { error: deleteError } = await admin.auth.admin.deleteUser(data.user.id);
+      if (deleteError) {
+        console.error("Failed to roll back admin-created user", {
+          code: deleteError.code,
+          message: deleteError.message,
+          userId: data.user.id,
+        });
+      }
+      return await redirectAdminResult("error", "create_user_failed");
+    }
   }
 
   revalidatePath("/admin");

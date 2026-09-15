@@ -11,6 +11,7 @@ import {
   recordCacheHit,
   saveToPuzzleQaCache,
 } from "@/lib/qa-cache";
+import { sanitizeRoomMessageForPlayer } from "@/lib/room-message";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { MessageMode, RoomMessage } from "@/lib/types";
@@ -322,18 +323,7 @@ export async function POST(request: Request, { params }: AskRouteContext) {
     );
   }
 
-  const aiMessageForPlayer = (() => {
-    const msg = aiMessage as RoomMessage;
-    if (msg.message_type !== "ai") return msg;
-    try {
-      const parsed = JSON.parse(msg.content) as Record<string, unknown>;
-      let changed = false;
-      if ("ask_audit" in parsed) { delete parsed.ask_audit; changed = true; }
-      if ("cache_hit" in parsed) { delete parsed.cache_hit; changed = true; }
-      if (changed) return { ...msg, content: JSON.stringify(parsed) };
-    } catch { /* not JSON */ }
-    return msg;
-  })();
+  const aiMessageForPlayer = sanitizeRoomMessageForPlayer(aiMessage as RoomMessage);
 
   return NextResponse.json(
     {

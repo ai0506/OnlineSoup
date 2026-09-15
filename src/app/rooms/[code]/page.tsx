@@ -12,6 +12,7 @@ import { RoomActionForm } from "@/components/room-action-form";
 import { RoomChat } from "@/components/room-chat";
 import { hasSupabaseEnv } from "@/lib/env";
 import { flashRedirectPath } from "@/lib/flash";
+import { sanitizeRoomMessagesForPlayer } from "@/lib/room-message";
 import { createClient } from "@/lib/supabase/server";
 import type { CurrentPuzzle, PuzzleListItem, Room, RoomChatBootstrap, RoomSeat } from "@/lib/types";
 
@@ -218,7 +219,7 @@ export default async function RoomPage({
       <main className="room-chat-panel">
         {chatBootstrap ? (
           <RoomChat
-            initialMessages={chatBootstrap.messages}
+            initialMessages={sanitizeRoomMessagesForPlayer(chatBootstrap.messages)}
             roomCode={room.code}
             roomId={room.id}
             seatId={chatSeatId}
