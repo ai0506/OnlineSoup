@@ -5,8 +5,10 @@ import type { NextResponse } from "next/server";
 
 export const ADMIN_VERIFICATION_COOKIE = "online_soup_admin_verified";
 export const ADMIN_DEVICE_COOKIE = "online_soup_admin_device";
+const ADMIN_EMAIL_CHALLENGE_COOKIE = "online_soup_admin_email_challenge";
 const ADMIN_VERIFICATION_MAX_AGE_SECONDS = 12 * 60 * 60;
 const ADMIN_DEVICE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+const ADMIN_EMAIL_CHALLENGE_MAX_AGE_SECONDS = 10 * 60;
 
 const cookieOptions = {
   httpOnly: true,
@@ -24,6 +26,14 @@ const deviceCookieOptions = {
   secure: process.env.NODE_ENV === "production",
 };
 
+const emailChallengeCookieOptions = {
+  httpOnly: true,
+  maxAge: ADMIN_EMAIL_CHALLENGE_MAX_AGE_SECONDS,
+  path: "/admin",
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
+};
+
 function getVerificationSecret() {
   return process.env.ADMIN_VERIFICATION_SECRET ?? process.env.SUPABASE_SECRET_KEY;
 }
@@ -34,6 +44,37 @@ function sign(payload: string) {
   return createHmac("sha256", secret)
     .update(payload)
     .digest("base64url");
+}
+
+export function hashAdminEmailVerificationCode(challengeId: string, code: string) {
+  const secret = getVerificationSecret();
+  if (!secret) {
+    throw new Error("ADMIN_VERIFICATION_SECRET or SUPABASE_SECRET_KEY is required");
+  }
+  return createHmac("sha256", secret)
+    .update(`${challengeId}.${code}`)
+    .digest("base64url");
+}
+
+export async function setAdminEmailVerificationChallenge(challengeId: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(ADMIN_EMAIL_CHALLENGE_COOKIE, challengeId, emailChallengeCookieOptions);
+}
+
+export async function getAdminEmailVerificationChallenge() {
+  const cookieStore = await cookies();
+  const challengeId = cookieStore.get(ADMIN_EMAIL_CHALLENGE_COOKIE)?.value;
+  return challengeId && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(challengeId)
+    ? challengeId
+    : null;
+}
+
+export async function clearAdminEmailVerificationChallenge() {
+  const cookieStore = await cookies();
+  cookieStore.set(ADMIN_EMAIL_CHALLENGE_COOKIE, "", {
+    ...emailChallengeCookieOptions,
+    maxAge: 0,
+  });
 }
 
 function createAdminVerifiedCookie(userId: string, sessionId: string) {
