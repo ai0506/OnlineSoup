@@ -15,7 +15,7 @@
 - 普通聊天消息和 AI 请求均有速率限制
 - 管理端支持发送邮件（Resend）、消息审计、AI 错误案例、聊天备份导出
 - 管理端邮箱二次验证与可信设备 Cookie；房间支持单会话设备锁和多设备接管
-- 问答缓存、事实摘要和 DeepSeek/GLM 双路 AI 处理均按当前题目隔离
+- 问答缓存、事实摘要和 DeepSeek/GLM 双路 AI 处理均按当前题目隔离；付费 AI 请求由数据库 120 秒租约串行化，失联的过期请求可安全退分
 - 移动端竖屏房间页采用聊天/题库/座位三标签全屏切换布局
 
 更详细的功能拆分和当前进度见 [`tasks.md`](tasks.md)；最近的改动记录见 [`updates.md`](updates.md)。
@@ -97,5 +97,10 @@ npm run dev
 ```powershell
 npm.cmd run typecheck
 npm.cmd run lint
+npm.cmd test
 npm.cmd run build
 ```
+
+`npm.cmd test` 运行离线 Vitest 回归；如本机已启动 Supabase CLI，还可运行
+`npm.cmd run test:db` 检查数据库契约。GitHub Actions 会在推送到 `main` 和 PR 时运行
+typecheck、lint、test 与 build；这些检查不替代真实账号、房间或付费 AI 的端到端验收。
