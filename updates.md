@@ -351,3 +351,12 @@
 [CodeX][260905212627] 新增全项目只读评估报告与 AI 架构专项归档：按功能、架构和交互整理保留/修复/补缺项，记录 25 组问题的源码证据、优先级与验收要求；完成 typecheck、lint、build、生产依赖审计及公开权限零行探针，未修改业务代码、数据库或部署。
 
 [CodeX][260914215934] 落实全项目评估止损批：新增迁移固定公开注册 100 积分、管理员建号改用 service_role 积分调整、退出/踢人保留座位余额、限制建房 1–20 座/2–8 字/6 位数字密码、普通聊天 RPC 仅允许 chat，并在聊天 bootstrap 及首屏/HTTP/AI 响应统一剥离审计缓存与推理评分点；管理员二次认证改为消费邮箱 OTP 或经受控回调的验证链接，可信设备改为默认不勾选且 30 天有效，移除公开 key 签名回退；修复用户名 ILIKE 通配、跳转反斜杠、中文输入 Enter、普通聊天失败草稿恢复；Next.js 与 eslint-config-next 升至 16.3.3。
+
+[Claude Code][260916122207] 调整 CLAUDE.md 沟通方式：改为动手前先给可读方案、确认后一次完成代码与验证，保留微小改动豁免，并要求线上迁移/RLS 权限/删数据等高危动作单独确认。
+
+[CodeX][260918110153] 建立最小回归测试基础：新增 Vitest、npm test/test:db 脚本、QA cache 单元测试和 pgTAP 房间契约测试骨架；新增未应用的房间一致性迁移，定义 AI request lease、stale reconciliation、核心 chat/AI/bootstrap 的活跃会话成员校验及受保护房间状态 RPC；npm test 与 typecheck 通过，远端 Supabase 连接中断导致 dry-run 与 pgTAP 尚未执行。
+[CodeX][260918112644] 应用 20260918025855 房间安全迁移并确认远端记录；收缩匿名 rooms/room_seats 直读，新增受保护房间状态接口；QA 语义缓存改为单次 GLM 批量候选判定，新增最小 GitHub CI 与离线精确命中回归用例；公开 RPC 与前端 typecheck/lint/build/test 验证通过。
+[CodeX][260919194753] 在 AGENTS.md 与 CLAUDE.md 新增工程经验沉淀规则：问题解决并有充分验证依据后，遇到可复用的根因、边界或预防规则时，按 lessons.md 模板追加记录并关联 updates.md。
+[CodeX][260919195028] 完成全项目文档巡检：更新 README、文档索引、站内技术说明和 tasks 的当前测试、受保护房间状态与 AI 租约说明；新增文档与文件保留价值盘点，标明历史、规划、非运行与本地可再生候选，未删除或读取敏感配置。
+[CodeX][260919195417] 按用户授权将 archive、prototypes、docs/handoff 与 outputs 移入系统废纸篓的专用可恢复目录；保留 paper 及 data，未读取或移动可能含敏感配置的 paper 文件，并同步文档索引与盘点记录。
+[CodeX][260919195631] 复核项目目录结构：保留既有应用、迁移、测试、文档、资料与框架配置分层，仅移除未被 Git 跟踪、无引用且为空的 src/lib/ai 目录；未移动 paper 或运行文件。
