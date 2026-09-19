@@ -24,6 +24,16 @@ export type RoomSeat = {
   remaining_points: number;
   hint_tokens: number;
   occupied_at: string | null;
+  /** Returned only by protected room-state reads. */
+  is_current_user?: boolean;
+};
+
+export type RoomMemberState = {
+  room: Omit<Room, "owner_id" | "created_at"> & { is_owner: boolean };
+  seat_id: string;
+  seats: RoomSeat[];
+  personal_points: number | null;
+  requires_password: boolean;
 };
 
 export type MessageMode = "chat" | "ask" | "hint" | "reason";

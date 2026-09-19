@@ -45,16 +45,7 @@ export async function GET(request: NextRequest) {
         await supabase.rpc("get_my_active_room");
 
       if (activeRoomCode) {
-        const { data: activeRoom } = await supabase
-          .from("rooms")
-          .select("code")
-          .eq("code", activeRoomCode)
-          .neq("status", "closed")
-          .maybeSingle();
-
-        if (activeRoom) {
-          return redirectTo(`/rooms/${activeRoom.code}`);
-        }
+        return redirectTo(`/rooms/${activeRoomCode}`);
       }
     } else {
       const cookieStore = await cookies();
@@ -81,18 +72,7 @@ export async function GET(request: NextRequest) {
         );
 
         if (isMember) {
-          const { data: activeGuestRoom } = await supabase
-            .from("rooms")
-            .select("code")
-            .eq("code", guestRoomCode)
-            .neq("status", "closed")
-            .maybeSingle();
-
-          if (!activeGuestRoom) {
-            continue;
-          }
-
-          return redirectTo(`/rooms/${activeGuestRoom.code}`);
+          return redirectTo(`/rooms/${guestRoomCode}`);
         }
       }
     }

@@ -14,7 +14,7 @@ import { hasSupabaseEnv } from "@/lib/env";
 import { flashRedirectPath } from "@/lib/flash";
 import { sanitizeRoomMessagesForPlayer } from "@/lib/room-message";
 import { createClient } from "@/lib/supabase/server";
-import type { CurrentPuzzle, PuzzleListItem, Room, RoomChatBootstrap, RoomSeat } from "@/lib/types";
+import type { CurrentPuzzle, PuzzleListItem, RoomChatBootstrap, RoomMemberState } from "@/lib/types";
 
 type RoomPageProps = {
   params: Promise<{ code: string }>;
@@ -69,95 +69,39 @@ export default async function RoomPage({
     }));
   }
 
-  const { data: roomData } = await supabase
-    .from("rooms")
-    .select("*")
-    .eq("code", code)
-    .single();
-
-  if (!roomData) {
+  const [{ data: claimsData }, { data: joinInfo }] = await Promise.all([
+    supabase.auth.getClaims(),
+    supabase.rpc("get_room_join_info", { p_room_code: code }),
+  ]);
+  if (!joinInfo || (joinInfo as { exists?: boolean }).exists !== true) {
     notFound();
   }
-
-  const room = roomData as Room;
-
-  // 并行：seats、身份认证、房间密码检查互不依赖，一次发出
-  const [
-    { data: seatData },
-    { data: claimsData },
-    { data: requiresPasswordData, error: passwordCheckError },
-  ] = await Promise.all([
-    supabase
-      .from("room_seats")
-      .select("id, seat_number, nickname, user_id, remaining_points, hint_tokens, occupied_at")
-      .eq("room_id", room.id)
-      .order("seat_number"),
-    supabase.auth.getClaims(),
-    supabase.rpc("room_requires_password", { room_code: code }),
-  ]);
-
-  if (passwordCheckError) {
-    console.error("room_requires_password RPC failed", {
-      code: passwordCheckError.code,
-      message: passwordCheckError.message,
-      roomCode: code,
-    });
-  }
-
-  const seats = (seatData || []) as RoomSeat[];
   const userId = claimsData?.claims?.sub as string | undefined;
-  const isOwner = userId === room.owner_id;
-  const isRegisteredMember = Boolean(
-    userId && !isOwner && seats.some((seat) => seat.user_id === userId),
-  );
-
-  // 并行：游客验证与登录用户积分查询互不依赖
-  const [membershipResult, profileResult] = await Promise.all([
-    (!userId && guestToken)
-      ? supabase.rpc("verify_guest_membership", { room_code: code, guest_token: guestToken })
-      : Promise.resolve({ data: null }),
-    (userId && (isOwner || isRegisteredMember))
-      ? supabase.from("profiles").select("points").eq("id", userId).maybeSingle()
-      : Promise.resolve({ data: null }),
-  ]);
-
-  const isJoinedGuest = (!userId && guestToken) ? membershipResult.data === true : false;
-  const currentUserPoints: number | undefined =
-    userId && (isOwner || isRegisteredMember)
-      ? (profileResult.data?.points as number | undefined)
-      : undefined;
-
-  if (userId && (isOwner || isRegisteredMember)) {
-    const { data: canUseRoomSession, error: sessionCheckError } =
-      await supabase.rpc("can_use_room_session", { room_code: code });
-
-    if (sessionCheckError) {
-      console.error("can_use_room_session RPC failed", {
-        code: sessionCheckError.code,
-        message: sessionCheckError.message,
-        roomCode: code,
-      });
-    }
-
-    if (!sessionCheckError && canUseRoomSession === false) {
+  const stateResult = await supabase.rpc("get_room_member_state", { p_room_code: code, p_guest_token: guestToken || null });
+  if (stateResult.error?.message.includes("room_device_in_use")) {
       if (action === "enter") {
-        // User explicitly chose to enter on this device — take over session
         await supabase.rpc("take_over_room_session", { p_room_code: code });
         redirect(`/rooms/${code}`);
       } else {
-        // Normal refresh: this device was displaced by another, go home
         redirect(flashRedirectPath("/", {
           code: "room_displaced",
           kind: "notice",
           scope: "home",
         }));
       }
-    }
   }
+  const memberState = stateResult.error ? null : stateResult.data as RoomMemberState;
+  const isMember = Boolean(memberState);
+  const isOwner = memberState?.room.is_owner === true;
+  const isRegisteredMember = Boolean(userId && isMember && !isOwner);
+  const isJoinedGuest = Boolean(!userId && isMember);
+  const room = memberState?.room ?? joinInfo as RoomMemberState["room"];
+  const seats = memberState?.seats ?? [];
+  const currentUserPoints = memberState?.personal_points ?? undefined;
 
   const verifiedRoomPassword = cookieStore.get(`room_password_${code}`)?.value;
-  const requiresPassword =
-    requiresPasswordData === true && !/^\d{6}$/.test(verifiedRoomPassword ?? "");
+  const requiresPassword = (joinInfo as { requires_password?: boolean }).requires_password === true
+    && !/^\d{6}$/.test(verifiedRoomPassword ?? "");
 
   if (!isOwner && !isRegisteredMember && !isJoinedGuest) {
     return (
@@ -177,7 +121,6 @@ export default async function RoomPage({
   }
 
   // 并行：chat bootstrap、当前题目、题库列表互不依赖
-  const isMember = isOwner || isRegisteredMember || isJoinedGuest;
   const [chatBootstrapResult, puzzleDataResult, puzzleListResult] = await Promise.all([
     isMember
       ? supabase.rpc("get_room_chat_bootstrap", { room_code: code, guest_token: guestToken || null })
@@ -231,7 +174,7 @@ export default async function RoomPage({
             initialPuzzleId={currentPuzzle?.id ?? null}
             senderName={chatSeat?.nickname ?? undefined}
             senderSeatNumber={chatSeat?.seat_number}
-            senderType={chatSeat?.user_id ? "registered" : "guest"}
+            senderType={userId ? "registered" : "guest"}
           />
         ) : (
           <div className="chat-migration-notice">

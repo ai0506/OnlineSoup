@@ -214,7 +214,7 @@ export async function POST(request: Request, { params }: AskRouteContext) {
       const normalizedQ = normalizeQuestion(content);
       let cacheHit = false;
 
-      if (zhipuKey) {
+      {
         const cacheEntries = await fetchPuzzleQaCache(admin, requestResult.puzzle_id);
         const hit = cacheEntries.length > 0
           ? await checkCacheHit(normalizedQ, content, cacheEntries, zhipuKey)
@@ -223,7 +223,7 @@ export async function POST(request: Request, { params }: AskRouteContext) {
         if (hit) {
           console.info("[qa-cache] hit", { puzzleId: requestResult.puzzle_id, entryId: hit.id, answerType: hit.answer_type });
           cacheHit = true;
-          void recordCacheHit(admin, hit.id);
+          await recordCacheHit(admin, hit.id);
           const factSummary = (hit.answer_type === "yes" || hit.answer_type === "no")
             ? await requestFactSummary(process.env.DEEPSEEK_API_KEY!, content, hit.answer_type, [])
             : null;
@@ -261,11 +261,10 @@ export async function POST(request: Request, { params }: AskRouteContext) {
           const answerType = result.answerType;
           if (
             result.cacheEligible &&
-            zhipuKey &&
             (answerType === "yes" || answerType === "no") &&
             isCacheWorthy(content, answerType)
           ) {
-            void saveToPuzzleQaCache(admin, requestResult.puzzle_id, content, normalizedQ, answerType);
+            await saveToPuzzleQaCache(admin, requestResult.puzzle_id, content, normalizedQ, answerType);
           }
         }
       }

@@ -11,7 +11,6 @@ import {
   useState,
 } from "react";
 
-import { createClient } from "@/lib/supabase/client";
 import type { MessageMode, RoomMessage } from "@/lib/types";
 
 const MODES = [
@@ -340,7 +339,7 @@ export function RoomChat({
     if (atBottom) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  // Message polling + Realtime
+  // Protected polling keeps messages private; Realtime is not used as a data-access channel.
   useEffect(() => {
     let disposed = false;
 
@@ -378,17 +377,6 @@ export function RoomChat({
     window.addEventListener("room-data-refresh", refreshMessages);
     const timer = window.setInterval(() => void refreshMessages(), MESSAGE_FALLBACK_POLL_MS);
 
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`room-message-events:${roomId}`)
-      .on("postgres_changes", {
-        event: "INSERT",
-        schema: "public",
-        table: "room_message_events",
-        filter: `room_id=eq.${roomId}`,
-      }, () => { if (!disposed) void refreshMessages(); })
-      .subscribe((status) => { if (status === "SUBSCRIBED") void refreshMessages(); });
-
     return () => {
       disposed = true;
       document.removeEventListener("visibilitychange", handleVisible);
@@ -396,25 +384,21 @@ export function RoomChat({
       window.removeEventListener("online", handleVisible);
       window.removeEventListener("room-data-refresh", refreshMessages);
       window.clearInterval(timer);
-      void supabase.removeChannel(channel);
     };
   }, [roomCode, roomId]);
 
-  // Points + hint tokens Realtime + polling
+  // Points and hint tokens come from protected room state, with polling as recovery.
   useEffect(() => {
     if (!activeSeatId && !currentUserId) return;
 
-    const supabase = createClient();
     let disposed = false;
-    const channels: ReturnType<typeof supabase.channel>[] = [];
 
     const syncSeatData = async () => {
       if (!activeSeatId || document.visibilityState !== "visible") return;
-      const { data } = await supabase
-        .from("room_seats")
-        .select("remaining_points, hint_tokens")
-        .eq("id", activeSeatId)
-        .maybeSingle();
+      const response = await fetch(`/rooms/${roomCode}/state`, { cache: "no-store" });
+      if (!response.ok || disposed) return;
+      const { state } = await response.json() as { state: { seats: Array<{ id: string; remaining_points: number; hint_tokens: number }>; personal_points: number | null } };
+      const data = state.seats.find((seat) => seat.id === activeSeatId);
       if (!disposed) {
         if (typeof data?.remaining_points === "number") setSeatPoints(data.remaining_points);
         if (typeof data?.hint_tokens === "number") setHintTokens(data.hint_tokens);
@@ -423,13 +407,11 @@ export function RoomChat({
 
     const syncPersonalPoints = async () => {
       if (!currentUserId || document.visibilityState !== "visible") return;
-      const { data } = await supabase
-        .from("profiles")
-        .select("points")
-        .eq("id", currentUserId)
-        .maybeSingle();
-      if (!disposed && typeof data?.points === "number") {
-        setPersonalPoints(data.points);
+      const response = await fetch(`/rooms/${roomCode}/state`, { cache: "no-store" });
+      if (!response.ok || disposed) return;
+      const { state } = await response.json() as { state: { personal_points: number | null } };
+      if (!disposed && typeof state.personal_points === "number") {
+        setPersonalPoints(state.personal_points);
       }
     };
 
@@ -437,23 +419,6 @@ export function RoomChat({
       void syncSeatData();
       void syncPersonalPoints();
     };
-
-    if (activeSeatId) {
-      const ch = supabase
-        .channel(`chat-seat-pts:${activeSeatId}`)
-        .on("postgres_changes", {
-          event: "UPDATE",
-          schema: "public",
-          table: "room_seats",
-          filter: `id=eq.${activeSeatId}`,
-        }, (payload) => {
-          const updated = payload.new as { remaining_points?: number; hint_tokens?: number };
-          if (typeof updated.remaining_points === "number") setSeatPoints(updated.remaining_points);
-          if (typeof updated.hint_tokens === "number") setHintTokens(updated.hint_tokens);
-        })
-        .subscribe(() => { void syncSeatData(); });
-      channels.push(ch);
-    }
 
     const handleVisible = () => {
       if (document.visibilityState === "visible") handleRefresh();
@@ -472,9 +437,8 @@ export function RoomChat({
       window.removeEventListener("focus", handleRefresh);
       window.removeEventListener("online", handleRefresh);
       window.clearInterval(timer);
-      for (const ch of channels) void supabase.removeChannel(ch);
     };
-  }, [activeSeatId, currentUserId]);
+  }, [activeSeatId, currentUserId, roomCode]);
 
   useEffect(() => {
     const handleSeatChanged = (event: Event) => {

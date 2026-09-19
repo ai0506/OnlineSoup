@@ -88,10 +88,10 @@ export default function DocsPage() {
   └─ 房间客户端订阅 Realtime：用于及时刷新，不作为唯一事实来源
 
 Supabase Postgres
-  ├─ 公开可读的 rooms / room_seats（仅非 closed 房间）
-  ├─ 通过 RPC 保护的 room_messages / room_ai_requests / guest_sessions
+  ├─ 通过最小投影 RPC 提供房间加入信息
+  ├─ 通过成员资格验证的 RPC 返回座位、消息、题目与 AI 请求状态
   └─ 事务内完成加入、座位、积分、开题、离开和 AI 请求状态变化`}</pre>
-          <p>房间聊天初始状态由 <code>get_room_chat_bootstrap</code> 补拉，写入走 <code>send_room_chat_message</code>。AI 请求走 <code>send_room_ai_request</code> 记录和扣费，外部模型调用结束后由 <code>finish_room_ai_request</code> 完成或退款。</p>
+          <p>加入页通过 <code>get_room_join_info</code> 取得最小公开信息；成员状态、当前题目和聊天初始状态分别由受保护 RPC 补拉。普通聊天写入走 <code>send_room_chat_message</code>。AI 请求走 <code>send_room_ai_request</code> 记录、扣费并取得租约，外部模型调用结束后由 <code>finish_room_ai_request</code> 完成或退款。</p>
           <div className="docs-note"><strong>并发原则</strong><span>积分、座位和房间状态不能拆成应用层多次写入；数据库 RPC 是原子边界。Realtime 事件丢失时，客户端应重新请求受保护状态。</span></div>
         </section>
 
@@ -103,6 +103,7 @@ Supabase Postgres
             <tr><td><code>/rooms/[code]</code></td><td>房间页面，加载房间、座位、聊天和题目状态</td><td>成员资格通过用户会话或 guest token 验证</td></tr>
             <tr><td><code>/rooms/[code]/messages</code></td><td>GET 补拉聊天，POST 发送普通聊天</td><td>调用 <code>get_room_chat_bootstrap</code> / <code>send_room_chat_message</code></td></tr>
             <tr><td><code>/rooms/[code]/ask</code></td><td>提交询问、提示、推理</td><td>服务端校验输入、题目版本、积分和 AI 配置</td></tr>
+            <tr><td><code>/rooms/[code]/state</code></td><td>成员恢复时补拉房间、座位、积分和当前题目</td><td>调用受保护的 <code>get_room_member_state</code> / <code>get_room_current_puzzle</code></td></tr>
             <tr><td><code>/auth/*</code>、<code>/account/*</code></td><td>登录回调、用户名和账号操作</td><td>Supabase SSR Cookie；用户名设置后才进入需要账号资料的页面</td></tr>
             <tr><td><code>/profile</code></td><td>个人资料，含积分流水预览</td><td>需要登录；积分记录通过 <code>get_my_points_history</code> 读取本人数据</td></tr>
             <tr><td><code>/points-history</code></td><td>完整积分流水，分页查看每笔变动和变动后余额</td><td>需要登录；未登录跳转 <code>/login</code></td></tr>
@@ -122,7 +123,7 @@ Supabase Postgres
             <div><b>guest_sessions</b><span>访客座位会话。数据库保存 guest token 的 SHA-256 hash，Cookie 中不保存数据库记录 ID。</span></div>
             <div><b>room_messages</b><span>普通聊天、系统消息和 AI 消息。包含 room、seat、sender、message mode、puzzle 作用域和创建时间。</span></div>
             <div><b>puzzles / progress</b><span>题目保存表面故事、底层真相、难度、关键点和 examples；进度按房间与题目组合保存。</span></div>
-            <div><b>room_ai_requests</b><span>记录一次 AI 操作的题目、模式、费用来源、状态和时间；请求消息 ID 是主键并关联 room_messages。</span></div>
+            <div><b>room_ai_requests</b><span>记录一次 AI 操作的题目、模式、费用来源、状态、时间与租约到期时间；请求消息 ID 是主键并关联 room_messages。</span></div>
             <div><b>puzzle_qa_cache</b><span>按题目保存已批准的稳定 yes/no 问答缓存；新结果先是 pending，管理员批准后才可命中。</span></div>
           </div>
         </section>
@@ -188,8 +189,8 @@ Supabase Postgres
         <section className="docs-section" id="ai-state">
           <div className="docs-section-heading"><span>10</span><h2>AI 请求状态与失败处理</h2></div>
           <pre className="docs-flow">{`send_room_ai_request
-  └─ pending：校验成员 / 题目 / 费用，并原子扣除积分
-       ├─ 当前题目改变、题目读取失败或模型失败
+  └─ pending：校验成员 / 题目 / 费用，并原子扣除积分与取得 120 秒租约
+       ├─ 当前题目改变、题目读取失败、模型失败或租约过期
        │    └─ refunded：退回本次积分，不写入可见 AI 回复
        └─ 外部模型返回 JSON
             └─ finish_room_ai_request(is_success=true)
@@ -197,6 +198,7 @@ Supabase Postgres
           <ul className="docs-list">
             <li>请求开始前用 <code>askSchema</code> 校验 JSON、模式、内容长度和 expected puzzle ID。</li>
             <li>模型调用前后都检查当前题目 ID，防止切题期间把旧题目的结果写进新题目。</li>
+            <li>同一房间同一时刻只保留一个未过期的 pending 请求；后续请求会先由数据库结算过期租约，避免依赖单个 Node 实例的内存状态。</li>
             <li>DeepSeek 的 JSON 响应如果为空、HTTP 失败或 <code>finish_reason=length</code>，视为失败；可按当前配置尝试 GLM fallback。</li>
             <li>AI 超时或写回失败时调用退款路径；退款本身也由数据库函数处理，避免只在前端修改积分显示。</li>
           </ul>
@@ -208,7 +210,7 @@ Supabase Postgres
             <div><b>数据库原子性</b><span>加入房间、抢占座位、创建房间、赠送积分、移动座位、开关题目和 AI 扣费等会影响多个记录的操作集中在 Postgres RPC 中完成，避免应用层多次请求之间出现竞态。</span></div>
             <div><b>服务端优先</b><span>浏览器负责展示和提交意图，关键规则不依赖前端隐藏按钮。Server Action、Route Handler 和 RPC 会重复检查登录身份、房间成员、房主关系、题目状态、输入长度和积分。</span></div>
             <div><b>题目作用域隔离</b><span>AI 上下文、房间消息、事实和问答缓存都带有题目范围。切换题目时会再次比较 current_puzzle_id，避免旧题目的信息进入新题目。</span></div>
-            <div><b>可恢复状态</b><span>Realtime 只承担低延迟通知；页面首次加载、重新连接或事件遗漏后，通过受保护的 bootstrap 接口补拉事实来源。访客则通过 HttpOnly Cookie 恢复房间身份。</span></div>
+            <div><b>可恢复状态</b><span>Realtime 只承担低延迟通知；页面首次加载、重新连接或事件遗漏后，通过成员受保护的状态、题目和聊天接口补拉事实来源。访客则通过 HttpOnly Cookie 恢复房间身份。</span></div>
             <div><b>渐进式降级</b><span>没有 Supabase 环境变量时，部分页面仍可渲染但房间功能不可用；没有 GLM 时，问答等价判断和部分摘要功能跳过或回退，不把调试信息展示给玩家。</span></div>
             <div><b>缓存有门槛</b><span>缓存不是简单按相似字符串复用。系统排除代词、时间词、复合问题、低价值问题和非 yes/no 结果；字符 bigram 相似筛选后，还可以用 GLM 判断是否严格等价，新结果必须经管理员批准。</span></div>
             <div><b>隐私最小化</b><span>管理数据、模型密钥、内部 AI 审计字段和访客 token 不进入玩家响应。聊天备份、AI 错误案例和缓存管理限定在管理员服务端入口。</span></div>

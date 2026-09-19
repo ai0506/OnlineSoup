@@ -286,11 +286,9 @@ export function LiveRoomSeats({
     }));
   }, [currentSeatId, currentUserId, seats]);
 
-  // Realtime: seats + room status
+  // Protected polling keeps seat state private; Presence below remains UI-only.
   useEffect(() => {
-    const supabase = createClient();
     let checking = false;
-    let syncRequested = false;
     let sessionCheckTimer: ReturnType<typeof setInterval> | null = null;
 
     // For logged-in members: periodically check if this device is still the active session.
@@ -305,21 +303,20 @@ export function LiveRoomSeats({
       if (checking || document.visibilityState !== "visible") return;
       checking = true;
       try {
-        do {
-          syncRequested = false;
-          const [seatResult, roomResult] = await Promise.all([
-            supabase
-              .from("room_seats")
-              .select("id, seat_number, nickname, user_id, remaining_points, hint_tokens, occupied_at")
-              .eq("room_id", roomId)
-              .order("seat_number"),
-            supabase.from("rooms").select("status").eq("id", roomId).maybeSingle(),
-          ]);
+          const response = await fetch(`/rooms/${roomCode}/state`, { cache: "no-store" });
+          if (!response.ok) {
+            const status = await getRoomMembershipStatus(roomCode);
+            leaveWithNotice(status === "closed" ? "room_closed" : "room_kicked");
+            return;
+          }
+          const { state } = await response.json() as { state: { seats: RoomSeat[]; room: { status: string }; seat_id: string; personal_points: number | null } };
+          const nextSeats = state.seats;
+          if (typeof state.personal_points === "number") setPersonalPoints(state.personal_points);
 
           // 房间关闭后 RLS 会隐藏 rooms/room_seats 行（包括房主自己），直接查询会拿到
           // 空结果而不是 status:"closed"；这时必须用 SECURITY DEFINER 的 RPC 确认真实原因，
           // 否则会被误判为"被踢出"。
-          if (roomResult.data?.status === "closed" || !roomResult.data) {
+          if (state.room.status === "closed") {
             const status = await getRoomMembershipStatus(roomCode);
             leaveWithNotice(
               status === "kicked"
@@ -329,15 +326,14 @@ export function LiveRoomSeats({
             return;
           }
 
-          if (seatResult.data) {
-            const nextSeats = seatResult.data as RoomSeat[];
+          if (nextSeats) {
 
             if (currentSeatId && !nextSeats.find((s) => s.id === currentSeatId && s.nickname)) {
               // A move updates two rows. Read the committed room state before
               // deciding whether the current player moved or was removed.
               const movedTo =
                 (currentUserId
-                  ? nextSeats.find((s) => s.user_id === currentUserId)
+                  ? nextSeats.find((s) => s.is_current_user)
                   : null) ??
                 (myNicknameRef.current
                   ? nextSeats.find((s) => s.id !== currentSeatId && s.nickname === myNicknameRef.current)
@@ -346,7 +342,7 @@ export function LiveRoomSeats({
               if (movedTo) {
                 setCurrentSeatId(movedTo.id);
                 setSeats(nextSeats);
-                continue;
+                return;
               }
 
               const status = await getRoomMembershipStatus(roomCode);
@@ -369,58 +365,12 @@ export function LiveRoomSeats({
               leaveWithNotice("room_closed");
             }
           }
-        } while (syncRequested && document.visibilityState === "visible");
       } finally {
         checking = false;
       }
     };
 
-    const channel = supabase
-      .channel(`room-seats:${roomId}`)
-      .on("postgres_changes", {
-        event: "UPDATE",
-        schema: "public",
-        table: "room_seats",
-        filter: `room_id=eq.${roomId}`,
-      }, (payload) => {
-        const changedSeat = payload.new as RoomSeat;
-
-        syncRequested = true;
-        if (currentSeatId === changedSeat.id && !changedSeat.nickname) {
-          // Our seat was cleared — defer to syncSeats to distinguish move vs kick.
-          void syncSeats();
-          return;
-        }
-
-        // If our seat was updated (e.g. session takeover by another device), check session
-        if (currentUserId && currentSeatId === changedSeat.id) {
-          void checkSession();
-        }
-
-        setSeats((current) =>
-          current.map((seat) => seat.id === changedSeat.id ? changedSeat : seat),
-        );
-        void syncSeats();
-      })
-      .on("postgres_changes", {
-        event: "UPDATE",
-        schema: "public",
-        table: "rooms",
-        filter: `id=eq.${roomId}`,
-      }, (payload) => {
-        if ((payload.new as { status?: string }).status === "closed") {
-          leaveWithNotice("room_closed");
-        }
-      })
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          void syncSeats();
-          if (currentUserId) {
-            // Check every 15s as fallback for when Realtime misses the takeover event
-            sessionCheckTimer = setInterval(() => void checkSession(), 15_000);
-          }
-        }
-      });
+    if (currentUserId) sessionCheckTimer = setInterval(() => void checkSession(), 15_000);
 
     document.addEventListener("visibilitychange", syncSeats);
     document.addEventListener("visibilitychange", checkSession);
@@ -440,7 +390,6 @@ export function LiveRoomSeats({
       window.removeEventListener("room-data-refresh", syncSeats);
       window.clearInterval(syncTimer);
       if (sessionCheckTimer !== null) clearInterval(sessionCheckTimer);
-      void supabase.removeChannel(channel);
     };
   }, [currentSeatId, currentUserId, isJoinedGuest, roomCode, roomId]);
 
@@ -521,38 +470,20 @@ export function LiveRoomSeats({
     );
   }, [currentUserId, personalPoints]);
 
-  // Realtime: personal points (logged-in members only)
+  // Personal points are refreshed from protected room state.
   useEffect(() => {
     if (!currentUserId) return;
-    const supabase = createClient();
     let disposed = false;
 
     const syncPersonalPoints = async () => {
       if (document.visibilityState !== "visible") return;
-      const { data } = await supabase
-        .from("profiles")
-        .select("points")
-        .eq("id", currentUserId)
-        .maybeSingle();
-      if (!disposed && typeof data?.points === "number") {
-        setPersonalPoints(data.points);
+      const response = await fetch(`/rooms/${roomCode}/state`, { cache: "no-store" });
+      if (!response.ok || disposed) return;
+      const { state } = await response.json() as { state: { personal_points: number | null } };
+      if (!disposed && typeof state.personal_points === "number") {
+        setPersonalPoints(state.personal_points);
       }
     };
-
-    const channel = supabase
-      .channel(`profile-points:${currentUserId}`)
-      .on("postgres_changes", {
-        event: "UPDATE",
-        schema: "public",
-        table: "profiles",
-        filter: `id=eq.${currentUserId}`,
-      }, (payload) => {
-        const updated = payload.new as { points?: number };
-        if (typeof updated.points === "number") setPersonalPoints(updated.points);
-      })
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") void syncPersonalPoints();
-      });
 
     const handleVisible = () => {
       if (document.visibilityState === "visible") void syncPersonalPoints();
@@ -571,9 +502,8 @@ export function LiveRoomSeats({
       window.removeEventListener("online", syncPersonalPoints);
       window.removeEventListener("room-data-refresh", syncPersonalPoints);
       window.clearInterval(syncTimer);
-      void supabase.removeChannel(channel);
     };
-  }, [currentUserId]);
+  }, [currentUserId, roomCode]);
 
   const handleMoveSeat = (targetSeatId: string) => {
     if (!movingFromSeatId || isMovePending) return;
@@ -598,7 +528,7 @@ export function LiveRoomSeats({
 
   // Points display
   const currentUserSeat = currentUserId
-    ? seats.find((s) => s.user_id === currentUserId) ??
+    ? seats.find((s) => s.is_current_user) ??
       seats.find((s) => s.id === currentSeatId)
     : seats.find((s) => s.id === currentSeatId);
   const roomPoints = currentUserSeat?.remaining_points ?? 0;
