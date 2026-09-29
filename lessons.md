@@ -1306,3 +1306,43 @@ Preventability:
 Origin:
 项目 + 日期 + 对应 update
 ```
+
+## 房间公开信息与加入表单的字段契约
+
+Project: OnlineSoup
+Date: 2026-09-29
+
+Area:
+- Frontend / UX
+- Backend / API
+- Testing
+
+Problem Type:
+- 跨层字段契约不一致导致访客无法加入房间
+
+Incident:
+访客在无密码房间输入名字后收到“请检查房间码和密码”。
+
+Initial Assumption:
+页面把公开加入信息强制视为完整的房间对象，因此以为其中包含 code。
+
+Root Cause:
+get_room_join_info 只返回最小公开字段，不包含 code；未入座页面将 joinInfo 转为房间对象并把 room.code 传给加入表单，导致隐藏 code 为空，joinRoom 在 RPC 调用前就拒绝请求。
+
+Resolution:
+未入座加入表单直接使用已经标准化且经 get_room_join_info 验证的路由 code。
+
+Evidence:
+线上无密码房间的 password_hash 为空，join_room_as_guest 仅在哈希存在时抛 wrong_password；本地修复后未登录房间页返回 HTTP 200，隐藏表单字段为对应的六位房间码，typecheck、lint、build 通过。未对线上现有房间做写入式加入测试。
+
+Lesson:
+最小公开投影不能被当作完整实体；类型断言不会补齐运行时缺失的字段。
+
+Rule:
+表单提交关键标识应取自已验证的路由参数或显式 API 字段，跨层投影要核对实际返回字段，并在真实渲染中检查关键隐藏输入。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-09-29 updates.md [CodeX][260929131304]
