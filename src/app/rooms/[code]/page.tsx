@@ -202,7 +202,6 @@ export default async function RoomPage({
           <PuzzlePanel
             isOwner={isOwner}
             roomCode={room.code}
-            roomId={room.id}
             initialPuzzle={currentPuzzle}
             puzzleList={puzzleList}
           />

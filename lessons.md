@@ -1346,3 +1346,43 @@ Preventability:
 
 Origin:
 OnlineSoup 2026-09-29 updates.md [CodeX][260929131304]
+
+## 聊天 RPC 重写后恢复了已修复的字段歧义
+
+Project: OnlineSoup
+Date: 2026-09-29
+
+Area:
+- Database
+- Backend / API
+- Testing
+
+Problem Type:
+- 后续函数重写引入已修复过的回归
+
+Incident:
+注册用户和访客发送普通聊天时收到“聊天服务暂时不可用”。
+
+Initial Assumption:
+此前的速率限制迁移已经修复 message_mode 歧义，后续聊天 RPC 会保留这个约束。
+
+Root Cause:
+20260918025855 重写 send_room_chat_message 时，速率限制查询重新使用未限定的 message_mode 列名；它与同名函数参数冲突，Postgres 抛出 42702，消息插入前事务终止。
+
+Resolution:
+新迁移在两处速率限制查询中为 room_messages 设置 rm 别名并限定 rm.seat_id、rm.message_mode、rm.created_at，保留原有成员校验和执行授权。
+
+Evidence:
+线上 Postgres 日志记录 column reference "message_mode" is ambiguous；迁移 dry run 只列出本次新文件，应用后回读迁移记录与 anon/authenticated EXECUTE 权限；注册账号网页消息刷新后仍在，匿名访客公开 key 发送成功且退出后座位清空。
+
+Lesson:
+重写 SECURITY DEFINER RPC 可能悄悄恢复旧缺陷；仅验证新安全逻辑不足以覆盖旧业务路径。
+
+Rule:
+替换已有 RPC 时，先审查该函数后续修复迁移中的具体防回归约束，再用真实调用角色运行一条成功路径及关键错误路径。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-09-29 updates.md [CodeX][260929164111]

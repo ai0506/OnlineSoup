@@ -367,3 +367,5 @@
 [CodeX][260929130149] 修正 tutorial 首页房间码截图：使用未登录状态重截 1.1mainpageentercode.png，展示加入房间入口与 ASW506，避免演示账号会话导致页面错误显示“你已在房间中”。
 [CodeX][260929130809] 按当前 UI 全量重截 tutorial 引用的 10 张图片：桌面图均为 2864×1630，手机图为 1420×1630；创建房间图同步更新为当前表单结构和演示积分，选题图展示已打开的题目选择列表。
 [CodeX][260929131304] 修复访客加入房间表单缺失房间码：未入座页面改用已标准化的路由 code 传给 GuestRoomPanel，不再读取不含 code 的 get_room_join_info 返回值；核对线上无密码房间与加入 RPC，完成本地表单渲染、typecheck、lint、build 验证。
+
+[CodeX][260929164111] 新增迁移修复 send_room_chat_message 速率限制查询的 message_mode 参数/列名歧义，保留原有权限边界；生产迁移记录及 anon/authenticated 执行权限已回读，注册用户网页发送与匿名访客公开 key 发送均成功。选题组件改为成功后主动补拉当前题目、可见时定期补拉，并捕获开题/停题 Server Action 异常，避免错误冒泡到整页。
