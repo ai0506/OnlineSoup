@@ -1,3 +1,4 @@
+[CodeX][260928074120] 补充 Supabase Data API 默认授权变更：2026-10-30 后新建 public 表需在同一迁移显式配置最小 GRANT、RLS、policy 及适用的 sequence 权限，并同步本地部署排障说明。
 [Claude Code][260807010000] paper/ 追加 v2 验证（仍不改 deepseek.ts）：logprobs-verify-v2-no-reason.mjs 把 max_tokens 改 640、temperature 改 0.1、去掉 reason 字段后重测，10/10 未再截断；但去掉 reason 并未改变单次调用 ~100% 过度自信的现象，JSD 趋势与 v1 一致，结论写入 verification-summary.md
 [Claude Code][260807000000] 新增 paper/ 目录做 DeepSeek logprobs 可行性独立验证（不改 deepseek.ts）：paper/scripts/logprobs-verify.mjs 实测 logprobs.content 可取、token 可定位、strict/inferential 两路 JS 散度可算且随问题清晰度合理变化；paper/verification-summary.md 记录结论，并发现意外坑——deepseek-v4-flash 会自发内部推理挤占 max_tokens，线上 ASK_MAX_TOKENS=320 在较难问题上有截断风险（4/10 命中），已用更大 max_tokens 复测验证根因
 [Claude Code][260715134340] 更新过时文档：README.md 补充 RESEND_API_KEY/ADMIN_EMAIL_FROM/ZHIPU_API_KEY/ZHIPU_MODEL 等环境变量说明和 GLM 备用模型/管理端邮件/移动端三标签布局功能点；tasks.md（未纳入 git）勾选已完成的移动端竖屏三标签布局、自动深色模式、管理端筛选状态保留、GLM 备用模型项，更新下一步优先建议
@@ -360,4 +361,27 @@
 [CodeX][260919195028] 完成全项目文档巡检：更新 README、文档索引、站内技术说明和 tasks 的当前测试、受保护房间状态与 AI 租约说明；新增文档与文件保留价值盘点，标明历史、规划、非运行与本地可再生候选，未删除或读取敏感配置。
 [CodeX][260919195417] 按用户授权将 archive、prototypes、docs/handoff 与 outputs 移入系统废纸篓的专用可恢复目录；保留 paper 及 data，未读取或移动可能含敏感配置的 paper 文件，并同步文档索引与盘点记录。
 [CodeX][260919195631] 复核项目目录结构：保留既有应用、迁移、测试、文档、资料与框架配置分层，仅移除未被 Git 跟踪、无引用且为空的 src/lib/ai 目录；未移动 paper 或运行文件。
+[CodeX][260919204023] 按用户明确授权清空线上 Supabase 题库：通过 admin_delete_puzzle 逐题删除 5 道题目；级联清除 53 条题目进度与 7 条问答缓存，并清空 28 个房间的当前题目引用。删除后只读核验 puzzles、puzzle_progress、puzzle_qa_cache 与 current_puzzle_id 引用均为 0，未发现 pending AI 请求。
+[CodeX][260919204402] 在 lessons.md 记录严重生产删除事故：后续任何线上删除或全量替换必须先盘点精确影响，再创建并读回验证带时间戳的本地恢复备份，报告恢复位置并取得确认后才可执行；授权、无活跃请求与部分历史快照均不能替代恢复点。
+[CodeX][260919204830] 按用户要求尝试恢复被清空的线上题库：先从 ai_error_cases 导出并验证 5 条题目快照至 .agents/tmp/recovery-backups/260919204402.ai-error-puzzle-snapshots.json，再恢复 5 道题目的标题、谜面与汤底为未启用草稿（id 15–19）。原始评分点、示例、精确难度、启用状态、进度与缓存无法无损恢复，线上回读确认总数 5、启用数 0、评分点/示例数均为 0。
+[CodeX][260919204305] 管理端邮箱二次认证前端与发送入口统一为仅输入 OTP 验证码：移除登录链接回调参数和相关文案，保留 Supabase verifyOtp、管理员身份比对、会话绑定与可信设备边界；线上 Magic Link 模板待改为 Token 验证码模板。
 [CodeX][260919205259] 管理端二次认证改为独立 Resend 八位一次性验证码：仅管理员已登录会话可发起，验证码以 HMAC 摘要和会话绑定写入私有表，10 分钟单次有效、最多 5 次尝试且 1 分钟限发；新增原子消费 RPC，未修改普通用户 Supabase 登录邮件。
+[CodeX][260919210953] 使用 puzzle-example-generator 导出当前线上题库并新增“雨伞与电梯”完整题目预览：包含题面、汤底、4 个评分点及 4 条 fact / 4 条 inferential Ask 示例，已通过结构与边界类型校验；仅生成 .agents/tmp 本地评审文件，未上传 Supabase。
+[CodeX][260919211308] 重写“雨伞与电梯”预览的 Ask 示例为玩家逐步探查式问题，移除题干中直接点出雨伞、按钮与触及范围的问法；保留 4 条 fact / 4 条 inferential，并通过格式、边界类型和谜底泄露词检查。
+[CodeX][260919211711] 经用户审核后使用 admin_create_puzzle 仅新增并启用“雨伞与电梯”（线上 ID 20）：保留 4 个关键点与 8 条 Ask 示例，按决定移除仅供预览审核的 boundary_type；数据库回读确认字段完整且启用，未替换题库或删除旧草稿。
+[CodeX][260929124714] 重新截取 tutorial 当前界面截图：更新首页、房间、询问、积分、注册、赠送积分与选题画面；演示数据统一使用 ai0506、ASW506 与高积分示例，并确保房间人数徽章单行显示，保留所有既有图片比例与尺寸。
+[CodeX][260929125932] 重新制作 tutorial 的赠送积分截图：临时访客 bsw0506 实际加入房间并打开赠送积分弹窗后截取，展示 [2] bsw0506、77 积分输入及 2/5 人；截图完成后该访客已退出并释放座位，系统加入/退出消息保留在审计聊天中。
+[CodeX][260929130149] 修正 tutorial 首页房间码截图：使用未登录状态重截 1.1mainpageentercode.png，展示加入房间入口与 ASW506，避免演示账号会话导致页面错误显示“你已在房间中”。
+[CodeX][260929130809] 按当前 UI 全量重截 tutorial 引用的 10 张图片：桌面图均为 2864×1630，手机图为 1420×1630；创建房间图同步更新为当前表单结构和演示积分，选题图展示已打开的题目选择列表。
+[CodeX][260929131304] 修复访客加入房间表单缺失房间码：未入座页面改用已标准化的路由 code 传给 GuestRoomPanel，不再读取不含 code 的 get_room_join_info 返回值；核对线上无密码房间与加入 RPC，完成本地表单渲染、typecheck、lint、build 验证。
+[CodeX][260929230445] 调整《生日》题库预览：放宽探险及发现朋友有手的 key points.accept 表达范围；8 条 ask 示例全部改为从汤面出发的自然问题，并重建审核 HTML。
+[CodeX][260929230908] 重做《生日》示例审核 HTML：按事实判断/合理推断分组展示问题、答案、理由；逐项展示 key points 及完整 accept 表达，不再用 JSON 式表格铺陈。
+[CodeX][260929231152] 精简《生日》key points.accept 为每项一个宽泛评分描述；将“他为什么要把朋友都杀了？”标为模糊问题，并说明开放式为什么问句不能用是/否回答。
+[CodeX][260929231152] 按需保留《生日》key points.accept：仅探险缺粮情境与发现朋友有手的线索保留宽泛接受描述；其他关键点移除 accept，审核页仅显示存在的字段。
+[CodeX][260929231534] 明确《生日》accept 的评分容错语义：改为描述符合逻辑的相近情境与替代线索，不再作为同义词列表；审核页对应标签更新为“可接受的合理变体”。
+[CodeX][260929231534] 更新 puzzle-example-generator skill：明确 accept 是可选的 reason-mode 评分容错边界而非同义词；规范 ask 示例采用玩家视角、依据汤面自然提问及开放式问题处理；新增静态审核 HTML 渲染器，分组展示问答并按需显示 accept。
+[CodeX][260929232108] 按反馈缩短《生日》accept 描述，并重写 inferential 示例覆盖因果关联、顺序矛盾、缺证据应答与开放式问法；答案分布为是/否/与此无关/模糊问题各 1 条，验证通过并重生成审核页。
+[CodeX][260929232350] 修正题库示例审核页展示范围：渲染器新增按标题筛选，单题预览只展示目标题目，避免整库 JSON 使审核页混入无关题目。
+[CodeX][260929232510] 明确题目审核 HTML 永远按单题生成；多题 JSON 必须指定目标题名，渲染器拒绝默认生成整库预览；多题编辑需各自产生独立页面。
+[CodeX][260929232850] 拆分《生日》欺骗事实与实际受害者两个评分点，并在实际受害者点标记 SOI；审核页和题库 skill 将 SOI 与普通合理变体分开展示和说明。
+[CodeX][260929233313] 通过 admin_create_puzzle 受控 RPC 将《生日》作为启用题目新增到线上题库（ID 21）；回读核对题面、汤底、难度、6 个评分点及 8 条示例一致，上传数据不含审核用 boundary_type。

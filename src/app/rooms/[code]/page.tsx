@@ -111,7 +111,7 @@ export default async function RoomPage({
           isRegisteredMember={false}
           initiallyJoined={false}
           requiresPassword={requiresPassword}
-          roomCode={room.code}
+          roomCode={code}
         />
         <Link className="join-back-link" href="/">
           返回

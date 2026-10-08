@@ -18,7 +18,7 @@ Use the current project format:
   "bottom": "汤底",
   "difficulty": "简单|中等|困难|抽象",
   "is_active": true,
-  "key_points": [{ "id": 1, "text": "事实点", "accept": ["同义词"] }],
+  "key_points": [{ "id": 1, "text": "事实点", "accept": ["宽松评分标准（可选）"] }],
   "examples": [
     {
       "model": "fact",
@@ -140,6 +140,15 @@ Those samples are useful as reason-mode regression fixtures or admin review note
 
 Each example must teach a unique decision boundary. Avoid multiple questions that test the same idea using synonyms.
 
+### Player Perspective and Question Wording
+
+- Write `question` as a natural question a player would ask the host while seeing the puzzle's `surface`. Do not write from the perspective of an examiner, evaluator, admin, or someone who has already read the `bottom`.
+- Ground the question in the surface's presented people, actions, and unexplained details. Do not put bottom-only facts into the question as if the player already knew them (for example, do not ask whether the protagonist is blind if blindness never appears in the surface). The answer and `reason` may use the authoritative bottom to teach the correct boundary.
+- Prefer one clear yes/no proposition. The examples teach the host how to answer player questions, not what facts a player must mention in a final explanation.
+- A natural `why`, `how`, `who`, `what`, or `which` question is not answerable with the supported yes/no response set when it asks for an explanation, identity, method, or selection. Label it `"模糊问题"` and explain that the question form cannot be answered by yes/no; do not call it ambiguous merely because it contains a pronoun.
+- When an open-ended question is useful for teaching this boundary, keep it in the player's natural voice (for example, `他为什么要把朋友都杀了？`) and make the reason identify the answer-format problem. Do not rewrite it into an artificial yes/no question just to fit the answer set.
+- Question wording should arise from the surface. Do not use a hidden solution detail to make a question sound more specific or sophisticated than a player could naturally ask from the presented puzzle.
+
 During preview generation, every generated example must include `boundary_type`. This field may be removed from the final upload file after review, but it must exist while generating and validating previews.
 
 Allowed boundary types:
@@ -251,6 +260,16 @@ Do not generate duplicate concepts in both categories. If a concept appears in a
 - `reason`: explain the boundary briefly. For fact examples, cite direct story support or absence. For inferential examples, name the inference chain.
 - `summary`: forbidden. Current OnlineSoup examples no longer store fact summaries; the app derives fact summaries from live AI answers instead.
 
+### `key_points[].accept` Scoring Tolerance
+
+- `accept` is optional. Do not add it to every key point by default.
+- It is a scoring tolerance for reasonable, logical answers that express a similar relevant idea without matching the canonical solution's exact detail. It is not a list of synonyms or alternate phrasings that mean exactly the same thing.
+- Add it only when a key point is specific enough that a reasonable variation could otherwise be marked wrong too strictly. If the key point is already broad and unambiguous, omit `accept`.
+- Describe the boundary of what should count, not a pile of sample phrases. For example: `玩家合理说明一群人在探险中遇险并因此缺粮即可，具体地点或事故可以不同。`
+- A useful `accept` preserves the key point's essential logic while allowing a plausible variation in setting, circumstance, evidence, or causal path. Keep the tolerance broad enough to avoid brittle grading, but do not accept a contradiction or an unrelated claim unless the user explicitly asks for that.
+- Read `accept` as guidance to the reason-mode scorer, not player-facing copy. It should help the scorer avoid over-penalizing a logically compatible answer; it does not require players to use any listed wording.
+- `SOI` / `Seen Or Implied` is a reserved marker inside `accept`, not an acceptance phrase. It tells reason mode that a point may count when the player's explanation clearly implies or presupposes it without stating it word-for-word. It can coexist with actual acceptance guidance in the same array; render it separately from reasonable-variation guidance.
+
 Before final upload, ask the user whether to keep `boundary_type`. If they want a clean production JSON, remove `boundary_type` after review and run the validator with `--allow-missing-boundary-type`. Never add `summary` back during cleanup.
 
 ## Preview Style
@@ -269,12 +288,20 @@ Use concise Chinese explanations. Do not paste the whole JSON unless the user as
 
 For every generated preview JSON, also create a simple static HTML review file in `.agents/tmp/puzzle-example-previews/` with the same basename and `.html`.
 
-The HTML should:
+Generate the HTML with the bundled renderer:
+
+```powershell
+python3 .agents/skills/puzzle-example-generator/scripts/render_puzzle_examples_review.py <preview-file> --title "<puzzle-title>"
+```
+
+The renderer writes the `.html` file next to the preview JSON. It accepts a single puzzle object or an array of puzzles. A preview HTML is always for one puzzle being designed or edited, never a whole-library review page. When the JSON contains multiple puzzles, pass `--title` for the affected puzzle; the renderer refuses to create an all-puzzles page when the title is omitted. If a task edits multiple puzzles, create one separate HTML review page per affected puzzle. The JSON may still preserve the full library. The HTML should:
 
 - work by opening the file directly in a browser, without a dev server
-- group examples by puzzle title
-- show `model`, `boundary_type`, `question`, `answer`, and `reason`
-- show per-puzzle counts for fact and inferential examples
+- group each puzzle's examples into clear `fact` and `inferential` sections; do not make `model` a table column or a repeated row value
+- make the question, answer, and reason the primary content of each example card; show `boundary_type` only as a quiet secondary cue when present
+- show each key point and its `accept` scoring tolerance only when the field exists; label it as a reasonable-variation/scoring-tolerance guide, not as synonyms or player-facing text
+- show the surface and bottom separately, plus per-puzzle fact/inferential counts
+- use a readable, review-focused layout rather than rendering JSON as a generic table
 - escape all text as HTML; never inject raw JSON strings into markup
 - stay review-focused and avoid adding upload controls or database actions
 

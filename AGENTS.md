@@ -118,6 +118,7 @@ ZHIPU_MODEL=
 - `SUPABASE_SECRET_KEY` 只能在服务端使用，绝不能添加 `NEXT_PUBLIC_` 前缀、写入日志或提交仓库。
 - `createAdminClient()` 只能用于确实需要管理权限的服务端功能。
 - 不要假设 secret key 自动拥有所有表权限；遇到权限问题要检查 grant、RLS 和函数 owner。
+- 自 2026-10-30 起，`public` schema 的新表不会自动获得 Data API 权限。创建表的同一迁移必须：启用 RLS、按实际调用方显式 `grant` 所需操作（包括服务端 `service_role` 的直接访问），并写对应 policy；不要照搬全角色读写授权。若公开角色会直接写入使用序列/identity 的表，也一并授予所需 sequence 权限。`GRANT` 决定能否到达表，RLS 决定能访问哪些行，两者缺一不可。
 - 私密数据（如密码哈希、游客 token、私密 Realtime topic、`room_private`、`guest_sessions` 等）不能返回给非成员或浏览器。
 - 身份判断优先使用 `auth.getUser()`、`auth.uid()` 或经过验证的服务端上下文，不使用用户可改的 metadata。
 - `SECURITY DEFINER` 函数必须设置空 `search_path`，函数体使用完整 schema 名。
@@ -179,6 +180,7 @@ npx.cmd supabase migration new descriptive_name
 
 - 迁移名称使用简短英文 snake_case。
 - SQL 尽量可重复执行，合理使用 `create or replace`、`if exists`、`if not exists`。
+- 新建 `public` 表时，在同一迁移中审查并显式写入最小 `GRANT`、`ENABLE ROW LEVEL SECURITY`、policy 和（如适用）sequence 权限；本地 `supabase db reset`、预览分支和线上项目都按此规则验证，不能依赖历史项目的默认授权。
 - 修改 RPC 时处理旧签名，避免 PostgREST 因函数重载产生歧义。
 - 新增或修改函数后执行 `notify pgrst, 'reload schema';`。
 - 部署前先预览迁移，部署后检查迁移记录、函数签名、权限和真实 RPC 调用。
@@ -249,3 +251,13 @@ npm.cmd run build
 - 不把关键业务事务拆成容易产生竞态条件的多次请求。
 - 不删除或覆盖用户已有的无关改动。
 - 不在未验证的情况下宣称数据库迁移或功能已经上线。
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

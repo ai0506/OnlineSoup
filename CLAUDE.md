@@ -120,6 +120,7 @@ RPC 清单会随迁移变化，不在本文件维护完整表。处理具体任�
 - `SUPABASE_SECRET_KEY` 只能在服务端使用，绝不能加 `NEXT_PUBLIC_` 前缀、写入日志或提交仓库。
 - `createAdminClient()` 只用于确实需要管理权限的服务端功能。
 - 不要假设 secret key 自动拥有表权限——曾因 `room_messages` 只 revoke 未 grant `service_role` 导致服务端读取静默失败。
+- 自 2026-10-30 起，`public` 的新表不再自动获得 Data API 权限。建表迁移必须在同一文件内启用 RLS，按真实调用方显式授予最小表权限（包含服务端 `service_role` 的直接访问）并配置 policy；不要套用全角色读写。直接写入使用 sequence/identity 的表时，也要补对应 sequence 权限。`GRANT` 决定角色能否到达表，RLS 决定其可见/可改的行，两层都要设置。
 - `room_private`、`guest_sessions` 等私密数据不能直接暴露给浏览器；公开页面所需信息应通过最小权限 RPC 返回。
 - 不要把密码哈希、游客 token 或 Realtime 私密 topic 返回给非成员。
 - 身份和授权判断使用 `auth.getUser()` 或经过验证的 claims，不使用用户可修改的 metadata。
@@ -186,6 +187,7 @@ RPC 清单会随迁移变化，不在本文件维护完整表。处理具体任�
 - 已部署的迁移文件不可修改，数据库变化必须创建新迁移。
 - 创建迁移：`npx.cmd supabase migration new descriptive_name`（名称用英文 snake_case）。
 - SQL 尽量可重复执行（`create or replace`、`if exists`/`if not exists`）。
+- 新建 `public` 表时，在同一迁移中审查并明确写出最小 `GRANT`、`ENABLE ROW LEVEL SECURITY`、policy 和（如适用）sequence 权限；本地 reset、预览分支与线上均不得依赖旧项目的默认授权。
 - 修改 RPC 时正确处理旧签名，避免 PostgREST 函数重载歧义；修改后执行 `notify pgrst, 'reload schema';`。
 - 部署前 dry-run 预览，部署后确认看到 `Applying migration ...` 和 `Finished supabase db push.`。
 
