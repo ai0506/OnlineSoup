@@ -1637,3 +1637,43 @@ Preventability:
 Origin:
 OnlineSoup 2026-10-09 updates.md [CodeX][261009183552]
 OnlineSoup 2026-09-29 updates.md [CodeX][260929164111]
+
+
+## 确认共享座位接管时须绑定成员关系并封住旧入口
+
+Project: OnlineSoup
+Date: 2026-10-09
+
+Area:
+- Database / Concurrency
+- Auth / Session
+
+Problem Type:
+- 过期同意与兼容入口绕过
+
+Incident:
+网页接管 CLI 座位需要确认，但确认期间 CLI 可能刷新占座或退出重进；旧 take_over_room_session 与 join_room_as_member 仍可能不经确认覆盖 CLI。
+
+Initial Assumption:
+只在网页加一次确认，或只对当前 session_id 做判断，就能表达用户对当前座位的同意。
+
+Root Cause:
+确认是跨请求动作；同一 Auth 会话可刷新占座或生成新的成员关系，而旧 RPC 也是实际可调用的业务入口。
+
+Resolution:
+以私有 HMAC 绑定座位、房间、用户、membership_id、active_session_id 和更新时间；确认事务锁内比较版本，不一致重新读状态并要求再次点击。旧接管与自动加入在同一 gate 下拒绝 CLI 占座的未确认接管，保留网页之间语义。
+
+Evidence:
+P2 11 项数据库行为验证并发确认只有一胜、缺失/篡改/更新/退出重进版本失效、旧 RPC 绕过拒绝、本人和角色边界。生产普通公开 key 实测拒绝旧入口；真实浏览器在 CLI 更新版本后拒绝旧确认，第二次明确确认成功且旧 CLI 收到 ROOM_DEVICE_IN_USE。
+
+Lesson:
+用户确认必须对应特定业务状态与成员关系；安全边界需要覆盖全部可调用入口，不能只依赖新增界面。
+
+Rule:
+新增共享状态确认时列出所有旧写入口，在原子事务内比较不透明版本，并测试等待期间更新、退出重进和两个确认者竞争；版本变化不得静默继承旧同意。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-10-09 updates.md [CodeX][261009194230]

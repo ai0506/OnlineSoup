@@ -1,4 +1,4 @@
-# OnlineSoup CLI（P1）
+# OnlineSoup CLI
 
 注册用户通过文本命令与网页玩家在同一房间聊天、提问。CLI 本身不调用玩家的语言模型；AI 主持继续由网站服务端处理。P1 支持当前题目完整事实、历史分页、持久化增量游标和有限时长等待。
 
@@ -34,7 +34,7 @@ soup /logout
 
 ## 命令与恢复
 
-使用 `/help` 查看当前命令。`/hint`、`/reason` 沿用 P0 付费与请求键路径；`/facts`、`/seats`、`/points`、`/room`（`/state` 别名）和 `/wait` 已实现。网页接管确认仍属于 P2。
+使用 `/help` 查看当前命令。`/hint`、`/reason` 沿用 P0 付费与请求键路径；`/facts`、`/seats`、`/points`、`/room`（`/state` 别名）和 `/wait` 已实现。网页进入 CLI 占用的座位前会要求确认；取消保留 CLI 使用权，确认时座位已变化则须重新确认。
 
 - 普通文字直接聊天，`//help` 发出字面 `/help`；未知命令报错，不发送给房间。`/say -- TEXT` 可发送以选项开头的原文。
 - `/join CODE` 遇到密码房时隐藏输入；自动化使用 `soup --json --password-stdin /join CODE`。不接受明文密码参数，房间密码不写入会话文件。`--takeover` 明确接管自己的旧座位，普通读取不会接管。
@@ -70,6 +70,14 @@ soup --json /wait --timeout 30
 
 `/wait` 默认 30 秒，范围 1–60 秒，约每 5 秒读取状态和增量消息；先追平积压，最多返回 1000 条，仍有积压时返回 `has_more` 供下一次继续。消息或题目、座位、积分快照变化立即返回；正常空等待返回 `timed_out: true`。网络请求也计入时限；等待预算耗尽返回正常超时，若最后一轮读取未完成则返回 `poll_incomplete: true`，下次沿原游标补拉。预算耗尽前发生的网络故障仍返回 `NETWORK_ERROR`。读取不延长闲置时间，不自动接管；被踢、关房或接管立即停止。状态轮询不能捕获轮询之间所有短暂变化。
 
+## 网页互通与认证恢复
+
+网页大厅显示“CLI 使用中”。确认网页进入后，旧 CLI 收到 `ROOM_DEVICE_IN_USE` 并停止操作；需要操作者明确 `/join CODE --takeover` 才能接管回来。刷新登录令牌不会自动抢回座位。网页之间的进入规则保留。
+
+CLI 持久化服务端刷新的 Cookie。服务端确认 `LOGIN_REQUIRED` / `AUTH_EXPIRED` 后，用原账号重新登录，再读取或加入核实座位；若旧座位仍绑定旧会话，按需明确接管。不要手动编辑或分享会话文件。
+
+HTTP 合同见 [PROTOCOL.md](PROTOCOL.md)，外部玩家边界见 [AGENT_USAGE.md](AGENT_USAGE.md)，本次实测范围见 [P2 验收记录](../docs/testing/OnlineSoup-CLI-P2-验收记录.md)。
+
 ## 测试
 
 ```sh
@@ -87,6 +95,7 @@ export ONLINESOUP_TEST_DATABASE_URL='postgresql://postgres:LOCAL_PASSWORD@localh
 node cli/tests/setup-database.mjs
 node cli/tests/database.mjs
 node cli/tests/sync-database.mjs
+node cli/tests/takeover-database.mjs
 ```
 
 初始化器不删除已有表；Auth/Realtime 使用最小本地替身，不安装 pg_cron。该测试不能替代真实 Supabase 登录、公开 key 权限验证或网页验收。线上 Cron 配置与真实 AI 流程另行检查。

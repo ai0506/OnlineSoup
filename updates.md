@@ -417,3 +417,5 @@
 [Claude Code][261009191227] 房主选题/停题少一次往返：openPuzzle 成功后在同一次 Server Action 内读取并返回当前题目（读取失败则回退前端刷新），closePuzzle 返回 null；puzzle-panel 直接应用返回结果并作废在途轮询；typecheck/lint/build 通过，未做浏览器实测
 
 [CodeX][261009192725] Implement P2 web CLI-seat confirmation dialog and lobby status; add HMAC-bound seat session compare-and-swap RPC with membership/session revalidation, guard both legacy web takeover and auto-join against bypass; apply matching migration 20261009112650; add 11 P2 DB cases including concurrent confirmation and explicit personal payment; retain web-to-web behavior and update P0/P1 tests for confirmed takeover.
+
+[CodeX][261009194230] P2 实现 4e2a0ec 已发布 Vercel 生产域名并在线验证网页 CLI 占座标识、取消保留、过期版本拒绝/再次确认及旧 CLI 失权；真实个人积分单次付款、受控过期触发 Supabase 令牌轮换持久化、认证撤销/同账号重登与显式恢复通过。独立 Codex CLI 通过受限临时 soup 适配器完成 8 次真实玩家调用与推理通关；49 项 DB、11 项 CLI、4 项根单测及 typecheck/lint/build 通过。补齐 v1 协议、安装/Agent 文档、验收截图与状态；Claude/真人混合/长期运行、Windows/Linux 仍未验收。专用测试账号、房间、会话及临时凭证副本已清理，未推送 GitHub。
