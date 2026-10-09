@@ -37,3 +37,9 @@
 ## 后续发版
 
 先更新 CLI 版本、lockfile 和玩家指南里的版本 URL，再运行 `npm run cli:package`、`npm run cli:check-package`，提交生成文件并部署；最后执行 `npm run cli:check-package -- --production`。同版本不同字节的包会被拒绝覆盖；旧版文件保留以免安装链接失效。
+
+## 0.2.1 文档补丁验收
+
+代码提交 `0af3cc4`；生产部署 `dpl_FAJVNrGRoAARxXjLDTqoQAyehAYb` READY。新增网站玩法教程链接、纯终端账号/邮箱隐藏密码登录章节，以及与 `--no-browser` 的区别。8 个运行模块与 0.2.0 字节一致，无登录逻辑变化。
+
+根 typecheck/build、lint（0 错误/3 旧 warning）及本地/生产 `cli:check-package` 通过；生产四种文件与本地一致，新包独立离线安装运行成功，旧 0.2.0 URL 仍可用，教程 /tutorial 返回 200。网站指南和包内指南均包含新增内容。未重跑线上账号密码登录或房间付费流程，未推送 GitHub。
