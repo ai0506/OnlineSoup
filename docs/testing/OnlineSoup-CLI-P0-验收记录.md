@@ -75,3 +75,6 @@ P0 的可执行客户端、注册玩家 API 和数据库保护已实现；数据
 本地网站连接真实 Supabase 的 CLI 入房、进程重启免重复密码、双向聊天、离开/登出通过。账号切换验证新凭据错误保留旧登录；成功切换后旧 cli_sessions 已吊销、旧 refresh token 无法刷新、旧 Cookie 不再认证。
 
 部署后有限并发和默认域名 CLI 验收结果待本轮补记。
+
+
+发布前依赖补丁：Next.js 与 eslint-config-next 固定 16.3.8，sharp 0.35.5、source-map-js 1.2.2、baseline-browser-mapping 2.11.28；根项目生产依赖 `npm audit --omit=dev` 为 0，typecheck/lint/build 再次通过。未使用 `next/og` 的攻击者可控 SVG 调用路径；本次仍升级至公告修复版本。[Next.js 官方安全公告](https://github.com/vercel/next.js/security/advisories/GHSA-vcvr-r3jv-pc5j)。开发依赖全量审计仍有 11 条告警，未进行超出本轮发布范围的强制升级。
