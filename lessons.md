@@ -1405,3 +1405,42 @@ Preventability:
 
 Origin:
 OnlineSoup 2026-09-29 updates.md [CodeX][260929131304]
+
+## 异步 AI 扣费必须先退款再计算关房结算
+
+Project: OnlineSoup
+Date: 2026-10-09
+
+Area:
+- Backend / Database
+- Concurrency / Points
+
+Problem Type:
+- 异步请求补偿与房间结算顺序不一致
+
+Incident:
+CLI 支持响应丢失后的请求恢复时，核查发现已有 AI 请求先扣座位积分，而 close_room 在设置 closed 之前就汇总座位余额。仅在关闭状态触发器中退款，会发生房主结算已完成、退款才写回座位的顺序错误。
+
+Initial Assumption:
+只要关闭房间时最终把 pending 请求退款，余额就一定一致。
+
+Root Cause:
+“请求已退款”和“房主结算包含退款”是两个不同条件；结算总额若先读取，后续退款无法自动进入已完成的房主流水。请求、完成、退款、清理之间原有锁顺序也不同。
+
+Resolution:
+统一相关房间 RPC 的短事务入口锁；close_room 和管理清理在计算结算总额之前先结清 pending 请求；迟到模型结果只返回已结算状态。闲置清理先退款再释放；成员变化补偿与座位释放在同一持锁事务内提交，禁止其他人先取得座位。
+
+Evidence:
+cli/tests/database.mjs 在隔离 PostgreSQL 中验证：进行中请求退款一次，关房后房主最终余额为初始余额减去已完成请求费用；迟到 finish 不再次扣费；闲置/对账/完成并发无重复退款。24 项数据库行为通过。线上公开 key 创建扣费请求后停止题目，原键读回 refunded；两份对应迁移已记录。
+
+Lesson:
+补偿必须发生在依赖余额的汇总之前；数据库最终有 refunded 记录本身不足以证明所有资金去向正确。
+
+Rule:
+修改异步扣费、退出或关房时，同时测试请求状态、原付款来源、座位后续占用和房主结算总额；不要只断言退款函数成功。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-10-09 updates.md [CodeX][261009161327]

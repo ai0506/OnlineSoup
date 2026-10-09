@@ -33,3 +33,6 @@ __pycache__/
 
 # macOS finder metadata
 .DS_Store
+
+# CLI generated output and local credentials
+cli/dist/

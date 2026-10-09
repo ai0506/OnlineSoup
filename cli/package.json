@@ -1,0 +1,26 @@
+{
+  "name": "@onlinesoup/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "soup": "dist/cli/src/main.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "fs-native-extensions": "1.5.1",
+    "tough-cookie": "6.0.0",
+    "undici": "7.30.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.7.2",
+    "pg": "8.16.3",
+    "typescript": "5.9.3"
+  }
+}

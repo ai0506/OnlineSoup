@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseEnv } from "@/lib/env";
 
 export async function updateSession(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/api/v1/player/")) return NextResponse.next({ request });
   let response = NextResponse.next({ request });
   const { url, publishableKey } = getSupabaseEnv();
 
