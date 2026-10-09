@@ -52,6 +52,16 @@ const results=await Promise.all([write(db,'say',sayKey,{content:'测试并发'})
 await check('rate limit shared across keys',async()=>reject(()=>write(db,'say',randomUUID(),{content:'太快'}),'RATE_LIMITED'))();
 await check('paid request mismatch does not charge',async()=>reject(()=>write(db,'ask',randomUUID(),{content:'是吗？',expected_puzzle_id:puzzleId+1}),'PUZZLE_CHANGED'))();
 const askKey=randomUUID();const ai=await write(db,'ask',askKey,{content:'是吗？',expected_puzzle_id:puzzleId});requestId=ai.ai_request.request_id;
+await check('admin nickname repair preserves membership, idle timer and pending AI',async()=>{
+await db.query('reset role');
+const before=(await db.query('select membership_id,last_cli_action_at from public.room_seats where id=$1',[seatId])).rows[0];
+await db.query('update public.profiles set username=null where id=$1',[ids.member]);
+await db.query("select set_config('request.jwt.claim.role','service_role',false)");
+await db.query('set role service_role');await rpc(db,'admin_set_username',[ids.member,'RenameT']);await db.query('reset role');
+const after=(await db.query('select membership_id,last_cli_action_at from public.room_seats where id=$1',[seatId])).rows[0];
+assert.deepEqual(after,before);assert.equal((await db.query('select status from public.room_ai_requests where request_message_id=$1',[requestId])).rows[0].status,'pending');
+await auth(db,ids.member,sessions.member);
+})();
 await check('AI replay does not dispatch or debit twice',async()=>{const replay=await write(db,'ask',askKey,{content:'是吗？',expected_puzzle_id:puzzleId});assert.equal(replay.execute_ai,false);assert.equal(replay.status,'pending');})();
 await check('busy room rejects without another debit',async()=>reject(()=>write(db,'ask',randomUUID(),{content:'另一个？',expected_puzzle_id:puzzleId}),'RATE_LIMITED'))();
 await check('explicit website takeover displaces CLI without losing request',async()=>{await auth(db,ids.member,sessions.web);await rpc(db,'take_over_room_session',[code]);await auth(db,ids.member,sessions.member);await reject(()=>rpc(db,'player_read',['state',code]),'room_device_in_use');const result=await rpc(db,'player_read',['request',null,askKey]);assert.equal(result.status,'pending');assert.equal(result.ai_message,null);await reject(()=>write(db,'join',randomUUID(),{}),'ROOM_DEVICE_IN_USE');})();
@@ -69,6 +79,11 @@ await db.query('reset role');await db.query("update public.room_seats set last_c
 await auth(db,ids.member,sessions.web);await rpc(db,'take_over_room_session',[code]);await db.query('reset role');assert.equal(await rpc(db,'player_cleanup_idle'),0);
 await auth(db,ids.member,sessions.member);await write(db,'join',randomUUID(),{takeover:true});await db.query('reset role');await db.query("update public.room_seats set last_cli_action_at=now()-interval '2 hours' where id=$1",[seatId]);assert.equal(await rpc(db,'player_cleanup_idle'),1);
 await auth(db,ids.member,sessions.member);await reject(()=>rpc(db,'player_read',['state',code]),'IDLE_TIMEOUT');await write(db,'join',randomUUID(),{password:'123456'});assert.ok(await rpc(db,'player_read',['state',code]));
+})();
+await check('website rejoin clears old idle reason even after website leave',async()=>{
+await db.query('reset role');await db.query("update public.room_seats set last_cli_action_at=now()-interval '2 hours' where id=$1",[seatId]);assert.equal(await rpc(db,'player_cleanup_idle'),1);
+await auth(db,ids.member,sessions.web);await rpc(db,'join_room_as_member',[code,'123456']);await rpc(db,'leave_room_as_member',[code]);
+await auth(db,ids.member,sessions.member);await reject(()=>rpc(db,'player_read',['state',code]),'room_membership_required');await write(db,'join',randomUUID(),{password:'123456'});
 })();
 await check('pending AI survives cleanup, stale lease is refunded before releasing seat',async()=>{
 await db.query('reset role');await db.query("delete from public.cli_rate_events where subject=$1 and action='ai'",[ids.member]);await db.query("update public.room_messages set created_at=now()-interval '10 seconds' where room_id=$1",[roomId]);await auth(db,ids.member,sessions.member);

@@ -1,6 +1,8 @@
 import { createHmac } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { createClient as createAuthClient } from '@supabase/supabase-js';
+import { getSupabaseEnv } from '@/lib/env';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { loginIdentitySchema } from '@/lib/validation';
@@ -62,17 +64,37 @@ async function handle(request:Request,{params}:Context) {
       if(found.error)return fail('SERVER_ERROR','登录服务暂时不可用',503);
       email=found.data.user?.email??'';
     }
-    const login=await supabase.auth.signInWithPassword({email,password:parsed.data.password});
+    // Validate new credentials without replacing the old cookie/session first.
+    const env=getSupabaseEnv();
+    const candidate=createAuthClient(env.url,env.publishableKey,{auth:{persistSession:false,autoRefreshToken:false}});
+    const login=await candidate.auth.signInWithPassword({email,password:parsed.data.password});
     if(login.error)return fail(login.error.status&&login.error.status>=500?'SERVER_ERROR':'INVALID_CREDENTIALS','登录失败，请检查凭据后重试',login.error.status&&login.error.status>=500?503:401);
-    if(body?.previous_user_id && body.previous_user_id!==login.data.user.id) {
-      await supabase.auth.signOut({scope:'local'});
-      return fail('LEAVE_REQUIRED','请用原账号恢复并处理原座位后再切换账号',409);
+    let installed=false;
+    try {
+      if(body?.previous_user_id && body.previous_user_id!==login.data.user.id) {
+        return fail('LEAVE_REQUIRED','请用原账号恢复并处理原座位后再切换账号',409);
+      }
+      const claims=await candidate.auth.getClaims();
+      const sessionId=claims.data?.claims.session_id;
+      if(claims.error||typeof sessionId!=='string')return fail('AUTH_EXPIRED','登录会话未确认',401);
+      const registered=await admin.rpc('player_register_session',{p_user_id:login.data.user.id,p_session_id:sessionId});
+      if(registered.error)return dbError(registered.error);
+      if(current.user) {
+        const old=await supabase.rpc('player_session');
+        if(!old.error) {
+          // Rechecks active seats under the database gate, including a concurrent join.
+          const revoked=await supabase.rpc('player_revoke_session');
+          if(revoked.error)return dbError(revoked.error);
+        }else if(!['CLI_SESSION_REQUIRED','AUTH_EXPIRED'].includes(old.error.message))return dbError(old.error);
+        const signedOut=await supabase.auth.signOut({scope:'local'});
+        if(signedOut.error)return fail('SERVER_ERROR','旧会话退出未确认，请重试',503);
+      }
+      const applied=await supabase.auth.setSession({access_token:login.data.session.access_token,refresh_token:login.data.session.refresh_token});
+      if(applied.error)return fail('AUTH_EXPIRED','登录会话未确认',401);
+      installed=true;
+    } finally {
+      if(!installed)await candidate.auth.signOut({scope:'local'});
     }
-    const claims=await supabase.auth.getClaims();
-    const sessionId=claims.data?.claims.session_id;
-    if(claims.error||typeof sessionId!=='string')return fail('AUTH_EXPIRED','登录会话未确认',401);
-    const registered=await admin.rpc('player_register_session',{p_user_id:login.data.user.id,p_session_id:sessionId});
-    if(registered.error){await supabase.auth.signOut({scope:'local'});return dbError(registered.error);}
     const context=await supabase.rpc('record_login_context',{p_ip:null,p_device:'CLI',p_location:getLocationLabel(request.headers)});
     if(context.error)return dbError(context.error);
     const currentSession=await supabase.rpc('player_session');

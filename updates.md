@@ -388,3 +388,5 @@
 [CodeX][261009155933] 实施 CLI P0：新增注册 CLI 会话、JSON 玩家 API、独立 Node CLI、请求键去重/状态恢复、账号限流及闲置清退；抽取网页共用 AI runner 并检查退款错误；统一短事务锁并在关房结算前退款。Supabase 已应用 20261009075840_cli_player_contracts，三张私表启用 RLS 且仅 service_role 直访、登记/清理 RPC 仅 service_role；本地 21 项数据库行为、4 项 CLI 行为通过，真实流程验收进行中。
 [CodeX][261009160734] 补齐 CLI 首次跨房加入 OWNED_ROOM_ACTIVE 优先级、管理端关房前退款和 CLI 按账号限流（跳过旧座位计数）；部署并归档 20261009080722_cli_join_owner_and_cleanup_guards；本地数据库行为扩展至 24 项通过，真实网页界面与 CLI 双向聊天、真实 AI 回答和同键恢复验证通过；undici 固定升级到 7.30.0 修复审计中的高危告警。
 [CodeX][261009161327] 完成 CLI P0 本地交付：24 项隔离数据库行为、4 项 CLI 行为、原有 4 项 Vitest、typecheck/build 通过，lint 仅 3 条既有 warning；线上公开 key 验证旧 RPC/私表/自行登记拒绝与真实切题退款；网页界面和 CLI 双向聊天/真实 AI/退出登出通过，清理专用账号/房间/凭证。新增 README、Agent 使用边界、验收记录并更新计划状态；未推送 GitHub、未部署 Vercel、P1/P2 与跨平台长时验收未完成。
+
+[CodeX][261009170056] 修复 CLI 评审项：移除入房明文密码参数，密码房使用 TTY 隐藏输入或 --password-stdin；确认后的本地请求立即清理、未确认正文保留 7 天；切换账号先验证新凭据，再吊销旧 CLI/Auth 会话。新增并已应用迁移 20261009085757_cli_review_session_and_membership_fixes，管理员改名纳入事务 gate、同用户昵称修复保留成员代次/闲置计时/进行中 AI、网页重新加入清除旧 idle_timeout；6 项 CLI、26 项本地数据库行为及 typecheck/lint/build 通过。20 房间 1000 次读取 p95 9.29ms；250ms 锁持有故障注入阻塞其他房间约 259ms，仍需后续拆分读取锁。网站发布及线上完整流程继续验证。

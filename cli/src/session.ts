@@ -34,6 +34,10 @@ export async function openSession(origin:string) {
   }catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT'){unlock(lock.fd);await lock.close();throw e;}}
   const jar=state.jar?CookieJar.deserializeSync(state.jar):new CookieJar();
   async function save() {
+    // The server retains expired-key tombstones; unresolved writes remain recoverable for seven days.
+    for(const [key,request] of Object.entries(state.pending)) {
+      if(request.created_at<Date.now()-7*24*60*60*1000)delete state.pending[key];
+    }
     state.jar=jar.serializeSync();
     const temporary=join(home,`session-${randomUUID()}.tmp`);
     const writer=await open(temporary,constants.O_WRONLY|constants.O_CREAT|constants.O_EXCL|constants.O_NOFOLLOW,0o600);

@@ -1444,3 +1444,43 @@ Preventability:
 
 Origin:
 OnlineSoup 2026-10-09 updates.md [CodeX][261009161327]
+
+
+## 昵称修复不应替换成员关系
+
+Project: OnlineSoup
+Date: 2026-10-09
+
+Area:
+- Database / Concurrency
+- Membership / AI compensation
+
+Problem Type:
+- 展示字段与成员身份边界混用
+
+Incident:
+CLI 评审发现 admin_set_username 未参与统一锁顺序；补填无用户名的旧账号时会修改座位昵称，原触发器把昵称变化当作换人，清空闲置时间并结算 pending AI。
+
+Initial Assumption:
+座位昵称变化等价于旧成员离开、新成员进入。
+
+Root Cause:
+注册成员的稳定身份是 user_id，nickname 只是展示字段；基于展示字段重置 membership_id/last_cli_action_at 会破坏闲置清理和请求所属关系。管理员先锁 profile 再触发座位结算也违反事务 gate 顺序。
+
+Resolution:
+admin_set_username 首先获取事务 gate；注册用户仅在 user_id 变化时替换成员关系，游客继续按昵称变化识别换人。新成员成功加入时同步清除旧 idle_timeout，包括网页路径。
+
+Evidence:
+cli/tests/database.mjs 的 26 项行为测试通过，其中补填管理员昵称后 membership_id 与 last_cli_action_at 不变、pending AI 不退款；网页闲置后重新加入再离开不再误报闲置。线上迁移 20261009085757 已记录，管理员函数 gate 及 service_role-only 权限回读正确；真实 CLI 密码入房、进程恢复、双向聊天、离开与账号切换通过。
+
+Lesson:
+展示字段与成员身份要分别判断；补偿触发器应以实际成员更替为依据，所有能到达补偿链的入口都需要相同锁顺序。
+
+Rule:
+修改昵称、座位或成员触发器时，同时回归成员代次、闲置时间、进行中扣费请求，以及注册用户/游客两种身份。不要把普通昵称修复当成成员退出。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-10-09 updates.md [CodeX][261009170056]

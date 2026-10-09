@@ -52,3 +52,26 @@ P0 的可执行客户端、注册玩家 API 和数据库保护已实现；数据
 - Confirm email 线上开关仍未核实；CLI 不提供注册/验证/找回密码。
 
 测试专用账号和房间在验收后清理；不会关闭先前已有的 `test` 账号房间。安装和当前协议见 `cli/README.md` 与 `cli/AGENT_USAGE.md`。
+
+
+## 评审修复（2026-10-09）
+
+- 房间密码不再接受命令参数；TTY 隐藏输入，自动化复用 `--password-stdin`。未知结果恢复仍需相同密码，正文记录不保存密码。已在密码房的同会话恢复不重复提示。
+- `admin_set_username` 首先获取统一事务 gate。同一注册用户的昵称修复保留 membership_id、last_cli_action_at 和 pending AI；已存在用户名且在活动房间中的用户仍禁止改名。
+- 网页成功重新加入也清除旧 idle_timeout；之后正常离开不会再次误报闲置。
+- 本地 completed/refunded/expired 请求立即清理；未知请求保留 7 天，之后清除正文。服务端过期键墓碑继续禁止旧键重执行。
+- 切换账号在独立、非持久 Auth 客户端验证新凭据；旧 CLI 会话锁内吊销并执行 Auth 本会话登出，再安装新 Cookie。新凭据错误不破坏旧登录。
+- 新迁移 `20261009085757_cli_review_session_and_membership_fixes` 已上线；回读管理员函数 gate 存在、authenticated 不可执行、service_role 可执行。
+- 本地 CLI 6 项、数据库 26 项、原有 Vitest 4 项通过；typecheck/build 通过，lint 0 错误、3 条既有 warning。
+
+### 全局锁验证
+
+可复现本地脚本：`ONLINESOUP_TEST_DATABASE_URL=... node cli/tests/load-database.mjs`，仅接受本机可丢弃数据库。PostgreSQL 18.4、本地 Auth/Realtime 替身、20 个房间各 100 条消息，20 连接交替读取状态和最近消息，共 1,000 次：3500 次/秒，p50 5.60ms、p95 9.29ms、最大 14.32ms，未出现错误或死锁。
+
+同一脚本在事务内刻意持有全局 gate 250ms 后，让 20 个房间读取：p95 259.44ms。该故障注入明确证明跨房阻塞仍存在；不是管理员真实归档时长或生产容量测试。线上使用 PostgreSQL 17、网络与资源不同，不可用本地吞吐数字推算生产容量。后续拆分必须同时处理只读成员验证中的座位行锁及跨房写入锁顺序。
+
+部署前线上公开 key RPC：5 个专用房间、5 并发、60 次状态/消息读取，错误 0，p50 433ms、p95 6622ms、最大 13579ms，总时长 21460ms（请求间隔 200ms）。此处包含本机到 Supabase 的网络/网关延迟。随后只读快照没有 advisory 等待；数据库历史累计语句统计的相关查询最大耗时约 188ms，但该累计统计不能逐条对应本轮请求，也不足以确定长尾根因。不能据此宣布容量验收通过。
+
+本地网站连接真实 Supabase 的 CLI 入房、进程重启免重复密码、双向聊天、离开/登出通过。账号切换验证新凭据错误保留旧登录；成功切换后旧 cli_sessions 已吊销、旧 refresh token 无法刷新、旧 Cookie 不再认证。
+
+部署后有限并发和默认域名 CLI 验收结果待本轮补记。

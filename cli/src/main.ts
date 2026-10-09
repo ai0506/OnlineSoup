@@ -9,7 +9,7 @@ import { success,failure,exitCode,type PlayerEnvelope } from '../../src/lib/play
 
 const help=`OnlineSoup CLI（P0，协议 1）
 /login USERNAME_OR_EMAIL  密码从终端隐藏输入或 --password-stdin 读取
-/join CODE [--password 123456] [--takeover] [--request-key UUID]
+/join CODE [--takeover] [--request-key UUID]  密码房隐藏输入或 --password-stdin
 /state  /puzzle  /messages（最近 100 条）
 /say TEXT  /ask TEXT  /hint [TEXT]  /reason TEXT
   写入可带 --request-key UUID；付费指令可带 --use-personal-points
@@ -76,6 +76,7 @@ async function execute(command:Command):Promise<PlayerEnvelope> {
         if(pending.action==='join')s.state.room=pending.room;
         if(pending.action==='leave'&&s.state.room===pending.room)delete s.state.room;
       }
+      if(['completed','refunded','expired'].includes(String(result.data?.status)))delete s.state.pending[text];
       await s.save();
     }
     return result;
@@ -97,7 +98,13 @@ async function execute(command:Command):Promise<PlayerEnvelope> {
   if(old?.user_id && old.user_id!==s.state.user_id)return failure('REQUEST_KEY_CONFLICT','该本地请求键属于另一个账号');
   if(old?.created_at && old.created_at<Date.now()-7*24*60*60*1000)return failure("REQUEST_KEY_EXPIRED","本地请求键已超过 7 天，不再重提交");
   let payload:Record<string,unknown>={};
-  if(name==='join')payload={takeover:options.takeover===true,...(options.password?{password:options.password}:{})};
+  if(name==='join') {
+    payload={takeover:options.takeover===true};
+    const info=await api(s,`/rooms/${room}/join-info`);if(!info.ok)return info;
+    let restored=false;
+    if(!old && s.state.room===room && !passwordStdin)restored=(await api(s,`/rooms/${room}/state`)).ok;
+    if(old?.password_required || (info.data?.requires_password && !restored))payload.password=await password();
+  }
   if(['say','ask','hint','reason'].includes(name)){
     const content=name==='hint'&&!text?'请给我一个提示':text;if(!content.trim())throw new Error('REQUIRED_INPUT_MISSING');
     payload={content};
@@ -121,6 +128,7 @@ async function execute(command:Command):Promise<PlayerEnvelope> {
     if(name==='join')s.state.room=room;
     if(name==='leave')delete s.state.room;
   }
+  if(['completed','refunded','expired'].includes(String(result.data?.status)))delete s.state.pending[key];
   if(invalidRooms.has(result.error?.code??''))delete s.state.room;
   await s.save();
   if(result.error?.code==='REQUEST_RESULT_UNKNOWN')result.error.message+=`（原请求键 ${key}）`;
