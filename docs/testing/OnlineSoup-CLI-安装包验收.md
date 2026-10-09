@@ -1,8 +1,19 @@
 # OnlineSoup CLI 网站安装包验收
 
-日期：2026-10-09。版本：0.2.0。代码提交：`f070888`。
+## 当前发布摘要
 
-## 发布结果
+截至 2026-10-10，当前版本为 **0.3.0**，玩家协议仍为 v1。
+
+- [下载与安装页](https://onlinesoup.ai0506.com/cli)、[当前安装包](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.0.tgz)、[玩家 Markdown 指南](https://onlinesoup.ai0506.com/downloads/OnlineSoup-CLI-Guide.md)。
+- 包大小 1,847,923 字节，SHA-256：`bda406c9452eeddfefb00f731be235d18cc0b71a3718babeee5d93ce8a312831`。
+- 支持浏览器授权和纯终端密码登录；房间操作后检查新消息。旧 0.2.0 / 0.2.1 包保留，版本文件不覆盖。
+- 当前生产功能提交为 `83cd481`；部署及验证证据见下文 0.3.0 小节。历史小节中的“未推送 GitHub”描述该次验收时点，不能作为当前远端状态依据。
+
+## 0.2.0 首次分发验收
+
+日期：2026-10-09。版本：0.2.0。代码提交：`f070888`。以下发布结果与验证均为该版本的历史记录。
+
+### 发布结果
 
 - 下载页：<https://onlinesoup.ai0506.com/cli>。
 - 安装包：<https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.0.tgz>。
@@ -10,7 +21,7 @@
 - SHA-256：`4b2aed821dd42a7f55e2bdfefd614ac72fe3a61376bd77e75183ad218744ba30`，1,845,326 字节。
 - Vercel：`dpl_ZKwAXUYMAxJzFgfyZCwWZKK8kDqe`，状态 READY，已绑定生产域名；部署源为提交的独立归档。
 
-## 验证
+### 验证
 
 | 检查 | 结果 |
 | --- | --- |

@@ -17,10 +17,13 @@
 - 管理端邮箱二次验证与可信设备 Cookie；房间支持单会话设备锁和多设备接管
 - 问答缓存、事实摘要和 DeepSeek/GLM 双路 AI 处理均按当前题目隔离；付费 AI 请求由数据库 120 秒租约串行化，失联的过期请求可安全退分
 - 移动端竖屏房间页采用聊天/题库/座位三标签全屏切换布局
+- 注册用户 CLI：浏览器授权或终端密码登录、聊天及 AI 玩家命令、消息分页与等待、操作后新消息提醒、网页接管确认
 
 更详细的功能拆分和当前进度见 [`tasks.md`](tasks.md)；最近的改动记录见 [`updates.md`](updates.md)。
 
 只想在终端玩游戏？无需部署本项目，直接使用[CLI 下载页](https://onlinesoup.ai0506.com/cli)的安装包，阅读 [CLI 玩家指南](cli/PLAYER_GUIDE.md)。以下步骤面向网站开发者。
+
+当前 CLI 为 **0.3.0**，需要 Node.js 22 或更高版本；支持换电脑重新安装和登录。网站玩法见[图文教程](https://onlinesoup.ai0506.com/tutorial)，实现状态与验证范围见 [CLI 实施计划](docs/architecture/OnlineSoup-CLI-实施计划.md)及[安装包验收记录](docs/testing/OnlineSoup-CLI-安装包验收.md)。
 
 ## 1. 安装
 
@@ -104,5 +107,5 @@ npm.cmd run build
 ```
 
 `npm.cmd test` 运行离线 Vitest 回归；如本机已启动 Supabase CLI，还可运行
-`npm.cmd run test:db` 检查数据库契约。GitHub Actions 会在推送到 `main` 和 PR 时运行
-typecheck、lint、test 与 build；这些检查不替代真实账号、房间或付费 AI 的端到端验收。
+`npm.cmd run test:db` 检查数据库契约。CLI 另运行 `npm --prefix cli test` 和
+`npm run cli:check-package`。当前仓库没有 GitHub Actions workflow，推送前需自行运行相应检查；这些检查不替代真实账号、房间或付费 AI 的端到端验收。
