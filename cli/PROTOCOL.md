@@ -10,10 +10,13 @@ POST 使用 `Content-Type: application/json`。原生 CLI 无 Origin 时还须�
 
 ## 路由
 
-以下路径均相对于上述入口；CODE 是大写 6 位字母或数字。房间业务写入须携带 UUID `Idempotency-Key`，登录、登出不使用该键。
+以下路径均相对于上述入口；CODE 是大写 6 位字母或数字。房间业务写入须携带 UUID `Idempotency-Key`，登录、浏览器登录和登出不使用该键。浏览器登录凭 id/设备秘密/验证器去重，不能用 /request 查询。
 
 | 方法与路径 | 输入与结果 |
 | --- | --- |
+| POST `/browser-login/start` | `{secret,challenge,previous_user_id?}`；secret 为随机 32 字节 base64url，challenge 为独立随机验证器的 SHA256 十六进制。返回 id、user_code、5 分钟期限；服务端仅保存哈希。复用登录尝试限流。 |
+| POST `/browser-login/poll` | `{id,secret,verifier}`；pending/issuing 等待；网页批准后仅一个发行者创建独立 CLI 会话，完成时只通过 Set-Cookie 交付，不返回令牌。未知网络结果可重复相同 poll，不新建授权。 |
+| POST `/browser-login/ack` | 同 poll 输入；CLI 原子保存 Cookie 与账号后确认，服务端清空加密暂存凭证。 |
 | POST `/login` | `{identity,password}`，identity 为用户名或邮箱；认证失效后恢复原账号时可带 `previous_user_id` 防止误换账号。成功安装并登记 CLI 会话。密码只通过安全 stdin 或 TTY 提供。 |
 | GET `/session` | 登录与 CLI 会话状态；无登录可返回 authenticated=false。 |
 | POST `/logout` | 吊销当前 CLI 登记及 Auth 会话；仍有有效座位则先离开。 |
@@ -51,3 +54,5 @@ POST 使用 `Content-Type: application/json`。原生 CLI 无 Origin 时还须�
 AI pending 不代表完成；refunded 才确认退款。默认仅扣座位积分；`use_personal_points:true` 是本次新的明确付款意图，即使座位尚有积分也选择个人积分，不能拿旧键更改付款来源。退款回原来源且只结算一次。
 
 消息 ID 按十进制字符串处理。游标按账号、房间和历史代次签名，不能解析或跨房间使用；has_more 时继续补拉。历史删除、归档或编辑使旧游标 `CURSOR_EXPIRED`，显式 reset 建立最新快照且承认可能缺失历史。数据库长事务会延迟可见水位；正文与游标共同原子落盘，保存后输出前崩溃可用最近 200 条 cached 恢复。详细边界及 wait 时限见 [README.md](README.md)。
+
+浏览器授权页 `/auth/cli?id=UUID` 不携带设备秘密或验证器；用户必须输入终端 8 位验证码并明确确认。错误码 5 次拒绝，网页账号变化拒绝旧确认。公开 key 只能以有效网页会话调用受限批准 RPC；发行 RPC 仅 service_role。临时凭证使用 AES-256-GCM 和请求 id 关联加密，确认/过期处理时清空；后续新请求清理过期行。Server secret 轮换会使尚未收取的暂存凭证失效，需重新授权。

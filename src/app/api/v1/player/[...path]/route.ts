@@ -9,6 +9,7 @@ import { loginIdentitySchema } from '@/lib/validation';
 import { getClientIp, getLocationLabel } from '@/lib/request-context';
 import { runRoomAiRequest, type AiRequestResult } from '@/lib/room-ai-runner';
 import { success, failure } from '@/lib/player-api/protocol';
+import { browserAuth } from '@/lib/player-api/browser-auth';
 import { rpcFailure } from '@/lib/player-api/errors';
 
 export const runtime = 'nodejs';
@@ -36,6 +37,10 @@ function protocolGuard(request:Request) {
 async function handle(request:Request,{params}:Context) {
   const blocked=protocolGuard(request); if(blocked)return blocked;
   const path=(await params).path;
+  if(request.method==='POST' && path.length===2 && path[0]==='browser-login') {
+    const result=await browserAuth(request,path[1]);
+    return NextResponse.json(result,{status:result.ok?200:400,headers:{'Cache-Control':'no-store'}});
+  }
   const supabase=await createClient();
   if(request.method==='POST' && path.join('/')==='login') {
     const body=await request.json().catch(()=>null);

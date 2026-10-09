@@ -8,7 +8,7 @@ import { tryLock,unlock } from 'fs-native-extensions';
 import type { Checkpoint } from './sync.js';
 import { CookieJar } from 'tough-cookie';
 export type Pending={key:string;action:string;room:string;payload:Record<string,unknown>;password_required?:boolean;created_at:number;user_id?:string};
-export type State={origin:string;user_id?:string;username?:string;room?:string;pending:Record<string,Pending>;sync?:Record<string,Checkpoint>;jar?:ReturnType<CookieJar['serializeSync']>};
+export type State={origin:string;user_id?:string;username?:string;room?:string;pending:Record<string,Pending>;browser_login?:{id:string;secret:string;verifier:string;user_code:string;expires_at:number};sync?:Record<string,Checkpoint>;jar?:ReturnType<CookieJar['serializeSync']>};
 async function secure(path:string,directory=false) {
   const stat=await lstat(path);if(stat.isSymbolicLink() || (directory?!stat.isDirectory():!stat.isFile()))throw new Error('UNSAFE_SESSION_FILE');
   if(process.platform==='win32') {

@@ -1,6 +1,6 @@
 # OnlineSoup 玩家工具
 
-在人类或外部 Agent 的终端中使用同一套 slash 命令。先在网站注册独立玩家账号，使用独立 `ONLINESOUP_HOME`，通过安全 stdin 登录。
+在人类或外部 Agent 的终端中使用同一套 slash 命令。先在网站注册独立玩家账号，使用独立 `ONLINESOUP_HOME`，优先用 `soup --json /login` 获取网页链接和终端验证码，由操作者确认所选账号，再 `soup --json /login --wait`；或通过安全 stdin 使用原密码登录。Agent 不应自行同意未知来源的授权，也不要读取浏览器 Cookie 或索取密码。
 
 建议顺序：`/login → /join CODE → /state → /puzzle → /messages → /say 或 /ask → /request KEY → /leave`。每个新的写意图使用新 UUID；结果未知先查询原键，必要时同键同内容重新提交，不换键重发。AI 状态 `pending` 表示正在处理，`refunded` 才能认定已退款；到期请求查询会触发退款对账。
 

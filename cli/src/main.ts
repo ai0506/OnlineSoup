@@ -5,10 +5,12 @@ import { parse,tokenize,parseLine,type Command } from './parser.js';
 import { openSession,type Pending } from './session.js';
 import { api,closeConnections } from './api-client.js';
 import { checkpoint,messagePage,stateFingerprint,waitForChanges } from './sync.js';
+import { browserLogin } from './browser-login.js';
 import { textOutput } from './output.js';
 import { success,failure,exitCode,type PlayerEnvelope } from '../../src/lib/player-api/protocol.js';
 
-const help=`OnlineSoup CLI（P1，协议 1）
+const help=`OnlineSoup CLI（协议 1）
+/login [--no-browser]  浏览器登录；--json 返回链接，/login --wait 等待确认
 /login USERNAME_OR_EMAIL  密码从终端隐藏输入或 --password-stdin 读取
 /join CODE [--takeover] [--request-key UUID]  密码房隐藏输入或 --password-stdin
 /state（或 /room） /puzzle /facts /seats /points
@@ -47,7 +49,7 @@ async function execute(command:Command):Promise<PlayerEnvelope> {
   if(name==='exit'){stopping=true;return success({exited:true,session_preserved:true});}
   const s=session!;
   if(name==='login') {
-    if(!text || /\s/.test(text))throw new Error('INVALID_INPUT');
+    if(/\s/.test(text)||(text&&Object.keys(options).length))throw new Error('INVALID_INPUT');
     if(s.state.room) {
       const current=await api(s,'/session');
       if(current.ok&&current.data?.authenticated) {
@@ -57,9 +59,10 @@ async function execute(command:Command):Promise<PlayerEnvelope> {
         delete s.state.room;
       }else if(!current.ok && !['AUTH_EXPIRED','LOGIN_REQUIRED'].includes(current.error?.code??''))return current;
     }
+    if(!text)return browserLogin(s,options,json);
     const pwd=await password();
     const result=await api(s,'/login',{identity:text,password:pwd,...(s.state.room?{previous_user_id:s.state.user_id}:{})});
-    if(result.ok){if(s.state.user_id!==result.data!.user_id)delete s.state.sync;s.state.user_id=String(result.data!.user_id);s.state.username=String(result.data!.username);await s.save();}
+    if(result.ok){delete s.state.browser_login;if(s.state.user_id!==result.data!.user_id)delete s.state.sync;s.state.user_id=String(result.data!.user_id);s.state.username=String(result.data!.username);await s.save();}
     return result;
   }
   if(name==='logout') {
@@ -69,7 +72,7 @@ async function execute(command:Command):Promise<PlayerEnvelope> {
       delete s.state.room;
     }
     const result=await api(s,'/logout',{});
-    if(result.ok){delete s.state.user_id;delete s.state.username;delete s.state.sync;await s.save();}return result;
+    if(result.ok){delete s.state.browser_login;delete s.state.user_id;delete s.state.username;delete s.state.sync;await s.save();}return result;
   }
   if(name==='request') {
     if(!/^[0-9a-f-]{36}$/i.test(text))throw new Error('INVALID_INPUT');

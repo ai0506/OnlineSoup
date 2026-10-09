@@ -419,3 +419,5 @@
 [CodeX][261009192725] Implement P2 web CLI-seat confirmation dialog and lobby status; add HMAC-bound seat session compare-and-swap RPC with membership/session revalidation, guard both legacy web takeover and auto-join against bypass; apply matching migration 20261009112650; add 11 P2 DB cases including concurrent confirmation and explicit personal payment; retain web-to-web behavior and update P0/P1 tests for confirmed takeover.
 
 [CodeX][261009194230] P2 实现 4e2a0ec 已发布 Vercel 生产域名并在线验证网页 CLI 占座标识、取消保留、过期版本拒绝/再次确认及旧 CLI 失权；真实个人积分单次付款、受控过期触发 Supabase 令牌轮换持久化、认证撤销/同账号重登与显式恢复通过。独立 Codex CLI 通过受限临时 soup 适配器完成 8 次真实玩家调用与推理通关；49 项 DB、11 项 CLI、4 项根单测及 typecheck/lint/build 通过。补齐 v1 协议、安装/Agent 文档、验收截图与状态；Claude/真人混合/长期运行、Windows/Linux 仍未验收。专用测试账号、房间、会话及临时凭证副本已清理，未推送 GitHub。
+
+[CodeX][261009230940] 新增 CLI 浏览器登录：/login 打开 /auth/cli，网页确认当前账号或切换账号后输入终端验证码；独立 CLI Auth 会话、256 位设备秘密与验证器绑定、5 分钟授权期限、错误验证码 5 次拒绝、单发行者和加密凭证暂存/落盘后确认；原密码登录保留，换账号前仍要求处理座位。Supabase 迁移 20261009150856 已应用并按真实版本补档，权限回读通过；8 项 DB 和 13 项 CLI 测试、根 typecheck/lint/build 通过，真实浏览器验收进行中。

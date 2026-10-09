@@ -17,7 +17,7 @@ node cli/dist/cli/src/main.js /help
 在网站注册、设置用户名后运行：
 
 ```sh
-soup /login 用户名
+soup /login
 soup /join ABCDEF
 soup /puzzle
 soup /say "大家好"
@@ -26,7 +26,9 @@ soup /leave
 soup /logout
 ```
 
-`/login` 和密码房 `/join` 在 TTY 隐藏输入密码。自动化调用使用 `soup --json --password-stdin /login USERNAME`，由安全输入源提供 stdin；不要把密码写入命令行、脚本或日志。交互模式直接运行 `soup`。`/exit` 保留座位和登录，下次运行按服务端实际状态恢复。
+`/login` 自动打开浏览器，网页已登录时可确认当前账号，也可选择其他账号登录；输入终端显示的验证码后完成授权。没有自动打开时，手动打开显示的链接；链接 5 分钟有效，`/login --no-browser` 仅显示链接。按 Ctrl+C 后再次 `/login` 可恢复未过期请求。登录不会加入房间或接管座位。
+
+`/login 用户名` 保留终端密码登录；密码房 `/join` 与该方式在 TTY 隐藏输入密码。自动化调用使用 `soup --json --password-stdin /login USERNAME`，由安全输入源提供 stdin；不要把密码写入命令行、脚本或日志。交互模式直接运行 `soup`。`/exit` 保留座位和登录，下次运行按服务端实际状态恢复。
 
 默认服务器为 `https://onlinesoup.ai0506.com`。本地开发需设置 `ONLINESOUP_URL=http://localhost:3105`，并启动本地 Next.js 网站。生产 API 已于 2026-10-09 发布，默认域名的登录、密码入房、真实 AI 询问、退出和登出已验证。
 
@@ -70,6 +72,12 @@ soup --json /wait --timeout 30
 
 `/wait` 默认 30 秒，范围 1–60 秒，约每 5 秒读取状态和增量消息；先追平积压，最多返回 1000 条，仍有积压时返回 `has_more` 供下一次继续。消息或题目、座位、积分快照变化立即返回；正常空等待返回 `timed_out: true`。网络请求也计入时限；等待预算耗尽返回正常超时，若最后一轮读取未完成则返回 `poll_incomplete: true`，下次沿原游标补拉。预算耗尽前发生的网络故障仍返回 `NETWORK_ERROR`。读取不延长闲置时间，不自动接管；被踢、关房或接管立即停止。状态轮询不能捕获轮询之间所有短暂变化。
 
+## 浏览器登录与自动化
+
+浏览器与 CLI 拥有各自独立的 Supabase 会话。网页密码不会传给 CLI；网页确认后，服务端创建登记的 CLI 会话，CLI 保存 Cookie 后确认收取。取消授权保留原 CLI 登录。切换 CLI 账号前仍须先处理原活动座位。
+
+无桌面或 Agent 可用 `soup --json /login` 取得 verification_uri 和 user_code，交给人类在浏览器确认；随后运行 `soup --json /login --wait`。JSON 输出不会包含设备秘密、验证器或登录凭证。未确认、验证码错误、超期或取消时不会登录；不要向他人转发自己未发起的授权请求。
+
 ## 网页互通与认证恢复
 
 网页大厅显示“CLI 使用中”。确认网页进入后，旧 CLI 收到 `ROOM_DEVICE_IN_USE` 并停止操作；需要操作者明确 `/join CODE --takeover` 才能接管回来。刷新登录令牌不会自动抢回座位。网页之间的进入规则保留。
@@ -96,6 +104,7 @@ node cli/tests/setup-database.mjs
 node cli/tests/database.mjs
 node cli/tests/sync-database.mjs
 node cli/tests/takeover-database.mjs
+node cli/tests/browser-auth-database.mjs
 ```
 
 初始化器不删除已有表；Auth/Realtime 使用最小本地替身，不安装 pg_cron。该测试不能替代真实 Supabase 登录、公开 key 权限验证或网页验收。线上 Cron 配置与真实 AI 流程另行检查。

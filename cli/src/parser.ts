@@ -18,13 +18,13 @@ export function parse(args:string[]):Command {
   if(first.startsWith('//'))return {name:'say',text:[first.slice(1),...args.slice(1)].join(' '),options:{}};
   if(!first.startsWith('/'))return {name:'say',text:args.join(' '),options:{}};
   const rawName=first.slice(1).toLowerCase();const name=rawName==='room'?'state':rawName;if(!names.has(name))throw new Error('INVALID_COMMAND');
-  const flags:Record<string,string[]>= {join:['takeover','request-key'],ask:['use-personal-points','request-key'],hint:['use-personal-points','request-key'],reason:['use-personal-points','request-key'],say:['request-key'],leave:['request-key'],messages:['after','before','limit','reset','cached'],wait:['timeout']};
+  const flags:Record<string,string[]>= {login:['browser','no-browser','wait'],join:['takeover','request-key'],ask:['use-personal-points','request-key'],hint:['use-personal-points','request-key'],reason:['use-personal-points','request-key'],say:['request-key'],leave:['request-key'],messages:['after','before','limit','reset','cached'],wait:['timeout']};
   const options:Record<string,string|boolean>={}, words:string[]=[];let literal=false;
   for(let i=1;i<args.length;i++) {
     const arg=args[i];if(arg==='--'&&!literal){literal=true;continue;}
     if(!literal&&arg.startsWith('--')) {
       const key=arg.slice(2);if(!flags[name]?.includes(key))throw new Error('INVALID_INPUT');
-      if(['takeover','use-personal-points','reset','cached'].includes(key))options[key]=true;
+      if(['browser','no-browser','wait','takeover','use-personal-points','reset','cached'].includes(key))options[key]=true;
       else{if(args[i+1]===undefined||args[i+1].startsWith('--'))throw new Error('REQUIRED_INPUT_MISSING');options[key]=args[++i];}
     }else words.push(arg);
   }
