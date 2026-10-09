@@ -43,3 +43,19 @@
 代码提交 `0af3cc4`；生产部署 `dpl_FAJVNrGRoAARxXjLDTqoQAyehAYb` READY。新增网站玩法教程链接、纯终端账号/邮箱隐藏密码登录章节，以及与 `--no-browser` 的区别。8 个运行模块与 0.2.0 字节一致，无登录逻辑变化。
 
 根 typecheck/build、lint（0 错误/3 旧 warning）及本地/生产 `cli:check-package` 通过；生产四种文件与本地一致，新包独立离线安装运行成功，旧 0.2.0 URL 仍可用，教程 /tutorial 返回 200。网站指南和包内指南均包含新增内容。未重跑线上账号密码登录或房间付费流程，未推送 GitHub。
+
+## 0.3.0 操作后消息提醒验收
+
+日期：2026-10-10。代码提交 `83cd481`；生产部署 `dpl_9fWjcfuNZNzC3opc4NCbAw1iurPM` READY。
+
+- 房间联网操作后通过既有成员鉴权 messages GET 检查，最多约 2 秒、无重试。文本提醒或 JSON `message_check`。
+- 检查不修改同步游标或缓存正文；写入响应中的本人消息/AI 回答 ID 单独保留最近 200 个，减少重复提醒；不承诺终端恰好一次显示。
+- 初次仅检查最新一页；若仍有分页、等待事务可见或检查失败则返回未知，不声称没有新消息。游标过期提示显式 `/messages --reset`。
+- 原命令的成功/失败、请求键、pending 和退出码不受检查结果影响。退出房间或本地命令不额外请求，messages/wait 本身已获取消息。
+- 18 项 CLI 测试、4 项根测试、typecheck/build、lint（0 错误/3 旧 warning）及本地/生产独立安装检查通过。
+- 从真实生产 npm URL 安装到空目录/缓存后，使用安装后的程序重复实进程 HTTP 验证：ask/reason/hint/chat/state/puzzle/facts/seats/points 各附带一次检查，只有一行 JSON，游标和正文缓存不推进；写入 504 时保持退出码 5 和 pending，即便检查返回设备接管错误。
+- 生产未登录消息检查仍返回 401 / LOGIN_REQUIRED；浏览器生产页含新说明，指南与安装包均已更新。
+
+本次未改数据库或服务端 API；受控 HTTP 流程不等同于真实房间、网页与 AI 的生产 E2E，本次没有创建、接管或付费操作真实房间。macOS arm64 Node24 实测，其他平台未实机验收。未推送 GitHub。
+
+![生产消息提醒说明](assets/cli-message-notice.jpg)
