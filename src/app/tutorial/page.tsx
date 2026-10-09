@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 
 function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
@@ -124,6 +125,7 @@ export default function TutorialPage() {
         <main className="tutorial-content">
           <h1>使用教程</h1>
           <p className="tutorial-subtitle">汤局 OnlineSoup · 多人在线海龟汤推理游戏</p>
+          <p>喜欢用终端？<Link href="/cli">下载 CLI 客户端与 Markdown 教程 →</Link></p>
 
           <section id="overview">
             <div className="tutorial-overview">

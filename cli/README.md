@@ -4,7 +4,16 @@
 
 ## 安装与运行
 
-需要 Node.js 22 或更高版本。在项目目录执行：
+需要 Node.js 22 或更高版本。普通玩家直接从[网站下载页](https://onlinesoup.ai0506.com/cli)安装预编译包：
+
+```sh
+npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.0.tgz
+soup /help
+```
+
+换电脑重新安装、浏览器登录即可，不复制登录文件。完整新手教程见 [PLAYER_GUIDE.md](PLAYER_GUIDE.md)，网站提供[同一份 Markdown 文件](https://onlinesoup.ai0506.com/downloads/OnlineSoup-CLI-Guide.md)。
+
+开发者也可在项目目录从源码构建：
 
 ```sh
 npm --prefix cli ci
@@ -12,7 +21,13 @@ npm --prefix cli run build
 node cli/dist/cli/src/main.js /help
 ```
 
-可在 `cli` 目录执行 `npm link`，之后使用 `soup`。源码仍依赖本项目的无服务端依赖协议模块；首次不单独发布 npm 包。
+可在 `cli` 目录执行 `npm link`，之后使用 `soup`。源码构建依赖父项目的纯协议模块；网站安装包包含该模块编译产物和所有运行依赖，独立安装即可运行。当前通过网站分发，不发布到 npm 公共仓库。
+
+### 维护网站安装包
+
+在根项目运行 `npm run cli:package`：按 CLI lockfile 重装依赖、清理旧构建、编译并生成 `public/downloads/` 中的版本压缩包、SHA-256、发布清单和教程副本。打包范围只含 CLI 编译产物、文档和运行依赖，不含服务端、环境变量和本地会话。`npm run cli:check-package` 在空目录、空缓存中离线安装并验证运行，防止误依赖源码目录或漏装共享协议/原生模块。
+
+发新版时先更新 `cli/package.json`、lockfile 和玩家指南的版本 URL，再打包、检查并部署网站。页面版本和下载地址取自生成的 `cli-release.json`；保留已发布版本的文件，不以同版本覆盖新版内容。
 
 在网站注册、设置用户名后运行：
 

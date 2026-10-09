@@ -20,6 +20,8 @@
 
 更详细的功能拆分和当前进度见 [`tasks.md`](tasks.md)；最近的改动记录见 [`updates.md`](updates.md)。
 
+只想在终端玩游戏？无需部署本项目，直接使用[CLI 下载页](https://onlinesoup.ai0506.com/cli)的安装包，阅读 [CLI 玩家指南](cli/PLAYER_GUIDE.md)。以下步骤面向网站开发者。
+
 ## 1. 安装
 
 需要 Node.js 20.9 或更高版本。

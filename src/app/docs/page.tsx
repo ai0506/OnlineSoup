@@ -32,6 +32,7 @@ export default function DocsPage() {
           ))}
         </nav>
         <a className="docs-sidebar-back" href="/tutorial">面向玩家的教程 →</a>
+        <a className="docs-sidebar-back" href="/cli">CLI 下载与入门 →</a>
       </aside>
 
       <main className="docs-content">

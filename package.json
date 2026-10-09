@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "cli:package": "node scripts/package-cli.mjs",
+    "cli:check-package": "node scripts/check-cli-package.mjs",
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
