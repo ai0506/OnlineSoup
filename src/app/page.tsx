@@ -40,6 +40,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   let userId: string | undefined;
   let memberRoomCode: string | undefined;
+  let cliInUse = false;
 
   if (hasSupabaseEnv()) {
     const supabase = await createClient();
@@ -49,6 +50,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     if (userId) {
       const { data } = await supabase.rpc("get_my_active_room");
       memberRoomCode = data ?? undefined;
+      if (memberRoomCode) {
+        const status = await supabase.rpc("get_room_takeover_status", { p_room_code: memberRoomCode });
+        cliInUse = status.data?.cli_in_use === true;
+      }
     }
   }
 
@@ -86,6 +91,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </div>
         {activeRoomCode ? (
           <div className="active-room-notice">
+            {cliInUse && <p className="muted">CLI 使用中</p>}
             <p className="muted">
               请先返回当前房间，或退出后再加入其他房间。
             </p>

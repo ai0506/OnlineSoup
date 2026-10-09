@@ -415,3 +415,5 @@
 [Claude Code][261009184717] 新增 Windows CLI 测试清单；在独立 worktree 合并 origin/main（补回 fdb7bc5 切题刷新修复，代码冲突保留本地已含 8bad800 的版本，日志并集去重，沿用远端删除 ci.yml），合并树 typecheck/lint/build/4 项单测/11 项 CLI 测试通过
 [Claude Code][261009190509] 提交此前未提交的网页 UI 改动（房间码输入过滤、进房清除 action=enter、赠分弹窗、结构化座位系统消息渲染、字数上限提示、vercel.json 固定 sin1），并与 origin/main 合并（updates.md 并集，房间页自动合并）
 [Claude Code][261009191227] 房主选题/停题少一次往返：openPuzzle 成功后在同一次 Server Action 内读取并返回当前题目（读取失败则回退前端刷新），closePuzzle 返回 null；puzzle-panel 直接应用返回结果并作废在途轮询；typecheck/lint/build 通过，未做浏览器实测
+
+[CodeX][261009192725] Implement P2 web CLI-seat confirmation dialog and lobby status; add HMAC-bound seat session compare-and-swap RPC with membership/session revalidation, guard both legacy web takeover and auto-join against bypass; apply matching migration 20261009112650; add 11 P2 DB cases including concurrent confirmation and explicit personal payment; retain web-to-web behavior and update P0/P1 tests for confirmed takeover.

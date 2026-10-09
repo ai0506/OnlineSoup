@@ -6,6 +6,7 @@ const db=await connect(),reader=await connect(),web=await connect(),slow=await c
 const ids=[randomUUID(),randomUUID(),randomUUID()],sids=ids.map(()=>randomUUID()),webSid=randomUUID();const rooms=[],puzzles=[];let seat,code,otherCode,passed=0;
 const auth=async(c,i,sid=sids[i])=>{await c.query('reset role');await c.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub:ids[i],session_id:sid,role:'authenticated'})]);await c.query('set role authenticated');};
 const rpc=async(c,name,args=[]) => (await c.query(`select public.${name}(${args.map((_,i)=>'$'+(i+1)).join(',')}) value`,args)).rows[0].value;
+const webTakeover=async(c,code)=>{const status=await rpc(c,'get_room_takeover_status',[code]);return status.cli_in_use?rpc(c,'confirm_cli_room_takeover',[code,status.session_version]):rpc(c,'take_over_room_session',[code]);};
 const check=async(name,fn)=>{await fn();console.log('PASS',name);passed++;};
 const reject=(fn,msg)=>assert.rejects(fn,e=>e.message===msg);
 const insert=async(c,content,type='chat',puzzle=null)=> (await c.query("insert into public.room_messages(room_id,seat_id,sender_name,sender_seat_number,sender_type,message_type,message_mode,content,puzzle_id) values($1,$2,'Fixture',2,'registered',$3,'chat',$4,$5) returning id::text",[rooms[0],seat,type,content,puzzle])).rows[0].id;
@@ -77,7 +78,7 @@ let cursor=(await rpc(reader,'player_messages',[code])).next_cursor;const id=awa
 cursor=(await rpc(reader,'player_messages',[code])).next_cursor;await db.query('update public.room_messages set content=$1 where id=(select min(id) from public.room_messages where room_id=$2)',['编辑后的消息',rooms[0]]);await reject(()=>rpc(reader,'player_messages',[code,cursor]),'CURSOR_EXPIRED');
 });
 await check('web takeover rejects all CLI reads and never silently restores the seat',async()=>{
-await auth(web,2,webSid);await rpc(web,'take_over_room_session',[code]);for(const name of ['player_messages','player_snapshot','player_facts'])await reject(()=>rpc(reader,name,[code]),'ROOM_DEVICE_IN_USE');await rpc(reader,'player_write',['join',code,randomUUID(),{takeover:true}]);
+await auth(web,2,webSid);await webTakeover(web,code);for(const name of ['player_messages','player_snapshot','player_facts'])await reject(()=>rpc(reader,name,[code]),'ROOM_DEVICE_IN_USE');await rpc(reader,'player_write',['join',code,randomUUID(),{takeover:true}]);
 });
 await check('signed cursor is bound to the original room',async()=>{
 const cursor=(await rpc(reader,'player_messages',[code])).next_cursor;await rpc(reader,'player_write',['leave',code,randomUUID(),{}]);await rpc(reader,'player_write',['join',otherCode,randomUUID(),{}]);await reject(()=>rpc(reader,'player_messages',[otherCode,cursor]),'INVALID_CURSOR');await rpc(reader,'player_write',['leave',otherCode,randomUUID(),{}]);

@@ -10,6 +10,7 @@ import { LiveRoomSeats } from "@/components/live-room-seats";
 import { PuzzlePanel } from "@/components/puzzle-panel";
 import { RoomActionForm } from "@/components/room-action-form";
 import { RoomChat } from "@/components/room-chat";
+import { RoomCliTakeover } from "@/components/room-cli-takeover";
 import { StripRoomEnterParam } from "@/components/strip-room-enter-param";
 import { hasSupabaseEnv } from "@/lib/env";
 import { flashRedirectPath } from "@/lib/flash";
@@ -81,8 +82,17 @@ export default async function RoomPage({
   const stateResult = await supabase.rpc("get_room_member_state", { p_room_code: code, p_guest_token: guestToken || null });
   if (stateResult.error?.message.includes("room_device_in_use")) {
       if (action === "enter") {
-        await supabase.rpc("take_over_room_session", { p_room_code: code });
-        redirect(`/rooms/${code}`);
+        const status = await supabase.rpc("get_room_takeover_status", { p_room_code: code });
+        if (status.data?.cli_in_use) return <RoomCliTakeover code={code} version={status.data.session_version} />;
+        if (!status.error) {
+          const entered = await supabase.rpc("take_over_room_session", { p_room_code: code });
+          if (!entered.error && entered.data === true) redirect(`/rooms/${code}`);
+          if (entered.error?.message === "CLI_TAKEOVER_CONFIRMATION_REQUIRED") {
+            const changed = await supabase.rpc("get_room_takeover_status", { p_room_code: code });
+            if (changed.data?.cli_in_use) return <RoomCliTakeover code={code} version={changed.data.session_version} />;
+          }
+        }
+        return <section className="join-landing"><p role="alert">座位状态已变化，请返回大厅重新进入。</p><Link className="button secondary" href="/">返回大厅</Link></section>;
       } else {
         redirect(flashRedirectPath("/", {
           code: "room_displaced",

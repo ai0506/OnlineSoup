@@ -8,6 +8,7 @@ const check=(name,fn)=>async()=>{await fn();passed++;console.log('PASS',name);};
 const ids={owner:randomUUID(),member:randomUUID(),other:randomUUID()};const sessions={owner:randomUUID(),member:randomUUID(),other:randomUUID(),web:randomUUID()};
 const auth=async(c,user,session,role='authenticated')=>{await c.query('reset role');await c.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub:user,session_id:session,role})]);await c.query('set role '+role);};
 const rpc=async(c,fn,args=[]) => (await c.query(`select public.${fn}(${args.map((_,i)=>'$'+(i+1)).join(',')}) v`,args)).rows[0].v;
+const webTakeover=async(c,code)=>{const status=await rpc(c,'get_room_takeover_status',[code]);return status.cli_in_use?rpc(c,'confirm_cli_room_takeover',[code,status.session_version]):rpc(c,'take_over_room_session',[code]);};
 const register=async(c,u,s)=>{await c.query('reset role');await rpc(c,'player_register_session',[u,s]);await auth(c,u,s);};
 const write=(c,action,key,payload={},room=code)=>rpc(c,'player_write',[action,room,key,payload]);
 const reject=async(fn,expected)=>assert.rejects(fn,e=>e.message===expected);
@@ -64,7 +65,7 @@ await auth(db,ids.member,sessions.member);
 })();
 await check('AI replay does not dispatch or debit twice',async()=>{const replay=await write(db,'ask',askKey,{content:'是吗？',expected_puzzle_id:puzzleId});assert.equal(replay.execute_ai,false);assert.equal(replay.status,'pending');})();
 await check('busy room rejects without another debit',async()=>reject(()=>write(db,'ask',randomUUID(),{content:'另一个？',expected_puzzle_id:puzzleId}),'RATE_LIMITED'))();
-await check('explicit website takeover displaces CLI without losing request',async()=>{await auth(db,ids.member,sessions.web);await rpc(db,'take_over_room_session',[code]);await auth(db,ids.member,sessions.member);await reject(()=>rpc(db,'player_read',['state',code]),'room_device_in_use');const result=await rpc(db,'player_read',['request',null,askKey]);assert.equal(result.status,'pending');assert.equal(result.ai_message,null);await reject(()=>write(db,'join',randomUUID(),{}),'ROOM_DEVICE_IN_USE');})();
+await check('explicit website takeover displaces CLI without losing request',async()=>{await auth(db,ids.member,sessions.web);await webTakeover(db,code);await auth(db,ids.member,sessions.member);await reject(()=>rpc(db,'player_read',['state',code]),'room_device_in_use');const result=await rpc(db,'player_read',['request',null,askKey]);assert.equal(result.status,'pending');assert.equal(result.ai_message,null);await reject(()=>write(db,'join',randomUUID(),{}),'ROOM_DEVICE_IN_USE');})();
 await check('explicit CLI takeover restores same seat',async()=>assert.equal((await write(db,'join',randomUUID(),{takeover:true})).seat_id,seatId))();
 await check('expiry reconcile refunds exactly once',async()=>{
 await db.query('reset role');await db.query("update public.room_ai_requests set lease_expires_at=now()-interval '1 second' where request_message_id=$1",[requestId]);
@@ -76,7 +77,7 @@ const key=randomUUID();await write(db,'leave',key);await write(db,'join',randomU
 })();
 await check('idle candidate taken over by web is retained; CLI idle releases and rejoin clears reason',async()=>{
 await db.query('reset role');await db.query("update public.room_seats set last_cli_action_at=now()-interval '2 hours' where id=$1",[seatId]);
-await auth(db,ids.member,sessions.web);await rpc(db,'take_over_room_session',[code]);await db.query('reset role');assert.equal(await rpc(db,'player_cleanup_idle'),0);
+await auth(db,ids.member,sessions.web);await webTakeover(db,code);await db.query('reset role');assert.equal(await rpc(db,'player_cleanup_idle'),0);
 await auth(db,ids.member,sessions.member);await write(db,'join',randomUUID(),{takeover:true});await db.query('reset role');await db.query("update public.room_seats set last_cli_action_at=now()-interval '2 hours' where id=$1",[seatId]);assert.equal(await rpc(db,'player_cleanup_idle'),1);
 await auth(db,ids.member,sessions.member);await reject(()=>rpc(db,'player_read',['state',code]),'IDLE_TIMEOUT');await write(db,'join',randomUUID(),{password:'123456'});assert.ok(await rpc(db,'player_read',['state',code]));
 })();

@@ -262,6 +262,9 @@ export async function joinRoom(
   }
 
   if (error) {
+    if (error.message === "CLI_TAKEOVER_CONFIRMATION_REQUIRED") {
+      return { status: "error", message: "此座位正在通过 CLI 使用，请确认后进入。", navigateTo: `/rooms/${code}?action=enter` };
+    }
     console.error("Room join RPC failed", {
       code: error.code,
       message: error.message,
