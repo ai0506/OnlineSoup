@@ -369,6 +369,7 @@
 [CodeX][260919210953] 使用 puzzle-example-generator 导出当前线上题库并新增“雨伞与电梯”完整题目预览：包含题面、汤底、4 个评分点及 4 条 fact / 4 条 inferential Ask 示例，已通过结构与边界类型校验；仅生成 .agents/tmp 本地评审文件，未上传 Supabase。
 [CodeX][260919211308] 重写“雨伞与电梯”预览的 Ask 示例为玩家逐步探查式问题，移除题干中直接点出雨伞、按钮与触及范围的问法；保留 4 条 fact / 4 条 inferential，并通过格式、边界类型和谜底泄露词检查。
 [CodeX][260919211711] 经用户审核后使用 admin_create_puzzle 仅新增并启用“雨伞与电梯”（线上 ID 20）：保留 4 个关键点与 8 条 Ask 示例，按决定移除仅供预览审核的 boundary_type；数据库回读确认字段完整且启用，未替换题库或删除旧草稿。
+
 [CodeX][260929124714] 重新截取 tutorial 当前界面截图：更新首页、房间、询问、积分、注册、赠送积分与选题画面；演示数据统一使用 ai0506、ASW506 与高积分示例，并确保房间人数徽章单行显示，保留所有既有图片比例与尺寸。
 [CodeX][260929125932] 重新制作 tutorial 的赠送积分截图：临时访客 bsw0506 实际加入房间并打开赠送积分弹窗后截取，展示 [2] bsw0506、77 积分输入及 2/5 人；截图完成后该访客已退出并释放座位，系统加入/退出消息保留在审计聊天中。
 [CodeX][260929130149] 修正 tutorial 首页房间码截图：使用未登录状态重截 1.1mainpageentercode.png，展示加入房间入口与 ASW506，避免演示账号会话导致页面错误显示“你已在房间中”。
@@ -409,3 +410,7 @@
 
 [CodeX][261009183552] Complete CLI P1 production verification on onlinesoup.ai0506.com: stdin login/password join, state/seats/points, bidirectional web RPC chat, persistent history pagination, wait wakeup, real reason/hint charging and facts, public-key RPC permissions and takeover/leave/logout; fix wait budget exhaustion to normal timed_out with poll_incomplete while preserving early network failures; 11 CLI/38 DB/4 root tests pass; Vercel 6fbf361 READY and fixtures cleaned; record remaining P2 and untested Linux/Windows; no GitHub push.
 [Claude Code][261009184202] 新增 docs/testing/OnlineSoup-CLI-Windows-测试清单.md：Windows 端 CLI 手动测试清单（代码获取、安装构建、25 项检查覆盖隐藏密码/stdin/BOM/中文代码页/引号/Git Bash 路径改写/ACL/进程锁/JSON 退出码/wait/接管），仅新增文档
+
+[CodeX][260929164111] 新增迁移修复 send_room_chat_message 速率限制查询的 message_mode 参数/列名歧义，保留原有权限边界；生产迁移记录及 anon/authenticated 执行权限已回读，注册用户网页发送与匿名访客公开 key 发送均成功。选题组件改为成功后主动补拉当前题目、可见时定期补拉，并捕获开题/停题 Server Action 异常，避免错误冒泡到整页。
+[Claude Code][261009184717] 新增 Windows CLI 测试清单；在独立 worktree 合并 origin/main（补回 fdb7bc5 切题刷新修复，代码冲突保留本地已含 8bad800 的版本，日志并集去重，沿用远端删除 ci.yml），合并树 typecheck/lint/build/4 项单测/11 项 CLI 测试通过
+[Claude Code][261009190509] 提交此前未提交的网页 UI 改动（房间码输入过滤、进房清除 action=enter、赠分弹窗、结构化座位系统消息渲染、字数上限提示、vercel.json 固定 sin1），并与 origin/main 合并（updates.md 并集，房间页自动合并）
