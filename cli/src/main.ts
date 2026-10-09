@@ -4,13 +4,17 @@ import { createInterface } from 'node:readline/promises';
 import { parse,tokenize,parseLine,type Command } from './parser.js';
 import { openSession,type Pending } from './session.js';
 import { api,closeConnections } from './api-client.js';
+import { checkpoint,messagePage,stateFingerprint,waitForChanges } from './sync.js';
 import { textOutput } from './output.js';
 import { success,failure,exitCode,type PlayerEnvelope } from '../../src/lib/player-api/protocol.js';
 
-const help=`OnlineSoup CLI（P0，协议 1）
+const help=`OnlineSoup CLI（P1，协议 1）
 /login USERNAME_OR_EMAIL  密码从终端隐藏输入或 --password-stdin 读取
 /join CODE [--takeover] [--request-key UUID]  密码房隐藏输入或 --password-stdin
-/state  /puzzle  /messages（最近 100 条）
+/state（或 /room） /puzzle /facts /seats /points
+/messages [--after CURSOR | --before CURSOR] [--limit 1-100]
+  默认从本地游标补拉；--reset 重建最新快照，--cached 查看已落盘的最近消息
+/wait [--timeout 1-60]  默认 30 秒，约每 5 秒观察变化
 /say TEXT  /ask TEXT  /hint [TEXT]  /reason TEXT
   写入可带 --request-key UUID；付费指令可带 --use-personal-points
 /request UUID  /leave  /logout  /exit
@@ -55,7 +59,7 @@ async function execute(command:Command):Promise<PlayerEnvelope> {
     }
     const pwd=await password();
     const result=await api(s,'/login',{identity:text,password:pwd,...(s.state.room?{previous_user_id:s.state.user_id}:{})});
-    if(result.ok){s.state.user_id=String(result.data!.user_id);s.state.username=String(result.data!.username);await s.save();}
+    if(result.ok){if(s.state.user_id!==result.data!.user_id)delete s.state.sync;s.state.user_id=String(result.data!.user_id);s.state.username=String(result.data!.username);await s.save();}
     return result;
   }
   if(name==='logout') {
@@ -65,7 +69,7 @@ async function execute(command:Command):Promise<PlayerEnvelope> {
       delete s.state.room;
     }
     const result=await api(s,'/logout',{});
-    if(result.ok){delete s.state.user_id;delete s.state.username;await s.save();}return result;
+    if(result.ok){delete s.state.user_id;delete s.state.username;delete s.state.sync;await s.save();}return result;
   }
   if(name==='request') {
     if(!/^[0-9a-f-]{36}$/i.test(text))throw new Error('INVALID_INPUT');
@@ -84,11 +88,24 @@ async function execute(command:Command):Promise<PlayerEnvelope> {
   const room=name==='join'?text.trim().toUpperCase():s.state.room;
   if(!room)return failure('ROOM_MEMBERSHIP_REQUIRED','请先 /join CODE');
   if(!/^[A-Z0-9]{6}$/.test(room))throw new Error('INVALID_INPUT');
-  if(['state','puzzle','messages'].includes(name)) {
+  if(['state','puzzle','facts','seats','points','messages','wait'].includes(name)) {
     if(text)throw new Error('INVALID_INPUT');
-    const result=await api(s,`/rooms/${room}/${name==='puzzle'?'state':name}`);
+    let result:PlayerEnvelope<Record<string,unknown>>;
+    if(name==='messages')result=await messagePage(s,room,options);
+    else if(name==='wait'){
+      const timeout=options.timeout??'30';if(typeof timeout!=='string'||!/^\d+$/.test(timeout))throw new Error('INVALID_INPUT');
+      result=await waitForChanges(s,room,Number(timeout));
+    }else result=await api(s,`/rooms/${room}/${name==='facts'?'facts':'state'}`);
     if(invalidRooms.has(result.error?.code??'')){delete s.state.room;await s.save();}
-    if(name==='puzzle'&&result.ok)return success({puzzle:result.data!.puzzle});
+    if(result.ok && ['state','puzzle','seats','points'].includes(name)){
+      checkpoint(s,room).fingerprint=stateFingerprint(result.data!);await s.save();
+      if(name==='puzzle')return success({puzzle:result.data!.puzzle});
+      if(name==='seats')return success({seats:result.data!.seats,seat_id:result.data!.seat_id});
+      if(name==='points'){
+        const own=(result.data!.seats as {id:string;remaining_points:number;hint_tokens:number}[]).find(seat=>seat.id===result.data!.seat_id);
+        return success({seat_points:own?.remaining_points??null,hint_tokens:own?.hint_tokens??null,personal_points:result.data!.personal_points});
+      }
+    }
     return result;
   }
   if(!['join','leave','say','ask','hint','reason'].includes(name))throw new Error('INVALID_COMMAND');

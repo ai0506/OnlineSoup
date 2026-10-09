@@ -1484,3 +1484,43 @@ Preventability:
 
 Origin:
 OnlineSoup 2026-10-09 updates.md [CodeX][261009170056]
+
+
+## 增量同步不能把自增 ID 当作提交顺序
+
+Project: OnlineSoup
+Date: 2026-10-09
+
+Area:
+- Database / Concurrency
+- CLI / Persistent sync
+
+Problem Type:
+- 晚提交消息漏读与持久化边界
+
+Incident:
+P0 最近消息窗口不能承担可靠增量；直接以最后一个消息 ID 前进时，较低 ID 事务可能仍未提交，较高 ID 已可见，之后会永久跳过低 ID。
+
+Initial Assumption:
+自增 ID 的分配顺序等于事务提交顺序，保存 ID 就足以恢复。
+
+Root Cause:
+序列号在提交前分配，回滚和并发事务不按 ID 提交。仅扩大重叠窗口不能给任意长事务提供不漏读保证；持久化游标后才保存正文也会造成崩溃时不可恢复。
+
+Resolution:
+所有消息插入统一记录 top-level xid8；只读取 snapshot xmin 以下已结束事务，分页固定上界，按事务号和 ID 前进；历史删除或编辑改变代次，旧签名游标显式失效。客户端原子保存消息正文与游标后输出，提供最近 200 条 cached 恢复。
+
+Evidence:
+全量迁移在空白本地 PostgreSQL 重放成功；P1 11 项数据库行为验证系统低 ID 事务晚于网页高 ID 提交后两条均可补拉、500 条跨页无重漏且分页期间写入留待下一轮、删除/编辑失效、公开揭底与私密输出边界。CLI 10 项测试包含重启恢复与正文/游标共同落盘、失败不重置、wait 积压及时限。线上迁移 20261009102525 的权限与 STABLE 配置已回读。
+
+Lesson:
+可靠游标需要明确事务可见水位、历史代次和本地正文保存边界；自增 ID、有限重叠窗口或单独保存游标都不足以保证恢复。
+
+Rule:
+消息同步必须构造低编号晚提交及分页期间写入的行为测试；采用 xmin 方案时公开长事务延迟限制，保存后输出前崩溃以有限本地缓存恢复，不宣称终端恰好一次输出。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-10-09 updates.md [CodeX][261009182750]

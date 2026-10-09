@@ -1,6 +1,6 @@
-# OnlineSoup CLI（P0）
+# OnlineSoup CLI（P1）
 
-注册用户通过文本命令与网页玩家在同一房间聊天、提问。CLI 本身不调用玩家的语言模型；AI 主持继续由网站服务端处理。P0 仅有最近 100 条消息，没有可靠增量同步。
+注册用户通过文本命令与网页玩家在同一房间聊天、提问。CLI 本身不调用玩家的语言模型；AI 主持继续由网站服务端处理。P1 支持当前题目完整事实、历史分页、持久化增量游标和有限时长等待。
 
 ## 安装与运行
 
@@ -34,7 +34,7 @@ soup /logout
 
 ## 命令与恢复
 
-使用 `/help` 查看当前命令。`/hint`、`/reason` 已复用同一付费路径；`/facts`、`/wait`、历史分页、网页接管确认属于后续阶段，尚未实现。
+使用 `/help` 查看当前命令。`/hint`、`/reason` 沿用 P0 付费与请求键路径；`/facts`、`/seats`、`/points`、`/room`（`/state` 别名）和 `/wait` 已实现。网页接管确认仍属于 P2。
 
 - 普通文字直接聊天，`//help` 发出字面 `/help`；未知命令报错，不发送给房间。`/say -- TEXT` 可发送以选项开头的原文。
 - `/join CODE` 遇到密码房时隐藏输入；自动化使用 `soup --json --password-stdin /join CODE`。不接受明文密码参数，房间密码不写入会话文件。`--takeover` 明确接管自己的旧座位，普通读取不会接管。
@@ -46,7 +46,29 @@ soup /logout
 
 已确认完成、退款或到期的本地请求立即清理；未确认记录保留 7 天，超期由服务端键墓碑阻止重执行。
 
-会话文件含登录凭证及待确认正文，应视为私密文件；不要提交、分享或复制给其他玩家。
+会话文件含登录凭证、最近收到的 200 条消息及待确认正文，应视为私密文件；不要提交、分享或复制给其他玩家。
+
+## 消息、事实与等待
+
+```sh
+soup --json /messages
+soup --json /messages --limit 100
+soup --json /messages --before PREVIOUS_CURSOR
+soup --json /facts
+soup --json /seats
+soup --json /points
+soup --json /wait --timeout 30
+```
+
+首次 `/messages` 返回最新一页；之后自动用本账号、本房间保存的 `next_cursor` 补拉。`has_more: true` 时继续读取，不先休眠。`--before` 读取更早历史，保持增量位置不变。游标是不透明的签名字符串，不要解析、修改或跨房间使用。消息 ID 是十进制字符串。
+
+服务端按事务号和消息 ID 排序，分页期间固定事务水位。长事务可能让其他房间的新消息延迟出现，返回 `visibility_delayed: true`；事务结束后可继续补拉，不会永久跳过晚提交的低 ID。旧消息被删除、归档或修改时返回 `CURSOR_EXPIRED`，不会静默丢弃旧位置；显式 `/messages --reset` 重建最新快照并报告 `history_gap_possible: true`。分页范围是仍保留的历史，不包括已归档数据。
+
+消息正文和增量位置在同一次原子写文件中保存后才输出。进程在保存后、输出前退出时，可用 `/messages --cached` 查看最近收到的 200 条；这不是完整离线档案，也不承诺终端输出恰好一次。`--cached` 只读取本地文件。
+
+`/facts` 扫描当前题目全部仍保留的 AI 消息，提取 answer/hint 的非空 `fact_summary`，按文本去重并返回 source 和 message_id，不把推理或揭底当事实。切题后按新题重新读取。
+
+`/wait` 默认 30 秒，范围 1–60 秒，约每 5 秒读取状态和增量消息；先追平积压，最多返回 1000 条，仍有积压时返回 `has_more` 供下一次继续。消息或题目、座位、积分快照变化立即返回；正常空等待返回 `timed_out: true`。网络请求也计入时限，网络超时可能返回 `NETWORK_ERROR`。读取不延长闲置时间，不自动接管；被踢、关房或接管立即停止。状态轮询不能捕获轮询之间所有短暂变化。
 
 ## 测试
 
@@ -64,6 +86,7 @@ npm run test
 export ONLINESOUP_TEST_DATABASE_URL='postgresql://postgres:LOCAL_PASSWORD@localhost:5432/soup_cli_test'
 node cli/tests/setup-database.mjs
 node cli/tests/database.mjs
+node cli/tests/sync-database.mjs
 ```
 
 初始化器不删除已有表；Auth/Realtime 使用最小本地替身，不安装 pg_cron。该测试不能替代真实 Supabase 登录、公开 key 权限验证或网页验收。线上 Cron 配置与真实 AI 流程另行检查。

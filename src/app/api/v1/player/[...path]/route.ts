@@ -127,10 +127,18 @@ async function handle(request:Request,{params}:Context) {
       const result=await supabase.rpc('get_room_join_info',{p_room_code:code});
       return result.error?dbError(result.error):reply(result.data);
     }
-    if(!['state','messages','puzzle'].includes(action))return fail('INVALID_COMMAND','尚不支持该读取',404);
-    if(new URL(request.url).search)return fail('INVALID_INPUT','P0 只支持最近 100 条消息，不支持游标');
-    const result=await supabase.rpc('player_read',{p_action:action,p_room_code:code});
-    return result.error?dbError(result.error):reply(result.data);
+    if(!['state','messages','puzzle','facts'].includes(action))return fail('INVALID_COMMAND','尚不支持该读取',404);
+    const query=new URL(request.url).searchParams;
+    if(action!=='messages' && query.size)return fail('INVALID_INPUT','该读取不支持查询参数');
+    if(action==='messages') {
+      if([...query.keys()].some(k=>!['after','before','limit'].includes(k)) || [...query.keys()].some(k=>query.getAll(k).length!==1))return fail('INVALID_INPUT','消息分页参数不正确');
+      const after=query.get('after'),before=query.get('before'),limit=query.get('limit')??'50';
+      if((after!==null && before!==null) || !/^(?:[1-9]|[1-9][0-9]|100)$/.test(limit) || [after,before].some(c=>c!==null && (!c.length || c.length>4096)))return fail('INVALID_INPUT','消息分页参数不正确');
+      const result=await supabase.rpc('player_messages',{p_room_code:code,p_after:after,p_before:before,p_limit:Number(limit)});
+      return result.error?dbError(result.error):reply(result.data);
+    }
+    const result=await supabase.rpc(action==='facts'?'player_facts':'player_snapshot',{p_room_code:code});
+    return result.error?dbError(result.error):reply(action==='puzzle'?{puzzle:result.data.puzzle}:result.data);
   }
   if(!['join','leave','messages','ask'].includes(action))return fail('INVALID_COMMAND','不支持该操作',404);
   const key=request.headers.get('Idempotency-Key');if(!uuid.safeParse(key).success)return fail('REQUIRED_INPUT_MISSING','写操作必须携带 UUID 请求键');

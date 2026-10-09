@@ -4,6 +4,7 @@ const aliases: Record<string,string> = {
   insufficient_points:'INSUFFICIENT_PERSONAL_POINTS', insufficient_hint_tokens:'NO_HINT_TOKEN', guest_kicked:'KICKED',
 };
 const messages: Record<string,string> = {
+  INVALID_CURSOR:'游标不正确或不属于当前房间与账号', CURSOR_EXPIRED:'消息历史已变化，请重新建立快照；旧历史可能有缺口',
   LOGIN_REQUIRED:'请先登录', AUTH_EXPIRED:'登录已失效，请用同一账号重新登录', CLI_SESSION_REQUIRED:'请通过 CLI 登录',
   OWNER_NOT_SUPPORTED:'CLI 暂不支持房主，请使用网页', OWNED_ROOM_ACTIVE:'请先在网页处理自己拥有的开放房间',
   ACTIVE_ROOM_EXISTS:'请先离开当前房间', LEAVE_REQUIRED:'请先离开当前房间', ROOM_DEVICE_IN_USE:'座位已由其他设备使用；只有明确接管才能恢复',
