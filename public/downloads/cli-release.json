@@ -1,9 +1,9 @@
 {
-  "version": "0.2.1",
+  "version": "0.3.0",
   "node": ">=22",
-  "filename": "onlinesoup-cli-0.2.1.tgz",
-  "packageUrl": "/downloads/onlinesoup-cli-0.2.1.tgz",
+  "filename": "onlinesoup-cli-0.3.0.tgz",
+  "packageUrl": "/downloads/onlinesoup-cli-0.3.0.tgz",
   "guideUrl": "/downloads/OnlineSoup-CLI-Guide.md",
-  "sha256": "487c75f1b74514fd24068aae2052941dc1a83a2fc174276b167f49994eb8f19c",
-  "size": 1845483
+  "sha256": "bda406c9452eeddfefb00f731be235d18cc0b71a3718babeee5d93ce8a312831",
+  "size": 1847923
 }

@@ -3,7 +3,7 @@ import type { openSession } from './session.js';
 import { failure,success,type PlayerEnvelope } from '../../src/lib/player-api/protocol.js';
 type Session=Awaited<ReturnType<typeof openSession>>;
 export type Message={id:string;sender_name:string;content:unknown;[key:string]:unknown};
-export type Checkpoint={cursor?:string;previous_cursor?:string|null;messages:Message[];fingerprint?:string;has_more?:boolean};
+export type Checkpoint={cursor?:string;previous_cursor?:string|null;messages:Message[];fingerprint?:string;has_more?:boolean;displayed_message_ids?:string[]};
 export function checkpoint(s:Session,room:string):Checkpoint {
   s.state.sync??={};return s.state.sync[`${s.state.user_id??'anonymous'}:${room}`]??={messages:[]};
 }

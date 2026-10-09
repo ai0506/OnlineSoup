@@ -6,6 +6,7 @@ import { openSession,type Pending } from './session.js';
 import { api,closeConnections } from './api-client.js';
 import { checkpoint,messagePage,stateFingerprint,waitForChanges } from './sync.js';
 import { browserLogin } from './browser-login.js';
+import { withMessageCheck,type NotifiedResult } from './message-notice.js';
 import { textOutput } from './output.js';
 import { success,failure,exitCode,type PlayerEnvelope } from '../../src/lib/player-api/protocol.js';
 
@@ -20,12 +21,13 @@ const help=`OnlineSoup CLI（协议 1）
 /say TEXT  /ask TEXT  /hint [TEXT]  /reason TEXT
   写入可带 --request-key UUID；付费指令可带 --use-personal-points
 /request UUID  /leave  /logout  /exit
+房间操作后自动检查新消息并提醒；/messages 获取正文，提醒不推进游标。
 普通文字直接聊天；//help 发送字面 /help；-- 后的内容按原文处理。
 全局：--json、--password-stdin；ONLINESOUP_HOME 隔离本地身份。
 ONLINESOUP_URL 默认 https://onlinesoup.ai0506.com，只允许 HTTPS 或本机 HTTP。`;
 let json=false,passwordStdin=false,stopping=false;
 let session:Awaited<ReturnType<typeof openSession>>|undefined;
-function output(result:PlayerEnvelope) {
+function output(result:NotifiedResult) {
   process.exitCode=exitCode(result.error?.code);
   if(json)process.stdout.write(JSON.stringify(result)+'\n');
   else (result.ok?process.stdout:process.stderr).write(textOutput(result)+'\n');
@@ -154,6 +156,9 @@ async function execute(command:Command):Promise<PlayerEnvelope> {
   if(result.error?.code==='REQUEST_RESULT_UNKNOWN')result.error.message+=`（原请求键 ${key}）`;
   return result;
 }
+async function executeAndCheck(command:Command):Promise<NotifiedResult> {
+  return withMessageCheck(session!,command,await execute(command));
+}
 async function main() {
   const args=process.argv.slice(2);
   // Only leading global options are consumed; chat text can contain --json.
@@ -164,14 +169,14 @@ async function main() {
   if(origin.username||origin.password||origin.pathname!=='/'||origin.search||origin.hash||!(origin.protocol==='https:'||(origin.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(origin.hostname))))throw new Error('UNSAFE_SERVER_URL');
   if(args[0]==='/help'){output(success({help}));return;}
   session=await openSession(origin.origin);
-  if(args.length){output(await execute(parse(args.length===1&&args[0].startsWith('/')&&args[0].includes(' ')?tokenize(args[0]):args)));return;}
+  if(args.length){output(await executeAndCheck(parse(args.length===1&&args[0].startsWith('/')&&args[0].includes(' ')?tokenize(args[0]):args)));return;}
   if(json||!process.stdin.isTTY){output(failure('REQUIRED_INPUT_MISSING','非交互调用需要命令'));return;}
   process.stderr.write('OnlineSoup CLI。/help 查看命令，/exit 保留座位并退出。\n');
   while(!stopping){
     const input=createInterface({input:process.stdin,output:process.stderr});
     let line:string;try{line=await input.question('soup> ');}catch{break;}finally{input.close();}
     if(!line.trim())continue;
-    try{output(await execute(parseLine(line)));}catch(e){output(failure((e as Error).message,'请检查命令或输入'));}
+    try{output(await executeAndCheck(parseLine(line)));}catch(e){output(failure((e as Error).message,'请检查命令或输入'));}
   }
 }
 try{await main();}catch(e){output(failure((e as Error).message,'操作未完成，请检查命令、权限或会话目录'));}

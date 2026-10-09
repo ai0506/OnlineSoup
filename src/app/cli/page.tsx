@@ -62,7 +62,7 @@ export default function CliPage() {
               <tr><td><code>/help</code></td><td>查看完整命令帮助</td></tr>
             </tbody>
           </table>
-          <p>CLI 不会一直推送消息，可重复使用 <code>/messages</code> 或 <code>/wait</code>。默认 AI 操作使用座位积分；需要个人积分时显式添加 <code>--use-personal-points</code>。</p>
+          <p>房间操作后会自动检查并提醒尚未获取的新消息，用 <code>/messages</code> 获取正文；终端闲置时可用 <code>/wait</code> 等待变化。默认 AI 操作使用座位积分；需要个人积分时显式添加 <code>--use-personal-points</code>。</p>
           <p><a href={release.guideUrl}>阅读完整 Markdown 教程 →</a> 包含全部命令、消息分页、脚本调用、更新卸载和异常恢复。</p>
         </section>
       </div>

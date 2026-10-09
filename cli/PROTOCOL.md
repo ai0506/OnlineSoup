@@ -47,6 +47,8 @@ POST 使用 `Content-Type: application/json`。原生 CLI 无 Origin 时还须�
 
 按 error.code 判断行为，不解析中文文案。`ROOM_DEVICE_IN_USE` / `KICKED` / `ROOM_CLOSED` / `IDLE_TIMEOUT` 停止有权限的操作；认证确认失效后原账号重新登录；`PUZZLE_CHANGED` 重新读题；`RATE_LIMITED` 遵守等待；`INSUFFICIENT_SEAT_POINTS` 不能自动动用个人积分。CLI 退出码及完整操作说明见 [README.md](README.md)。
 
+CLI 0.3.0 会在房间操作后通过同一个受保护的 messages GET 附带检查，并在终端 JSON 顶层添加可选 `message_check`（详见 README）。它不是 HTTP 响应的新字段，不改变本节的服务端合同；提醒不推进同步游标，检查失败不替换原操作结果。
+
 ## 写意图与同步
 
 发送前保存 UUID、动作与必要正文。结果未知（含写请求 5xx、504 或连接中断）先 GET 原请求键；查不到不代表未执行，可使用原键、相同动作/正文/题目/付款来源/接管选项重提交。改内容返回 `REQUEST_KEY_CONFLICT`。原键至少保留 7 天，到期留下拒绝重执行的墓碑；密码不落盘，密码房重试重新输入相同密码。

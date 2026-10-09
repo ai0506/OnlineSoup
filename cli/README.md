@@ -7,7 +7,7 @@
 需要 Node.js 22 或更高版本。普通玩家直接从[网站下载页](https://onlinesoup.ai0506.com/cli)安装预编译包：
 
 ```sh
-npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.1.tgz
+npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.0.tgz
 soup /help
 ```
 
@@ -66,6 +66,10 @@ soup /logout
 会话文件含登录凭证、最近收到的 200 条消息及待确认正文，应视为私密文件；不要提交、分享或复制给其他玩家。
 
 ## 消息、事实与等待
+
+CLI 0.3.0 在房间联网操作后附带一次成员鉴权消息读取（最多约 2 秒，不重试），提示未获取消息；不会推进本地游标或保存检查返回的正文。记录最近 200 个已在写入响应中显示的消息 ID，避免本人发言和刚显示的 AI 回答反复提醒。分页未读完、事务可见性延迟或检查失败返回未知，游标过期提示显式 reset。原命令结果、错误码、请求键和退出码不受附带检查影响。`/messages`、`/wait` 本身已同步；本地命令、登录/注销及成功退房后不附加检查。
+
+JSON 在 CLI 结果顶层附加可选 `message_check`：`status` 为 `unread` / `caught_up` / `unknown` / `cursor_expired`，`has_unread` 为 true / false / null，按需包含 `reason` 和 `next_command`。这是客户端补充信息，HTTP 玩家 API 的响应合同不变。
 
 ```sh
 soup --json /messages

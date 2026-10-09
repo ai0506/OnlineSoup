@@ -1,9 +1,17 @@
 import type { PlayerEnvelope } from '../../src/lib/player-api/protocol.js';
+import type { NotifiedResult } from './message-notice.js';
 function content(value:unknown):string {
   if(typeof value!=='string')return String(value??'');
   try{const parsed=JSON.parse(value);return typeof parsed.text==='string'?parsed.text:value;}catch{return value;}
 }
-export function textOutput(result:PlayerEnvelope):string {
+export function textOutput(result:NotifiedResult):string {
+  const text=formatOutput(result),check=result.message_check;
+  if(check?.status==='unread')return text+'\n房间有新消息尚未获取，输入 /messages 查看。';
+  if(check?.status==='cursor_expired')return text+'\n消息历史已变化，请用 /messages --reset 重新同步；更早历史可能存在缺口。';
+  if(check?.status==='unknown')return text+`\n新消息状态暂未确认（${check.reason}），可用 /messages 检查。`;
+  return text;
+}
+function formatOutput(result:PlayerEnvelope):string {
   if(!result.ok)return `${result.error!.code}: ${result.error!.message}`;
   const data=result.data as Record<string,unknown>|null;
   if(!data)return '完成';

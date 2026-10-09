@@ -1,6 +1,6 @@
 # OnlineSoup CLI 玩家指南
 
-适用版本：CLI 0.2.1，玩家协议 v1。下载入口：<https://onlinesoup.ai0506.com/cli>。
+适用版本：CLI 0.3.0，玩家协议 v1。下载入口：<https://onlinesoup.ai0506.com/cli>。
 
 ## 1. OnlineSoup 是什么？
 
@@ -39,27 +39,27 @@ npm --version
 在电脑终端执行：
 
 ```sh
-npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.1.tgz
+npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.0.tgz
 soup /help
 ```
 
 看到命令帮助即安装成功。这个地址是汤局网站提供的版本安装包，无需 npm 账号；[npm 官方文档](https://docs.npmjs.com/cli/install/)说明了通过压缩包 URL 安装的方式。
 
-也可以先[下载安装包](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.1.tgz)，在文件所在目录执行 `npm install --global ./onlinesoup-cli-0.2.1.tgz`。不要解压后复制单个 JS 文件。可选[SHA-256 校验文件](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.1.tgz.sha256)用于核对下载完整性。
+也可以先[下载安装包](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.0.tgz)，在文件所在目录执行 `npm install --global ./onlinesoup-cli-0.3.0.tgz`。不要解压后复制单个 JS 文件。可选[SHA-256 校验文件](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.0.tgz.sha256)用于核对下载完整性。
 
 ### 没有全局安装权限怎么办？
 
 如果出现 `EACCES` / 权限不足，可以安装到自己的目录。macOS / Linux：
 
 ```sh
-npm install --global --prefix "$HOME/.local" https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.1.tgz
+npm install --global --prefix "$HOME/.local" https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.0.tgz
 "$HOME/.local/bin/soup" /help
 ```
 
 之后用 `"$HOME/.local/bin/soup"` 代替 `soup`；也可将 `$HOME/.local/bin` 加入你的 shell 的 PATH。Windows PowerShell：
 
 ```powershell
-npm.cmd install --global --prefix "$env:LOCALAPPDATA\OnlineSoup" https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.1.tgz
+npm.cmd install --global --prefix "$env:LOCALAPPDATA\OnlineSoup" https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.0.tgz
 & "$env:LOCALAPPDATA\OnlineSoup\soup.cmd" /help
 ```
 
@@ -128,7 +128,11 @@ soup /login YOUR_USERNAME
 
 普通文字是给房间其他玩家的聊天；`/ask` 才是向 AI 主持人提问。每次问一个能回答“是 / 否”的问题。`/facts` 查看当前题目已确认的事实，`/reason` 提交你的完整解释。
 
-CLI 不会一直推送新消息。用 `/messages` 补拉，用 `/wait` 最多等一段时间观察消息或房间状态变化；返回后可以再次运行。
+CLI 会在 `/ask`、`/reason`、`/hint`、聊天、加入和房间状态等联网操作后，顺手检查一次新消息。有尚未获取的消息时提示“房间有新消息尚未获取，输入 /messages 查看”。自己刚发送的内容和操作结果里已显示的 AI 回复会尽量排除，最多记住最近 200 个已显示消息 ID。
+
+提醒不会推进本机消息游标，也不会把消息正文标成已读；之后 `/messages` 仍能完整补拉。检查失败不改变原操作的成功、失败、扣费或请求键状态，提示“新消息状态暂未确认”；不要因此重发付费操作。检查最多额外等待约 2 秒。JSON 输出在原结果旁增加可选 `message_check`，方便脚本判断。
+
+CLI 停在输入提示符时不会持续监听。用 `/messages` 补拉，或用 `/wait` 等待变化；这两个命令本身会获取消息，不重复附带检查。本地 `/help`、`/exit`、`/messages --cached`、登录/注销和成功退房后不做房间消息检查。尚未首次同步时检查最新一页；分页未完成、消息仍等待事务可见或游标过期时，会提示尚未确认或需要重新同步，不假称没有新消息。
 
 ### 结束
 
