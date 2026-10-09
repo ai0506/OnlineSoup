@@ -1524,3 +1524,43 @@ Preventability:
 
 Origin:
 OnlineSoup 2026-10-09 updates.md [CodeX][261009182750]
+
+
+## 等待预算到期与网络故障需要分别表达
+
+Project: OnlineSoup
+Date: 2026-10-09
+
+Area:
+- CLI / Polling
+- Protocol / Timeout
+
+Problem Type:
+- 客户端等待时限被误报连接失败
+
+Incident:
+生产 P1 验收中，/wait --timeout 3 在整体预算耗尽时中止正在进行的读取，返回 NETWORK_ERROR，违背正常等待到期的合同。
+
+Initial Assumption:
+所有被 AbortSignal 取消的读取都属于网络错误。
+
+Root Cause:
+同一取消机制既实现等待预算，也承载网络超时；底层统一错误未表达是哪种边界，短时限和真实跨区网络延迟使问题在生产出现。
+
+Resolution:
+wait 检查错误类型与绝对截止时间，预算耗尽返回正常 timed_out，最后一轮未完成时明确 poll_incomplete，保留已保存的游标；预算前的实际连接失败继续返回 NETWORK_ERROR。网络请求也计入整体时限。
+
+Evidence:
+本地测试慢响应 1.5 秒、等待预算 1 秒，按时正常结束并标记未完成；立即断开连接仍返回 NETWORK_ERROR；生产默认域名 3 秒空等待复测成功。CLI 全部 11 项通过。
+
+Lesson:
+主动取消与连接失败使用同一个底层错误时，上层必须结合业务截止时间区分；正常到期也不能伪装成已完整确认没有消息。
+
+Rule:
+有轮询预算的命令同时测试空等待、最后一轮未完成、慢网络、提前连接失败和已有分页进度，明确下一轮恢复位置。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-10-09 updates.md [CodeX][261009183552]

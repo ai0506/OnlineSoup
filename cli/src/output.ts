@@ -23,6 +23,7 @@ export function textOutput(result:PlayerEnvelope):string {
     const lines=(data.messages as {sender_name:string;content:unknown}[]).map(m=>`${m.sender_name}: ${content(m.content)}`);
     if(data.cached)lines.push('（本地已保存的最近消息）');
     if(data.timed_out)lines.push('等待结束，暂无变化');
+    if(data.poll_incomplete)lines.push('等待时限已到，最后一轮读取未完成；下次继续补拉');
     if(data.state_changed)lines.push('房间状态已变化\n'+textOutput({api_version:1,ok:true,data:data.state,error:null}));
     if(data.history_gap_possible)lines.push('已重建最新快照；更早历史可能存在缺口');
     if(data.visibility_delayed)lines.push('部分新消息仍在等待事务完成');

@@ -38,18 +38,24 @@ export async function messagePage(s:Session,room:string,options:Record<string,st
 export async function waitForChanges(s:Session,room:string,seconds:number):Promise<PlayerEnvelope<Record<string,unknown>>> {
   if(!Number.isInteger(seconds)||seconds<1||seconds>60)throw new Error('INVALID_INPUT');
   const deadline=Date.now()+seconds*1000,cp=checkpoint(s,room);let baseline=cp.fingerprint;
-  const all:Message[]=[];let state:Record<string,unknown>|undefined;let changed=false;let page:Record<string,unknown>|undefined;
+  const all:Message[]=[];let state:Record<string,unknown>|undefined;let changed=false;let page:Record<string,unknown>|undefined;let incomplete=false;
   do {
     if(Date.now()>=deadline)break;
     const current=await api(s,`/rooms/${room}/state`,undefined,undefined,{timeoutMs:Math.max(1,deadline-Date.now()),readRetries:0});
-    if(!current.ok)return current;
+    if(!current.ok){
+      if(current.error?.code==='NETWORK_ERROR' && Date.now()>=deadline){incomplete=true;break;}
+      return current;
+    }
     state=current.data!;const fingerprint=stateFingerprint(state);
     changed=baseline!==undefined && fingerprint!==baseline;baseline??=fingerprint;
     if(cp.fingerprint===undefined)cp.fingerprint=fingerprint;
     do {
-      if(Date.now()>=deadline)break;
+      if(Date.now()>=deadline){incomplete=true;break;}
       const result=await messagePage(s,room,{},Math.max(1,deadline-Date.now()));
-      if(!result.ok)return result;
+      if(!result.ok){
+        if(result.error?.code==='NETWORK_ERROR' && Date.now()>=deadline){incomplete=true;break;}
+        return result;
+      }
       page=result.data!;all.push(...page.messages as Message[]);
     }while(page?.has_more && all.length<1000);
     cp.fingerprint=fingerprint;await s.save();
@@ -57,5 +63,5 @@ export async function waitForChanges(s:Session,room:string,seconds:number):Promi
     const remaining=deadline-Date.now();if(remaining>0)await new Promise(r=>setTimeout(r,Math.min(5000,remaining)));
   }while(Date.now()<deadline);
   return success({messages:all,state:state??null,state_changed:changed,timed_out:!all.length&&!changed,
-    next_cursor:cp.cursor??null,previous_cursor:cp.previous_cursor??null,has_more:cp.has_more??false});
+    next_cursor:cp.cursor??null,previous_cursor:cp.previous_cursor??null,has_more:cp.has_more??false,poll_incomplete:incomplete});
 }

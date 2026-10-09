@@ -75,9 +75,15 @@ test('wait detects business-state changes, times out empty and stops on takeover
 test('wait request deadline includes slow network time; invalid options are rejected', async () => {
   await fixture(async () => { await new Promise(r => setTimeout(r, 1500)); return ok({}); }, async s => {
     const started = Date.now(); const result = await waitForChanges(s, 'ABCDEF', 1);
-    assert.equal(result.error.code, 'NETWORK_ERROR'); assert.ok(Date.now() - started < 1400);
+    assert.equal(result.ok, true); assert.equal(result.data.timed_out, true); assert.equal(result.data.poll_incomplete, true); assert.ok(Date.now() - started < 1400);
     await assert.rejects(() => waitForChanges(s, 'ABCDEF', 61), /INVALID_INPUT/);
     await assert.rejects(() => messagePage(s, 'ABCDEF', { limit: '101' }), /INVALID_INPUT/);
     await assert.rejects(() => messagePage(s, 'ABCDEF', { cached: true, reset: true }), /INVALID_INPUT/);
+  });
+});
+
+test('an actual network failure before the wait deadline remains an error', async () => {
+  await fixture(req => { req.destroy(); return ok({}); }, async s => {
+    assert.equal((await waitForChanges(s, 'ABCDEF', 5)).error.code, 'NETWORK_ERROR');
   });
 });

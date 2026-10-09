@@ -85,6 +85,13 @@ const cursor=(await rpc(reader,'player_messages',[code])).next_cursor;await rpc(
 await check('nonmembers, ordinary web sessions and anonymous callers cannot read P1 data',async()=>{
 await reject(()=>rpc(reader,'player_messages',[code]),'ROOM_MEMBERSHIP_REQUIRED');await auth(web,2,webSid);await reject(()=>rpc(web,'player_facts',[code]),'CLI_SESSION_REQUIRED');await db.query('set role anon');await assert.rejects(()=>rpc(db,'player_snapshot',[code]),/permission denied/);await db.query('reset role');
 });
+await check('kicked, idle-removed and closed rooms terminate every P1 read with the precise reason',async()=>{
+const denied=async reason=>{for(const name of ['player_messages','player_snapshot','player_facts'])await reject(()=>rpc(reader,name,[code]),reason);};
+await rpc(reader,'player_write',['join',code,randomUUID(),{}]);await auth(web,0);await rpc(web,'kick_guest',[code,seat]);await denied('KICKED');
+await db.query("delete from public.guest_removals where room_id=$1 and member_key=$2",[rooms[0],'user:'+ids[2]]);await rpc(reader,'player_write',['join',code,randomUUID(),{}]);
+await db.query("update public.room_seats set last_cli_action_at=now()-interval '2 hours' where id=$1",[seat]);await rpc(db,'player_cleanup_idle');await denied('IDLE_TIMEOUT');
+await rpc(reader,'player_write',['join',code,randomUUID(),{}]);await rpc(web,'close_room',[code]);await denied('ROOM_CLOSED');
+});
 console.log('P1_DATABASE_TESTS_PASSED',passed);
 }catch(e){console.error('P1_DATABASE_FAILURE',e.message,e.where);throw e;}finally{
 for(const c of clients)await c.query('rollback').catch(()=>{});await db.query('reset role');await db.query('begin');
