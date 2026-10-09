@@ -1677,3 +1677,43 @@ Preventability:
 
 Origin:
 OnlineSoup 2026-10-09 updates.md [CodeX][261009194230]
+
+
+## 浏览器授权给终端时需要独立会话和收取确认
+
+Project: OnlineSoup
+Date: 2026-10-09
+
+Area:
+- Auth / Session
+- CLI / Recovery
+
+Problem Type:
+- 跨客户端会话与网络结果未知
+
+Incident:
+生产验收故意不保存第一次发行响应的 Set-Cookie，客户端需要恢复已创建的登录；同时替换 CLI 登录后，网页仍需保留原会话。
+
+Initial Assumption:
+设计审查中需要验证：服务端成功发行，是否足以代表终端已成功登录。
+
+Root Cause:
+共用 session_id 会混淆网页与 CLI 身份及设备锁；一次性返回在响应丢失后无法确认登录是否创建，重试又可能重复发行。
+
+Resolution:
+用独立设备秘密和验证器绑定短期授权；网页实名确认后单发行者创建独立 CLI Auth session，暂存与请求 id 绑定的加密会话。重复 poll 交付同一会话，CLI 原子保存 Cookie/账号后 ack 清空密文。替换旧 CLI 仍通过原事务撤销，保留网页会话。
+
+Evidence:
+8 项新增 DB 行为包含两个独立连接竞争仅一个发行者、错误 proof/验证码/过期/撤销会话拒绝及 ack 后清空；生产故意不保存首次 Set-Cookie 后真实 CLI 用原授权重试成功。回读网页 session 保留、替换后活动 CLI 1 个/撤销旧登记 1 个、consumed 且密文为空；CLI 测试验证保存后才确认收取，秘密不输出。
+
+Lesson:
+跨客户端授权既需要明确的会话隔离，也需要可恢复的交付协议；数据库发行一次不等于客户端成功保存凭证。
+
+Rule:
+授权登录不把网页登录 Cookie 转交终端；分别测试确认、发行、响应丢失、持久化和收取确认，凭证不得出现在 URL/stdout，重试不能重复发行。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-10-09 updates.md [CodeX][261009231852]
