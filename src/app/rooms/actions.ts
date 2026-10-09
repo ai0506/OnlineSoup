@@ -103,6 +103,8 @@ export type RoomActionState = {
   message?: string;
   navigateTo?: string;
   seatId?: string;
+  // 选题/停题成功后直接带回最新题目，房主无需再发一次读取请求；undefined 表示需自行刷新
+  puzzle?: import("@/lib/types").CurrentPuzzle | null;
 };
 
 export async function verifyRoomPassword(
@@ -602,7 +604,12 @@ export async function openPuzzle(
     return { status: "error", message: messages[matched ?? ""] ?? "操作失败，请稍后重试" };
   }
 
-  return { status: "success" };
+  const { data: puzzle, error: puzzleError } = await supabase.rpc("get_room_current_puzzle", {
+    room_code: code,
+    guest_token: null,
+  });
+  if (puzzleError) return { status: "success" };
+  return { status: "success", puzzle: (puzzle as import("@/lib/types").CurrentPuzzle | null) ?? null };
 }
 
 export async function closePuzzle(
@@ -632,7 +639,7 @@ export async function closePuzzle(
     return { status: "error", message: messages[matched ?? ""] ?? "操作失败，请稍后重试" };
   }
 
-  return { status: "success" };
+  return { status: "success", puzzle: null };
 }
 
 export async function checkSeatSessionActive(roomCode: string): Promise<boolean> {

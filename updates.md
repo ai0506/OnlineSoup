@@ -414,3 +414,4 @@
 [CodeX][260929164111] 新增迁移修复 send_room_chat_message 速率限制查询的 message_mode 参数/列名歧义，保留原有权限边界；生产迁移记录及 anon/authenticated 执行权限已回读，注册用户网页发送与匿名访客公开 key 发送均成功。选题组件改为成功后主动补拉当前题目、可见时定期补拉，并捕获开题/停题 Server Action 异常，避免错误冒泡到整页。
 [Claude Code][261009184717] 新增 Windows CLI 测试清单；在独立 worktree 合并 origin/main（补回 fdb7bc5 切题刷新修复，代码冲突保留本地已含 8bad800 的版本，日志并集去重，沿用远端删除 ci.yml），合并树 typecheck/lint/build/4 项单测/11 项 CLI 测试通过
 [Claude Code][261009190509] 提交此前未提交的网页 UI 改动（房间码输入过滤、进房清除 action=enter、赠分弹窗、结构化座位系统消息渲染、字数上限提示、vercel.json 固定 sin1），并与 origin/main 合并（updates.md 并集，房间页自动合并）
+[Claude Code][261009191227] 房主选题/停题少一次往返：openPuzzle 成功后在同一次 Server Action 内读取并返回当前题目（读取失败则回退前端刷新），closePuzzle 返回 null；puzzle-panel 直接应用返回结果并作废在途轮询；typecheck/lint/build 通过，未做浏览器实测

@@ -74,6 +74,15 @@ export function PuzzlePanel({
       .catch(() => undefined);
   }, [roomCode]);
 
+  const applyActionPuzzle = useCallback((result: RoomActionState) => {
+    if (result.puzzle === undefined) {
+      refreshCurrentPuzzle();
+      return;
+    }
+    ++refreshSeqRef.current;
+    setCurrentPuzzle(result.puzzle);
+  }, [refreshCurrentPuzzle]);
+
   // 题目切换时清空已展示的事实总结（在渲染期间同步，而非副作用里调用 setState）
   if (factsPuzzleId !== (currentPuzzle?.id ?? null)) {
     setFactsPuzzleId(currentPuzzle?.id ?? null);
@@ -213,7 +222,7 @@ export function PuzzlePanel({
           setError(result.message ?? "操作失败");
         } else {
           closeDialog();
-          refreshCurrentPuzzle();
+          applyActionPuzzle(result);
         }
       } catch {
         setError("选题暂时失败，请稍后重试");
@@ -233,7 +242,7 @@ export function PuzzlePanel({
           setError(result.message ?? "操作失败");
         } else {
           closeDialog();
-          refreshCurrentPuzzle();
+          applyActionPuzzle(result);
         }
       } catch {
         setError("停止题目暂时失败，请稍后重试");
