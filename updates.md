@@ -399,3 +399,4 @@
 [CodeX][261009183552] Complete CLI P1 production verification on onlinesoup.ai0506.com: stdin login/password join, state/seats/points, bidirectional web RPC chat, persistent history pagination, wait wakeup, real reason/hint charging and facts, public-key RPC permissions and takeover/leave/logout; fix wait budget exhaustion to normal timed_out with poll_incomplete while preserving early network failures; 11 CLI/38 DB/4 root tests pass; Vercel 6fbf361 READY and fixtures cleaned; record remaining P2 and untested Linux/Windows; no GitHub push.
 
 [CodeX][260929164111] 新增迁移修复 send_room_chat_message 速率限制查询的 message_mode 参数/列名歧义，保留原有权限边界；生产迁移记录及 anon/authenticated 执行权限已回读，注册用户网页发送与匿名访客公开 key 发送均成功。选题组件改为成功后主动补拉当前题目、可见时定期补拉，并捕获开题/停题 Server Action 异常，避免错误冒泡到整页。
+[Claude Code][261009184717] 新增 Windows CLI 测试清单；在独立 worktree 合并 origin/main（补回 fdb7bc5 切题刷新修复，代码冲突保留本地已含 8bad800 的版本，日志并集去重，沿用远端删除 ci.yml），合并树 typecheck/lint/build/4 项单测/11 项 CLI 测试通过
