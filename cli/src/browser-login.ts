@@ -29,6 +29,7 @@ export async function browserLogin(s:Awaited<ReturnType<typeof openSession>>,opt
     const result=await api(s,'/browser-login/poll',payload);
     if(!result.ok){
       if(['REQUEST_RESULT_UNKNOWN','NETWORK_ERROR','SERVER_ERROR'].includes(result.error?.code??'')){await new Promise(r=>setTimeout(r,3000));continue;}
+      if(result.error?.code!=='LEAVE_REQUIRED'){delete s.state.browser_login;await s.save();}
       return result;
     }
     const data=result.data!;
