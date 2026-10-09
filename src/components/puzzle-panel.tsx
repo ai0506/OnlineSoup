@@ -10,7 +10,6 @@ import {
   openPuzzle,
 } from "@/app/rooms/actions";
 import type { RoomActionState } from "@/app/rooms/actions";
-import { createClient } from "@/lib/supabase/client";
 import type { CurrentPuzzle, PuzzleListItem } from "@/lib/types";
 
 const DIFFICULTIES = ["简单", "中等", "困难", "抽象"] as const;
@@ -30,7 +29,6 @@ const LONG_FACTS_CHAR_LIMIT = 180;
 type PuzzlePanelProps = {
   isOwner: boolean;
   roomCode: string;
-  roomId: string;
   initialPuzzle: CurrentPuzzle | null;
   puzzleList: PuzzleListItem[];
 };
@@ -45,7 +43,6 @@ type DialogState =
 export function PuzzlePanel({
   isOwner,
   roomCode,
-  roomId,
   initialPuzzle,
   puzzleList: initialPuzzleList,
 }: PuzzlePanelProps) {
@@ -123,29 +120,22 @@ export function PuzzlePanel({
     };
   }, [currentPuzzle]);
 
-  // Realtime: rooms 表 current_puzzle_id 变化
+  // Protected RPC is the source of truth for every member, including guests.
+  // Direct reads of rooms are revoked, so a rooms Realtime filter cannot be
+  // relied on to deliver puzzle changes.
   useEffect(() => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`room-puzzle:${roomId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${roomId}` },
-        (payload) => {
-          const newRow = payload.new as { current_puzzle_id?: number | null };
-          if (!("current_puzzle_id" in newRow)) return;
-          if (newRow.current_puzzle_id === null) {
-            ++refreshSeqRef.current;
-            setCurrentPuzzle(null);
-          } else {
-            refreshCurrentPuzzle();
-          }
-        },
-      )
-      .subscribe();
-
-    return () => void supabase.removeChannel(channel);
-  }, [roomId, refreshCurrentPuzzle]);
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") refreshCurrentPuzzle();
+    };
+    const timer = window.setInterval(refreshIfVisible, 15_000);
+    window.addEventListener("focus", refreshIfVisible);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshIfVisible);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+    };
+  }, [refreshCurrentPuzzle]);
 
   useEffect(() => {
     window.addEventListener("room-puzzle-refresh", refreshCurrentPuzzle);
@@ -214,14 +204,19 @@ export function PuzzlePanel({
     if (!selectedPuzzle || isPending) return;
     setError(null);
     startTransition(async () => {
-      const fd = new FormData();
-      fd.set("code", roomCode);
-      fd.set("puzzleId", String(selectedPuzzle.id));
-      const result: RoomActionState = await openPuzzle({ status: "idle" }, fd);
-      if (result.status === "error") {
-        setError(result.message ?? "操作失败");
-      } else {
-        closeDialog();
+      try {
+        const fd = new FormData();
+        fd.set("code", roomCode);
+        fd.set("puzzleId", String(selectedPuzzle.id));
+        const result: RoomActionState = await openPuzzle({ status: "idle" }, fd);
+        if (result.status === "error") {
+          setError(result.message ?? "操作失败");
+        } else {
+          closeDialog();
+          refreshCurrentPuzzle();
+        }
+      } catch {
+        setError("选题暂时失败，请稍后重试");
       }
     });
   };
@@ -230,13 +225,18 @@ export function PuzzlePanel({
     if (isPending) return;
     setError(null);
     startTransition(async () => {
-      const fd = new FormData();
-      fd.set("code", roomCode);
-      const result: RoomActionState = await closePuzzle({ status: "idle" }, fd);
-      if (result.status === "error") {
-        setError(result.message ?? "操作失败");
-      } else {
-        closeDialog();
+      try {
+        const fd = new FormData();
+        fd.set("code", roomCode);
+        const result: RoomActionState = await closePuzzle({ status: "idle" }, fd);
+        if (result.status === "error") {
+          setError(result.message ?? "操作失败");
+        } else {
+          closeDialog();
+          refreshCurrentPuzzle();
+        }
+      } catch {
+        setError("停止题目暂时失败，请稍后重试");
       }
     });
   };
