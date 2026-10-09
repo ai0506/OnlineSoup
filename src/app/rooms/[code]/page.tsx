@@ -10,6 +10,7 @@ import { LiveRoomSeats } from "@/components/live-room-seats";
 import { PuzzlePanel } from "@/components/puzzle-panel";
 import { RoomActionForm } from "@/components/room-action-form";
 import { RoomChat } from "@/components/room-chat";
+import { StripRoomEnterParam } from "@/components/strip-room-enter-param";
 import { hasSupabaseEnv } from "@/lib/env";
 import { flashRedirectPath } from "@/lib/flash";
 import { sanitizeRoomMessagesForPlayer } from "@/lib/room-message";
@@ -159,6 +160,7 @@ export default async function RoomPage({
 
   return (
     <section className="room-layout">
+      {action === "enter" && <StripRoomEnterParam />}
       <main className="room-chat-panel">
         {chatBootstrap ? (
           <RoomChat
@@ -208,7 +210,8 @@ export default async function RoomPage({
           />
         }
         manageExtra={
-          <div className="room-controls">
+          // key 用于消除 RSC 元素作为 prop 传入客户端组件兄弟列表时的误报警告
+          <div className="room-controls" key="room-controls">
             {isOwner && (
               <RoomActionForm
                 action={closeRoom}

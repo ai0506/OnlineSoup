@@ -1406,6 +1406,45 @@ Preventability:
 Origin:
 OnlineSoup 2026-09-29 updates.md [CodeX][260929131304]
 
+## 线上已应用的迁移在本地仓库缺失，阻断后续 db push
+
+Project: OnlineSoup
+Date: 2026-10-08
+
+Area:
+- Backend / Database
+- Tooling / Process
+
+Problem Type:
+- 线上数据库迁移历史与仓库文件不同步
+
+Incident:
+推送新迁移 `20261008071844_structured_seat_system_messages` 时，`supabase db push` 直接拒绝执行，报 `DbPushMissingLocalError: Remote migration versions not found in local migrations directory`，并建议 `migration repair --status reverted` 或 `db pull`。
+
+Initial Assumption:
+以为是本地迁移历史落后，按 CLI 建议 repair 或 pull 即可。
+
+Root Cause:
+线上 `supabase_migrations.schema_migrations` 中存在 `20260929083508 fix_chat_message_mode_ambiguity`，而 `supabase/migrations` 下没有对应文件，`updates.md` 没有记录，git 该时间段也没有涉及迁移目录的提交。该变更是绕过「写迁移文件 → db push」的流程直接作用到线上库的（修 `send_room_chat_message` 中 `message_mode` 与 RPC 参数同名导致的 42702）。CLI 要求两边历史一致，因此任何新迁移都被挡住。
+
+Resolution:
+没有执行 CLI 建议的 `repair --status reverted`（会把线上真实已应用的记录标成已回滚，与事实不符），也没有 `db pull`（会生成大块 schema 快照，污染迁移历史）。改为从 `supabase_migrations.schema_migrations.statements` 读出该版本的原始 SQL，按原样回写成本地文件 `20260929083508_fix_chat_message_mode_ambiguity.sql` 补档，使两边历史对齐，再正常 push。
+
+Evidence:
+补档前 dry-run 报 `DbPushMissingLocalError`；补档后 dry-run 输出 `Would push these migrations: 20261008071844_...`，只含新迁移；正式 push 看到 `Applying migration 20261008071844_...` 与 `Finished supabase db push.`；回读 `pg_proc` 确认 `gift_points_to_seat`、`move_seat` 已是 jsonb 版本且执行权限仍只有 `authenticated`。
+
+Lesson:
+Supabase 的迁移历史是数据库里的一张表，不是仓库状态的投影。只要有一次变更绕过迁移文件直接落到线上，后续所有 push 都会被挡住，而且故障点出现在下一个动手的人身上，与制造者脱节。CLI 给出的 repair/pull 建议默认「远端是错的」，在远端其实正确、只是本地缺文件的场景下会把问题放大。
+
+Rule:
+任何改变线上 schema 或函数的操作都必须有对应的迁移文件并提交到仓库；通过 MCP、控制台 SQL Editor 或 psql 直接改线上后，必须立即补写同版本号的迁移文件。遇到 `DbPushMissingLocalError` 时先查 `supabase_migrations.schema_migrations` 弄清缺失版本的真实内容，优先补档对齐，不要照抄 CLI 的 `repair --status reverted` 或 `db pull`。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-10-08 updates.md [Claude Code][261008152351]
+
 ## 异步 AI 扣费必须先退款再计算关房结算
 
 Project: OnlineSoup

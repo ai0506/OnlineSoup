@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 
 import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
 import { NoticeMessage } from "@/components/notice-message";
+import { RoomCodeInput } from "@/components/room-code-input";
 import { hasSupabaseEnv } from "@/lib/env";
 import { getFlashMessage } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
@@ -94,18 +95,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </div>
         ) : (
           <form action="/rooms/go" className="form-grid" method="get">
-            <input
-              aria-label="房间码"
-              autoCapitalize="characters"
-              autoComplete="off"
-              autoFocus
-              className="room-code-input"
-              maxLength={6}
-              minLength={6}
-              name="code"
-              placeholder="输入房间码"
-              required
-            />
+            <RoomCodeInput />
             <button className="button" type="submit">
               继续
             </button>

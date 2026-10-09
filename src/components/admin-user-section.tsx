@@ -242,6 +242,7 @@ export function AdminUserSection({
                   max={1_000_000_000}
                   min={1}
                   name="_quantity"
+                  onWheel={(e) => e.currentTarget.blur()}
                   placeholder="请输入正整数"
                   required
                   type="number"
@@ -321,6 +322,7 @@ export function AdminUserSection({
                   max={1_000_000_000}
                   min={0}
                   name="points"
+                  onWheel={(e) => e.currentTarget.blur()}
                   required
                   type="number"
                 />

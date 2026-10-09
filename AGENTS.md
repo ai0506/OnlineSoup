@@ -184,6 +184,8 @@ npx.cmd supabase migration new descriptive_name
 - 修改 RPC 时处理旧签名，避免 PostgREST 因函数重载产生歧义。
 - 新增或修改函数后执行 `notify pgrst, 'reload schema';`。
 - 部署前先预览迁移，部署后检查迁移记录、函数签名、权限和真实 RPC 调用。
+- 任何改变线上 schema、函数或权限的操作都必须有对应的迁移文件并提交到仓库。通过 MCP `apply_migration`、Supabase 控制台 SQL Editor 或 psql 直接改线上后，要立即补写同版本号的迁移文件，并在 `updates.md` 记录；否则下一个人执行 `db push` 会被 `DbPushMissingLocalError` 挡住。
+- 遇到 `DbPushMissingLocalError`（线上有、本地没有的迁移版本）时，先查 `supabase_migrations.schema_migrations` 的 `statements` 弄清该版本真实内容，把它补档成同版本号的本地文件对齐历史；不要照搬 CLI 建议的 `migration repair --status reverted`（会把线上真实已应用的记录标成已回滚）或 `db pull`（会生成大块 schema 快照污染历史）。
 - 如果直连 Supabase 数据库出现 `tls error (EOF)`，不要反复重试；优先按项目现有方式使用 Session Pooler（IPv4）。
 - 需要数据库密码时，允许从本机 `.env.local` 读取 `SUPABASE_DB_PASSWORD`，但只能放在当前 PowerShell 会话临时变量中使用，不能写入仓库、日志或回复。
 

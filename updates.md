@@ -385,6 +385,18 @@
 [CodeX][260929232510] 明确题目审核 HTML 永远按单题生成；多题 JSON 必须指定目标题名，渲染器拒绝默认生成整库预览；多题编辑需各自产生独立页面。
 [CodeX][260929232850] 拆分《生日》欺骗事实与实际受害者两个评分点，并在实际受害者点标记 SOI；审核页和题库 skill 将 SOI 与普通合理变体分开展示和说明。
 [CodeX][260929233313] 通过 admin_create_puzzle 受控 RPC 将《生日》作为启用题目新增到线上题库（ID 21）；回读核对题面、汤底、难度、6 个评分点及 8 条示例一致，上传数据不含审核用 boundary_type。
+[Claude Code][261008092952] 聊天字数计数改为 85% 橙色提醒、满上限才红色（新增 --warning）；赠送积分输入改为输入时只过滤非数字、提交时校验，窄屏补步进器与 1/5/10/全部 快捷档位，报错区预留高度避免布局跳动
+[Claude Code][261008152351] 系统消息结构化：move_seat/gift_points_to_seat 改用 jsonb 输出座位与身份，前端渲染为 [座位号][身份] 小标签并兼容旧纯文本；赠送弹窗错误改为红边+红底条带提示；竖屏断点对齐房间页 (portrait & <=760px)；补档线上已应用但本地缺失的迁移 20260929083508
+[Claude Code][261008152541] 沉淀迁移历史不同步的排障经验到 lessons.md；在 AGENTS.md 数据库迁移章节补充“线上改动必须补迁移文件”和 DbPushMissingLocalError 的正确处理方式
+[Claude Code][261008153431] 首页房间码输入抽成 RoomCodeInput 客户端组件，输入时过滤非字母数字并转大写（保留光标位置）；创建房间座位数/每座积分、管理端积分数量/初始积分四个 number 输入加 onWheel 失焦，防滚轮误改数值
+[Claude Code][261008155131] 修复房间页 React key 误报（RSC 元素作为 prop 传入客户端组件兄弟列表，给 manageExtra 根节点加 key）；进入房间后用 replaceState 清除 ?action=enter，避免刷新变成静默强制接管；新增 vercel.json 将函数区域固定到 sin1 与 Supabase 同区
+
+[CodeX][261009112152] 修订并归档 OnlineSoup CLI 实施计划 v2：以当前工作区及线上 RPC 为基线，补充游客凭证恢复、显式会话接管、房主/跨房关房限制、原子请求键与退款恢复、按房间提交顺序游标、完整事实、JSON/CSRF/Cookie 合同及 P0-P2 验收；更新文档索引，同步 Downloads 原计划；未实施代码或数据库变更。
+[Claude Code][261009151806] 修订 OnlineSoup CLI 实施计划为 v3：CLI 仅支持注册用户（删除访客流程）；网页接管 CLI 座位前站内确认（CLI 专用文案）及大厅提示；CLI 闲置 1 小时服务端清退；CLI 专用限流（聊天 1/秒 20/分、AI 冷却 7.5 秒、每 10 分钟 80 次等）；补充 5xx 结果未知、令牌轮换丢失、失效本地锁、断网场景表、防作弊运行环境、无锁游标备选方案及验收条目；仅改文档，未改代码或数据库
+[Claude Code][261009152305] 按评审意见修订 CLI 实施计划 v3.1：更正 get_my_active_room 不按 session 过滤（复用现有活动房间入口+CLI 标识）；房主/关房/Proxy 保护前移 P0；认证失效允许同账号重登；闲置清退先对账后释放并持久化 idle_timeout；cli_sessions 覆盖旧路由/旧 RPC、按账号计数；刷新令牌丢失先正常恢复；网页接管确认事务内版本复核；本地锁改用 OS 锁；仅改文档
+[Claude Code][261009152541] 按二轮评审修订 CLI 实施计划 v3.2：更正 AI 请求锁顺序事实（先座位行锁后 advisory lock）并要求五条路径统一审查；结果未知允许同键同内容重提交；CLI 会话调用旧加入/接管/房主 RPC 直接拒绝（USE_PLAYER_API）；清退锁内复核、idle_timeout 绑定成员关系；/login、/session 登记例外；清退时间改为 60–65 分钟范围；邮箱验证改为待核实线上配置；修正游客 Cookie 残留验收项；仅改文档
+[Claude Code][261009152942] 统一 CLI 实施计划文案：7.4/7.1 结果未知改为先查询、必要时同键同内容重提交；限流表 CLI 冷却与总量标为每账号，网页现有规则标为每座位；仅改文档
+
 [CodeX][261009155933] 实施 CLI P0：新增注册 CLI 会话、JSON 玩家 API、独立 Node CLI、请求键去重/状态恢复、账号限流及闲置清退；抽取网页共用 AI runner 并检查退款错误；统一短事务锁并在关房结算前退款。Supabase 已应用 20261009075840_cli_player_contracts，三张私表启用 RLS 且仅 service_role 直访、登记/清理 RPC 仅 service_role；本地 21 项数据库行为、4 项 CLI 行为通过，真实流程验收进行中。
 [CodeX][261009160734] 补齐 CLI 首次跨房加入 OWNED_ROOM_ACTIVE 优先级、管理端关房前退款和 CLI 按账号限流（跳过旧座位计数）；部署并归档 20261009080722_cli_join_owner_and_cleanup_guards；本地数据库行为扩展至 24 项通过，真实网页界面与 CLI 双向聊天、真实 AI 回答和同键恢复验证通过；undici 固定升级到 7.30.0 修复审计中的高危告警。
 [CodeX][261009161327] 完成 CLI P0 本地交付：24 项隔离数据库行为、4 项 CLI 行为、原有 4 项 Vitest、typecheck/build 通过，lint 仅 3 条既有 warning；线上公开 key 验证旧 RPC/私表/自行登记拒绝与真实切题退款；网页界面和 CLI 双向聊天/真实 AI/退出登出通过，清理专用账号/房间/凭证。新增 README、Agent 使用边界、验收记录并更新计划状态；未推送 GitHub、未部署 Vercel、P1/P2 与跨平台长时验收未完成。
@@ -396,3 +408,4 @@
 [CodeX][261009182750] Implement CLI P1 facts/seats/points/wait and signed xid8 snapshot-fenced history/incremental pagination; persist recent messages with cursor atomically; add 10 CLI tests and 11 P1 database behaviors alongside 26 P0 regressions; apply and archive Supabase migration 20261009102525 with restricted read RPCs outside global write gate; record protocol limits and platform scope.
 
 [CodeX][261009183552] Complete CLI P1 production verification on onlinesoup.ai0506.com: stdin login/password join, state/seats/points, bidirectional web RPC chat, persistent history pagination, wait wakeup, real reason/hint charging and facts, public-key RPC permissions and takeover/leave/logout; fix wait budget exhaustion to normal timed_out with poll_incomplete while preserving early network failures; 11 CLI/38 DB/4 root tests pass; Vercel 6fbf361 READY and fixtures cleaned; record remaining P2 and untested Linux/Windows; no GitHub push.
+[Claude Code][261009184202] 新增 docs/testing/OnlineSoup-CLI-Windows-测试清单.md：Windows 端 CLI 手动测试清单（代码获取、安装构建、25 项检查覆盖隐藏密码/stdin/BOM/中文代码页/引号/Git Bash 路径改写/ACL/进程锁/JSON 退出码/wait/接管），仅新增文档

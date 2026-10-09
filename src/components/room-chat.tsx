@@ -127,6 +127,58 @@ function getSystemMessageContent(message: RoomMessage) {
   }
 }
 
+type SeatSystemMessage = {
+  kind: "seat_moved" | "points_gifted";
+  actor_name: string;
+  actor_seat: number;
+  actor_type: "registered" | "guest";
+  target_name: string;
+  target_seat: number;
+  target_type: "registered" | "guest";
+  amount?: number;
+  to_seat?: number;
+};
+
+// 旧版系统消息是纯文本，解析失败时原样显示
+function parseSeatSystemMessage(content: string): SeatSystemMessage | null {
+  if (!content.startsWith("{")) return null;
+  try {
+    const parsed = JSON.parse(content) as Partial<SeatSystemMessage>;
+    if (parsed.kind !== "seat_moved" && parsed.kind !== "points_gifted") return null;
+    if (typeof parsed.actor_name !== "string" || typeof parsed.target_name !== "string") return null;
+    if (typeof parsed.actor_seat !== "number" || typeof parsed.target_seat !== "number") return null;
+    return parsed as SeatSystemMessage;
+  } catch {
+    return null;
+  }
+}
+
+function SeatTag({ seat, type }: { seat: number; type: "registered" | "guest" }) {
+  const identity = seat === 1 ? "owner" : type;
+  const label = seat === 1 ? "房主" : type === "registered" ? "已注册" : "访客";
+  return <span className={`seat-id-badge system-seat-tag ${identity}`}>[{seat}][{label}]</span>;
+}
+
+function SeatSystemMessageBody({ data }: { data: SeatSystemMessage }) {
+  const actor = (
+    <span className="system-actor">
+      {data.actor_name}
+      <SeatTag seat={data.actor_seat} type={data.actor_type} />
+    </span>
+  );
+  const target = (
+    <span className="system-actor">
+      {data.target_name}
+      <SeatTag seat={data.target_seat} type={data.target_type} />
+    </span>
+  );
+
+  if (data.kind === "points_gifted") {
+    return <span>{actor} 赠送了 {data.amount} 积分给 {target}</span>;
+  }
+  return <span>{actor} 把 {target} 移到了 {data.to_seat} 号位</span>;
+}
+
 function getPlaceholder(mode: MessageMode) {
   switch (mode) {
     case "ask":    return "向 AI 提问（100 字以内），消耗 1 积分";
@@ -173,9 +225,12 @@ function getAiLabel(kind: AiMessageContent["kind"]) {
 // 提取为独立 memo 组件，避免输入框内容变化时整个消息列表重渲染
 
 const SystemMessage = memo(function SystemMessage({ message }: { message: RoomMessage }) {
+  const seatData = parseSeatSystemMessage(message.content);
   return (
     <div className="system-message">
-      <span>{getSystemMessageContent(message)}</span>
+      {seatData
+        ? <SeatSystemMessageBody data={seatData} />
+        : <span>{getSystemMessageContent(message)}</span>}
       <time dateTime={message.created_at}>
         {formatTime(message.created_at)}
       </time>
@@ -313,6 +368,12 @@ export function RoomChat({
   const forceScrollRef = useRef(false);
 
   const currentMode = MODES.find((m) => m.key === mode)!;
+
+  const charCountClass = content.length >= currentMode.maxLength
+    ? "chat-char-count at-limit"
+    : content.length >= Math.floor(currentMode.maxLength * 0.85)
+      ? "chat-char-count near-limit"
+      : "muted";
 
   // Scroll to bottom on initial load
   useLayoutEffect(() => {
@@ -942,7 +1003,7 @@ export function RoomChat({
         />
 
         <div className="chat-form-footer">
-          <span className={content.length >= Math.floor(currentMode.maxLength * 0.85) ? "chat-char-count near-limit" : "muted"}>
+          <span className={charCountClass}>
             {content.length}/{currentMode.maxLength}
           </span>
 

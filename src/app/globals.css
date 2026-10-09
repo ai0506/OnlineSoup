@@ -8,6 +8,7 @@
   --navy-dark: #0f172a;
   --line: #e5e7eb;
   --danger: #dc2626;
+  --warning: #d97706;
 }
 
 * {
@@ -792,6 +793,11 @@ textarea:focus {
 }
 
 .chat-char-count.near-limit {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.chat-char-count.at-limit {
   color: var(--danger);
   font-weight: 600;
 }
@@ -991,6 +997,140 @@ textarea:focus {
   border-radius: 4px;
   font-size: 0.83rem;
   text-align: right;
+}
+
+/* 赠送弹窗：宽屏只留输入框，窄屏补步进器与快捷档位 */
+.gift-amount-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gift-step-btn,
+.gift-quick-row {
+  display: none;
+}
+
+.gift-amount-input.invalid {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+}
+
+/* 常驻占位，出错时才上色，避免弹窗高度跳动 */
+.gift-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--danger);
+}
+
+.gift-error:not(:empty) {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+}
+
+.gift-error-icon {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+@media (prefers-color-scheme: dark) {
+  .gift-error:not(:empty) {
+    background: #2a1416;
+    border-color: #7f1d1d;
+  }
+
+  .gift-error-icon {
+    color: #1c1e26;
+  }
+
+  .gift-amount-input.invalid {
+    box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.18);
+  }
+}
+
+/* 与房间页竖屏断点保持一致 */
+@media (orientation: portrait) and (max-width: 760px) {
+  .gift-amount-label {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .gift-amount-field {
+    gap: 8px;
+  }
+
+  .gift-step-btn {
+    display: block;
+    flex: 0 0 40px;
+    height: 38px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--paper);
+    color: inherit;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .gift-step-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .gift-amount-field .gift-amount-input {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    height: 38px;
+    font-size: 1rem;
+    text-align: center;
+  }
+
+  .gift-quick-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .gift-quick-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 34px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--paper);
+    color: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .gift-quick-btn.active {
+    border-color: var(--navy);
+    background: var(--surface);
+  }
+
+  .gift-quick-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .gift-form-actions .button {
+    flex: 1 1 0;
+  }
 }
 
 .seat-action-move {
@@ -1528,13 +1668,37 @@ textarea:focus {
   font-size: 0.8rem;
 }
 
-.system-message span {
+/* 只给直接子级加胶囊底，内部的姓名与座位标签不受影响 */
+.system-message > span {
   justify-self: start;
   padding: 3px 10px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--paper);
   text-align: left;
+}
+
+.system-actor {
+  color: var(--ink);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* 系统消息里的座位标签只做标注，三种身份一律中性灰，
+   不沿用座位列表按身份区分深浅的配色，避免读成“房主重要、访客次要” */
+.seat-id-badge.system-seat-tag,
+.seat-id-badge.system-seat-tag.owner,
+.seat-id-badge.system-seat-tag.registered,
+.seat-id-badge.system-seat-tag.guest {
+  display: inline-block;
+  margin-left: 3px;
+  padding: 0 4px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.63rem;
+  font-weight: 600;
+  line-height: 1.5;
+  vertical-align: 1px;
 }
 
 .system-message time {

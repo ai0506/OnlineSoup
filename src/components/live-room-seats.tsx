@@ -107,7 +107,7 @@ export function LiveRoomSeats({
 
   // Gift points modal state
   const [giftTargetSeatId, setGiftTargetSeatId] = useState<string | null>(null);
-  const [giftAmount, setGiftAmount] = useState(1);
+  const [giftAmount, setGiftAmount] = useState("1");
   const [giftError, setGiftError] = useState<string | null>(null);
   const [isGiftPending, startGiftTransition] = useTransition();
 
@@ -543,21 +543,48 @@ export function LiveRoomSeats({
     return null;
   })();
 
+  // 输入过程中只过滤非数字，合法范围留到提交时校验
+  const handleGiftAmountChange = (raw: string) => {
+    setGiftAmount(raw.replace(/[^0-9]/g, "").replace(/^0+(?=\d)/, ""));
+    setGiftError(null);
+  };
+
+  const stepGiftAmount = (delta: number) => {
+    const current = Number.parseInt(giftAmount, 10);
+    const base = Number.isNaN(current) ? 1 : current;
+    const next = Math.min(Math.max(base + delta, 1), Math.max(personalPoints, 1));
+    setGiftAmount(String(next));
+    setGiftError(null);
+  };
+
   const handleGiftSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (isGiftPending || !giftTargetSeatId) return;
+    if (giftAmount === "") {
+      setGiftError("请输入赠送数量");
+      return;
+    }
+    const amount = Number.parseInt(giftAmount, 10);
+    if (Number.isNaN(amount) || amount < 1) {
+      setGiftError("至少赠送 1 积分");
+      return;
+    }
+    if (amount > personalPoints) {
+      setGiftError(`个人积分只有 ${personalPoints}`);
+      return;
+    }
     setGiftError(null);
     startGiftTransition(async () => {
       const formData = new FormData();
       formData.set("code", roomCode);
       formData.set("seatId", giftTargetSeatId);
-      formData.set("amount", String(giftAmount));
+      formData.set("amount", String(amount));
       const result: RoomActionState = await giftPoints({ status: "idle" }, formData);
       if (result.status === "error") {
         setGiftError(result.message ?? "赠送失败");
       } else {
         setGiftTargetSeatId(null);
-        setGiftAmount(1);
+        setGiftAmount("1");
         setGiftError(null);
         window.dispatchEvent(new Event("room-data-refresh"));
       }
@@ -565,6 +592,10 @@ export function LiveRoomSeats({
   };
 
   const movingFromSeat = movingFromSeatId ? seats.find((s) => s.id === movingFromSeatId) : null;
+  const giftQuickAmounts = Array.from(
+    new Set([1, 5, 10, personalPoints].filter((n) => n >= 1 && n <= personalPoints)),
+  ).sort((a, b) => a - b);
+
   const giftTargetSeat = giftTargetSeatId ? seats.find((s) => s.id === giftTargetSeatId) : null;
   const openSeat = openSeatMenuId ? seats.find((s) => s.id === openSeatMenuId) : null;
   const portalTarget = typeof document === "undefined" ? null : document.body;
@@ -600,7 +631,7 @@ export function LiveRoomSeats({
                   setOpenSeatMenuId(null);
                   setSeatMenuPosition(null);
                   setGiftTargetSeatId(openSeat.id);
-                  setGiftAmount(1);
+                  setGiftAmount("1");
                 }}
                 type="button"
               >
@@ -708,7 +739,7 @@ export function LiveRoomSeats({
               </span>
               <button
                 className="move-seat-close"
-                onClick={() => { setGiftTargetSeatId(null); setGiftAmount(1); }}
+                onClick={() => { setGiftTargetSeatId(null); setGiftAmount("1"); }}
                 type="button"
                 aria-label="取消"
                 disabled={isGiftPending}
@@ -734,27 +765,65 @@ export function LiveRoomSeats({
             <p className="gift-note muted">赠送将消耗你的个人积分，增加对方的临时积分</p>
 
             <form className="gift-form" onSubmit={handleGiftSubmit}>
-              <label className="gift-amount-label">
+              <div className="gift-amount-label">
                 <span>赠送积分数量</span>
-                <input
-                  className="gift-amount-input"
-                  disabled={isGiftPending}
-                  min={1}
-                  max={personalPoints}
-                  name="amount"
-                  required
-                  type="number"
-                  value={giftAmount}
-                  onChange={(e) => setGiftAmount(Number(e.target.value))}
-                />
-              </label>
-              {giftError && (
-                <div className="error">{giftError}</div>
-              )}
+                <span className="gift-amount-field">
+                  <button
+                    aria-label="减少"
+                    className="gift-step-btn"
+                    disabled={isGiftPending}
+                    onClick={() => stepGiftAmount(-1)}
+                    type="button"
+                  >
+                    −
+                  </button>
+                  <input
+                    className={`gift-amount-input${giftError ? " invalid" : ""}`}
+                    disabled={isGiftPending}
+                    inputMode="numeric"
+                    name="amount"
+                    type="text"
+                    value={giftAmount}
+                    onChange={(e) => handleGiftAmountChange(e.target.value)}
+                  />
+                  <button
+                    aria-label="增加"
+                    className="gift-step-btn"
+                    disabled={isGiftPending}
+                    onClick={() => stepGiftAmount(1)}
+                    type="button"
+                  >
+                    +
+                  </button>
+                </span>
+              </div>
+
+              <div className="gift-quick-row">
+                {giftQuickAmounts.map((amount) => (
+                  <button
+                    className={`gift-quick-btn${giftAmount === String(amount) ? " active" : ""}`}
+                    disabled={isGiftPending}
+                    key={amount}
+                    onClick={() => { setGiftAmount(String(amount)); setGiftError(null); }}
+                    type="button"
+                  >
+                    {amount === personalPoints ? "全部" : amount}
+                  </button>
+                ))}
+              </div>
+
+              <div aria-live="polite" className="gift-error">
+                {giftError && (
+                  <>
+                    <span aria-hidden="true" className="gift-error-icon">!</span>
+                    <span>{giftError}</span>
+                  </>
+                )}
+              </div>
               <div className="gift-form-actions">
                 <button
                   className="button secondary"
-                  onClick={() => { setGiftTargetSeatId(null); setGiftAmount(1); }}
+                  onClick={() => { setGiftTargetSeatId(null); setGiftAmount("1"); }}
                   type="button"
                   disabled={isGiftPending}
                 >
@@ -762,7 +831,7 @@ export function LiveRoomSeats({
                 </button>
                 <button
                   className="button"
-                  disabled={isGiftPending || giftAmount < 1 || giftAmount > personalPoints}
+                  disabled={isGiftPending}
                   type="submit"
                 >
                   {isGiftPending ? "赠送中..." : "确认赠送"}

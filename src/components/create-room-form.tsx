@@ -53,6 +53,7 @@ export function CreateRoomForm({ currentPoints, defaultRoomName }: CreateRoomFor
             min={1}
             name="maxMembers"
             onChange={(e) => setSeats(e.target.value)}
+            onWheel={(e) => e.currentTarget.blur()}
             required
             type="number"
             value={seats}
@@ -65,6 +66,7 @@ export function CreateRoomForm({ currentPoints, defaultRoomName }: CreateRoomFor
             min={0}
             name="pointsPerSeat"
             onChange={(e) => setPointsPerSeat(e.target.value)}
+            onWheel={(e) => e.currentTarget.blur()}
             required
             type="number"
             value={pointsPerSeat}
