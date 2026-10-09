@@ -1,6 +1,6 @@
 # OnlineSoup CLI 玩家指南
 
-适用版本：CLI 0.2.0，玩家协议 v1。下载入口：<https://onlinesoup.ai0506.com/cli>。
+适用版本：CLI 0.2.1，玩家协议 v1。下载入口：<https://onlinesoup.ai0506.com/cli>。
 
 ## 1. OnlineSoup 是什么？
 
@@ -9,6 +9,8 @@ OnlineSoup（汤局）是多人在线海龟汤推理游戏。房主在网页创�
 CLI 是汤局的终端客户端，与网页玩家共享同一个房间、聊天和题目。它适合喜欢命令行的玩家，也可以作为外部 Agent 的玩家工具。AI 主持由网站提供，不需要玩家配置模型 API Key。CLI 本身不会自动替你推理或连续玩游戏。
 
 CLI 目前只支持注册账号参与游戏，不支持游客、创建房间、选题、踢人、赠送积分或其他房主管理。请由另一位房主在[网站](https://onlinesoup.ai0506.com)操作。网页版游客仍可直接加入。CLI 需要联网，不能离线玩。
+
+第一次接触海龟汤或想了解房主操作，请先看[汤局完整玩法教程（网页版，含图解）](https://onlinesoup.ai0506.com/tutorial)：包括注册、创建与加入房间、开题、询问、提示、推理、积分和常见问题。本指南补充 CLI 的安装和命令用法。
 
 ## 2. 需要安装什么？
 
@@ -37,27 +39,27 @@ npm --version
 在电脑终端执行：
 
 ```sh
-npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.0.tgz
+npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.1.tgz
 soup /help
 ```
 
 看到命令帮助即安装成功。这个地址是汤局网站提供的版本安装包，无需 npm 账号；[npm 官方文档](https://docs.npmjs.com/cli/install/)说明了通过压缩包 URL 安装的方式。
 
-也可以先[下载安装包](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.0.tgz)，在文件所在目录执行 `npm install --global ./onlinesoup-cli-0.2.0.tgz`。不要解压后复制单个 JS 文件。可选[SHA-256 校验文件](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.0.tgz.sha256)用于核对下载完整性。
+也可以先[下载安装包](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.1.tgz)，在文件所在目录执行 `npm install --global ./onlinesoup-cli-0.2.1.tgz`。不要解压后复制单个 JS 文件。可选[SHA-256 校验文件](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.1.tgz.sha256)用于核对下载完整性。
 
 ### 没有全局安装权限怎么办？
 
 如果出现 `EACCES` / 权限不足，可以安装到自己的目录。macOS / Linux：
 
 ```sh
-npm install --global --prefix "$HOME/.local" https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.0.tgz
+npm install --global --prefix "$HOME/.local" https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.1.tgz
 "$HOME/.local/bin/soup" /help
 ```
 
 之后用 `"$HOME/.local/bin/soup"` 代替 `soup`；也可将 `$HOME/.local/bin` 加入你的 shell 的 PATH。Windows PowerShell：
 
 ```powershell
-npm.cmd install --global --prefix "$env:LOCALAPPDATA\OnlineSoup" https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.0.tgz
+npm.cmd install --global --prefix "$env:LOCALAPPDATA\OnlineSoup" https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.1.tgz
 & "$env:LOCALAPPDATA\OnlineSoup\soup.cmd" /help
 ```
 
@@ -67,7 +69,7 @@ npm.cmd install --global --prefix "$env:LOCALAPPDATA\OnlineSoup" https://onlines
 
 在电脑终端输入 `soup` 启动交互模式。之后以下 `/` 开头的命令是在 soup 提示符内输入，不需要再加 `soup`。
 
-### 登录
+### 方式一：浏览器授权登录
 
 ```text
 /login
@@ -84,6 +86,20 @@ CLI 会显示授权链接和八位确认码，并尝试打开浏览器。网页�
 ```
 
 手动打开显示的链接并输入确认码即可。无图形界面的电脑也可在另一台设备的浏览器完成确认。登录本身不会加入房间或抢占网页上的座位。
+
+### 方式二：完全在命令行输入账号密码
+
+不想使用浏览器时，在电脑终端运行：
+
+```sh
+soup /login YOUR_USERNAME
+```
+
+将 `YOUR_USERNAME` 替换成已注册的用户名，也可以使用注册邮箱。看到“密码:”后输入密码并按回车；输入期间不会显示文字或星号，这是正常的隐藏输入。该方式直接完成账号密码登录，不会打开浏览器。
+
+如果已经进入 `soup` 交互模式，输入 `/login YOUR_USERNAME` 即可。密码单独在随后出现的提示中输入，不要写成 `/login 用户名 密码`，也不要使用 `--password 明文密码`。
+
+`/login --no-browser` 仍然需要在网页确认，它只关闭自动打开浏览器。要完全不经过网页，应使用上述带用户名或邮箱的命令。非交互脚本可用 `soup --password-stdin /login YOUR_USERNAME`，由安全的输入源提供密码；普通玩家使用隐藏输入即可。
 
 ### 加入房间
 

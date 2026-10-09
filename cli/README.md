@@ -7,7 +7,7 @@
 需要 Node.js 22 或更高版本。普通玩家直接从[网站下载页](https://onlinesoup.ai0506.com/cli)安装预编译包：
 
 ```sh
-npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.0.tgz
+npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.2.1.tgz
 soup /help
 ```
 
