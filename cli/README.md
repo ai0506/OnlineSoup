@@ -28,7 +28,7 @@ soup /logout
 
 `/login` 和密码房 `/join` 在 TTY 隐藏输入密码。自动化调用使用 `soup --json --password-stdin /login USERNAME`，由安全输入源提供 stdin；不要把密码写入命令行、脚本或日志。交互模式直接运行 `soup`。`/exit` 保留座位和登录，下次运行按服务端实际状态恢复。
 
-默认服务器为 `https://onlinesoup.ai0506.com`。本地开发需设置 `ONLINESOUP_URL=http://localhost:3105`，并启动本地 Next.js 网站。**网站部署新 API 前，生产域名尚不能使用 CLI。**
+默认服务器为 `https://onlinesoup.ai0506.com`。本地开发需设置 `ONLINESOUP_URL=http://localhost:3105`，并启动本地 Next.js 网站。生产 API 已于 2026-10-09 发布，默认域名的登录、密码入房、真实 AI 询问、退出和登出已验证。
 
 `ONLINESOUP_HOME` 默认为 `~/.onlinesoup`。同一目录一次只允许运行一个进程；独立目录可隔离不同身份，同账号仍只有一个有效房间座位。目录/文件在 POSIX 为 0700/0600，Windows 使用 ACL。已验证 macOS；Windows/Linux 尚未实际验收。
 
@@ -40,7 +40,7 @@ soup /logout
 - `/join CODE` 遇到密码房时隐藏输入；自动化使用 `soup --json --password-stdin /join CODE`。不接受明文密码参数，房间密码不写入会话文件。`--takeover` 明确接管自己的旧座位，普通读取不会接管。
 - 付费指令默认使用座位积分；`--use-personal-points` 仅授权本次使用个人积分。
 - 写命令支持 `--request-key UUID`。键、动作和必要正文在发送前保存。网络中断或 5xx 返回 `REQUEST_RESULT_UNKNOWN`，先 `/request UUID`，必要时用原键、原内容重新执行。密码房重试需重新输入相同密码。
-- 同键并发、重复 AI 请求不会重复写入、调用模型或扣费。同键更改内容会冲突。键至少保留 7 天，到期保留墓碑，不能重新执行；客户端也按首次保存时间拒绝超过 7 天的重提交；应在 7 天内恢复未知结果。
+- 同键并发、重复 AI 请求不会重复写入、调用模型或扣费。同键更改内容会冲突。键至少保留 7 天，到期保留墓碑，不能重新执行；本地待确认正文保留 7 天，服务端拒绝已到期的原请求键；应在 7 天内恢复未知结果。
 - 仅主动加入、聊天和付费指令续期；读取不续期。闲置约 60–65 分钟被服务端清退，未到期的 AI 请求会延迟清退。
 - JSON 成败都写 stdout，诊断写 stderr。退出码 0 成功、2 输入、3 身份、4 规则、5 网络/结果未知、6 服务异常。
 

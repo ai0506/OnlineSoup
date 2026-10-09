@@ -1,13 +1,13 @@
 # OnlineSoup CLI P0 实施与验收（2026-10-09）
 
-P0 的可执行客户端、注册玩家 API 和数据库保护已实现；数据库迁移已部署。网站新代码当前只在本地运行，尚未发布到生产 Vercel。P1/P2 仍待实施，不能把本记录视为整个计划完成。
+P0 的可执行客户端、注册玩家 API 和数据库保护已实现；数据库迁移已部署。网站新代码与评审修复已于本轮发布到生产 Vercel，默认生产域名的 CLI 登录、密码入房、真实 AI 询问、退出和登出通过。P1/P2 仍待实施，不能把本记录视为整个计划完成。
 
 ## 已实现
 
 - 注册用户登录、登出、密码入房、明确接管、状态/汤面/最近消息、聊天、询问、请求查询、退出和进程重启恢复。提示/推理已复用同一付费路径，尚无完整玩家命令的独立验收。
 - 版本 1 JSON 包络，API 不经过网页重定向，Origin/JSON/客户端头校验。用户名解析留在服务端；CLI 会话登记仅 `service_role` 可调用，不能由普通网站会话自行登记。
 - 私密 CLI 会话表、请求表和限流事件表：启用 RLS、只授权 `service_role` 直接访问；旧 CLI 会话记录保留吊销标记。玩家 RPC 验证真实 `auth.sessions` 与注册用户。
-- 用户与 UUID 唯一键（比原计划用户/动作/房间/键更严格），HMAC 请求摘要；写入、占座和扣费同事务。模型只由首次提交者调用，同键重提仅查询已有结果。至少 7 天结果保留，之后保留键墓碑；本地也拒绝超期重提交。
+- 用户与 UUID 唯一键（比原计划用户/动作/房间/键更严格），HMAC 请求摘要；写入、占座和扣费同事务。模型只由首次提交者调用，同键重提仅查询已有结果。至少 7 天结果保留，之后保留键墓碑；本地记录清理后，已记录原键仍由服务端墓碑拒绝超期重执行。
 - 按账号聊天、AI、加入限流；登录按服务端密钥哈希的 IP 限流。CLI 不再叠加旧座位的限流计数；网站继续原有限流。
 - 每 5 分钟闲置清退，锁内复核成员代次、会话和活动时间；有未到期请求时跳过，过期请求先退款。闲置原因绑定成员代次，成功重新加入时清除。
 - 旧加入、接管、离开、聊天、AI 和房主 RPC 拒绝 CLI 会话。目标房主、其他开放自有房间、跨房成员关系和隐式接管均受保护。
@@ -18,7 +18,7 @@ P0 的可执行客户端、注册玩家 API 和数据库保护已实现；数据
 
 现有跨房加入、积分、座位和请求函数的锁顺序不统一。P0 在相关房间 RPC 外层使用同一个短事务 advisory gate，取得后才访问房间、资料、座位和请求行；模型及网络调用不持有该锁。请求、完成、退款、对账、清退与网页加入/退出/接管/移动/关房共享入口，避免这些路径相互倒序等待。
 
-代价是不同房间的短数据库事务暂时串行；尚未进行吞吐压测。拆成每房间锁前必须一起改造旧跨房操作，不能只更改单个 RPC。
+代价是不同房间的短数据库事务暂时串行；本轮本地并发/故障注入及线上有限负载结果见文末，尚未完成生产容量验收。拆成每房间锁前必须一起改造旧跨房操作，不能只更改单个 RPC。
 
 闲置退出显式先对账后释放。普通成员释放的补偿触发器在同一事务的行更新后执行，直到补偿完成始终持有事务 gate 和座位行锁，其他人无法在退款前取得座位。该方式避免 BEFORE 触发器递归更新同一行导致 PostgreSQL tuple 冲突；原子事务提交后才对外可见。关房结算在计算返还总额之前先退款，管理清理路径同样处理。
 
@@ -29,8 +29,8 @@ P0 的可执行客户端、注册玩家 API 和数据库保护已实现；数据
 | 根项目 typecheck、build | 通过 |
 | 根项目 lint | 0 错误；3 条既有页面导航 warning |
 | 原有 Vitest | 4 项通过 |
-| CLI 独立构建及行为测试 | 4 项通过：解析器、Cookie 范围/分块、进程锁/SIGKILL/权限、504/禁止重定向转发 |
-| 本地 PostgreSQL 行为测试 | 24 项通过；包含同键并发、密码、满房、被踢、房主/跨房、原 RPC 拒绝、设备接管、退款、闲置、过期键、权限 |
+| CLI 独立构建及行为测试 | 6 项通过：增加 stdin 密码入房/秘密不落盘、请求记录清理 |
+| 本地 PostgreSQL 行为测试 | 26 项通过；增加管理员昵称修复和网页再加入清理闲置原因；包含同键并发、密码、满房、被踢、房主/跨房、原 RPC 拒绝、设备接管、退款、闲置、过期键、权限 |
 | 本地数据库替身范围 | PostgreSQL 18.4；Auth/Realtime 最小替身，排除历史 pg_cron 安装脚本；不等同于线上 PG17/Auth |
 | 线上 Supabase 迁移 | `20261009075840_cli_player_contracts`、`20261009080722_cli_join_owner_and_cleanup_guards` 均已记录并回读 |
 | 线上 Cron 与权限 | `cli-idle-cleanup` 每 5 分钟启用；登记/登录限流/清理仅 service_role；玩家读写仅 authenticated |
@@ -74,7 +74,18 @@ P0 的可执行客户端、注册玩家 API 和数据库保护已实现；数据
 
 本地网站连接真实 Supabase 的 CLI 入房、进程重启免重复密码、双向聊天、离开/登出通过。账号切换验证新凭据错误保留旧登录；成功切换后旧 cli_sessions 已吊销、旧 refresh token 无法刷新、旧 Cookie 不再认证。
 
-部署后有限并发和默认域名 CLI 验收结果待本轮补记。
+发布：Vercel Production `dpl_BdFsR72SrgUPsprubXrnHtDMuCub` 状态 READY，[生产域名](https://onlinesoup.ai0506.com) 已指向本次发布，源码提交 `f8dcd05`（包含 `e55c8fa` 的 CLI 修复）。从提交归档的干净目录发布，未带入原工作区未提交的界面文件、vercel.json 或 .env.local；Vercel 沿用项目环境变量和 iad1 区域。本轮未推送 GitHub。
+
+正式发布后重新进行 5 房间、5 并发、60 次公开 key RPC 读取：错误 0，p50 413ms、p95 806ms、最大 1048ms，总时长 8441ms。请求间隔 200ms，两轮均为有限负载；前后差异不能归因为 Vercel 发布，因为读取直达同一个 Supabase。另一次发布过程中重复样本 p95 821ms、最大 1089ms，仅作波动参考。原始首次压测有网络长尾，尚未定位；全局 gate 未拆分，仍不算生产容量验收通过。
+
+默认生产域名（未设置 ONLINESOUP_URL）CLI 验收：用户名隐藏 stdin 登录、错误新凭据保留旧登录、切换账号后旧 CLI 登记/刷新令牌失效、密码 stdin 入房、独立进程免重复密码恢复、状态、双向聊天、真实 AI ask completed、原键查询返回同一 request_message_id、确认后本地请求清理、leave/logout 均通过。本次网页对侧通过公开 key RPC 验证，未重新执行生产网页 UI 端到端。
+
+线上专用账号的管理员昵称修复在单事务中验证：补填原 username=null 且实际改变座位昵称大小写后，membership_id、last_cli_action_at 保持原值；未扩大 service_role 对 room_seats 的直接表权限。pending AI 不被昵称变化退款由本地数据库回归覆盖。
+
+专用 7 个账号、5 个房间及全部本轮本地 Cookie/凭证文件已清理；逐项删除返回成功，专用房间查询为 0。未操作既有玩家或原测试房间。
 
 
 发布前依赖补丁：Next.js 与 eslint-config-next 固定 16.3.8，sharp 0.35.5、source-map-js 1.2.2、baseline-browser-mapping 2.11.28；根项目生产依赖 `npm audit --omit=dev` 为 0，typecheck/lint/build 再次通过。未使用 `next/og` 的攻击者可控 SVG 调用路径；本次仍升级至公告修复版本。[Next.js 官方安全公告](https://github.com/vercel/next.js/security/advisories/GHSA-vcvr-r3jv-pc5j)。开发依赖全量审计仍有 11 条告警，未进行超出本轮发布范围的强制升级。
+
+
+安全 advisor 复查：CLI 私表的 [RLS 无 policy](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy) 是预期的普通角色默认拒绝；[SECURITY DEFINER 可调用提醒](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable) 结合函数内身份校验及最小授权检查。既有 [泄露密码保护未启用提醒](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection) 未在本轮修改。
