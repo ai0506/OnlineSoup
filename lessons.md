@@ -1717,3 +1717,43 @@ Preventability:
 
 Origin:
 OnlineSoup 2026-10-09 updates.md [CodeX][261009231852]
+
+
+## 清理身份 Cookie 后的跳转不能依赖原页面组件
+
+Project: OnlineSoup
+Date: 2026-10-10
+
+Area:
+- Auth / User System
+- Frontend / UX
+
+Problem Type:
+- Server Action 重渲染与客户端跳转生命周期
+
+Incident:
+访客点击退出后仍停留在 /rooms/<code>，页面变成输入访客名字的加入界面。
+
+Initial Assumption:
+退出操作返回 navigateTo 后，GuestRoomPanel 的 useEffect 会跳转首页。
+
+Root Cause:
+退出成功清除 guest_room_<code> Cookie 后，房间页不再满足成员条件，从 room-layout 切换为 join-landing；原组件可能被替换，返回状态驱动的 effect 无法可靠承担必要跳转。
+
+Resolution:
+leaveRoom 在退出 RPC 成功和 Cookie 清理后通过 setFlashMessage 写入短期 HttpOnly 提示 Cookie，再调用 Next.js redirect，以 replace 返回纯 /；失败仍返回错误并保留 Cookie。
+
+Evidence:
+3 项回归测试验证访客 Cookie 清理后抛出框架重定向、注册成员跳转及 RPC 失败保留 Cookie。typecheck、build、7 项测试通过，lint 无错误（3 条已有警告）。本地生产构建连接真实房间 35WE8U，临时访客 exit1010 加入后点击退出，浏览器实际返回首页；切换 Flash Cookie 后再次验证最终地址为纯 /，不含查询参数。未部署线上。
+
+Lesson:
+改变身份凭证可能同时改变服务端渲染树，必要导航应由完成状态变更的服务端操作发起；提示传递应沿用项目已有的 Flash Cookie 机制，避免沿用残留 URL 参数。
+
+Rule:
+Server Action 清理身份 Cookie 且必须离开当前页时，在成功写入后执行 redirect，不依赖当前组件存活后的 effect；同时验证失败不误清理凭证。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-10-10 updates.md [CodeX][261010140747]

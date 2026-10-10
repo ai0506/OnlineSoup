@@ -443,3 +443,8 @@
 [CodeX][261010000936] 同步 CLI 0.3.0 相关仓库文档：README、tasks、实施计划、文档索引与安装包验收增加当前交付摘要、浏览器/终端登录、网站分发及操作后消息提醒；保留历史记录和跨平台/长期运行验收边界，纠正仓库缺少 GitHub Actions workflow 的过时说明；本次不修改运行代码或已发布安装包。
 
 [CodeX][261010001036] 已将浏览器登录至 CLI 0.3.0 的 9 个既有提交及文档提交 b81cd5e 推送到 GitHub main，ls-remote 核对远端一致；追加安装包验收中的 GitHub 同步记录。推送前复跑 typecheck、18 CLI/4 根测试、生产包字节/指南比对和空缓存离线安装均通过，lint 0 错误/3 旧 warning；文档本地链接与 diff 检查通过，本次未改运行代码/数据库/发布包，未重跑网站 build 或真实付费 E2E。
+
+[CodeX][261010140747] 修复访客退出房间后仍停留在加入页：leaveRoom 完成 RPC 和 Cookie 清理后使用服务端 redirect + replace 返回首页，避免 Cookie 重渲染卸载组件导致客户端跳转丢失；新增访客/注册成员成功跳转及失败保留 Cookie 的 3 项回归测试。typecheck、lint（3 条已有警告）、build、7 项测试通过；本地生产构建连接真实房间 35WE8U 的访客加入/退出浏览器验收通过，未部署线上。
+
+[CodeX][261010140900] 更正退出成功提示的旧 URL 参数写法：leaveRoom 使用现有 setFlashMessage 写入短期 HttpOnly Cookie（room_left/notice/home），再以 replace 重定向到纯 /；回归测试增加提示 Cookie 内容与属性断言，注册成员不删除访客 Cookie、失败不写提示。typecheck、build、7 项测试通过，lint 无错误（3 条已有警告）。
+本次补充验收：本地生产构建的真实访客 exit1010 在 35WE8U 退出后返回 http://localhost:3000/，地址不含查询参数；lessons.md 同步更正最终实现。未部署线上。

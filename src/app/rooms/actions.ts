@@ -3,9 +3,9 @@
 import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 
-import { flashRedirectPath, redirectWithFlash } from "@/lib/flash";
+import { flashRedirectPath, redirectWithFlash, setFlashMessage } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 import { guestJoinSchema, roomSchema } from "@/lib/validation";
 
@@ -713,5 +713,7 @@ export async function leaveRoom(
     });
   }
 
-  return { status: "success", navigateTo: "/?notice=room_left" };
+  // 清除访客 Cookie 会重渲染房间页，不能依赖可能被卸载的组件执行跳转。
+  await setFlashMessage({ code: "room_left", kind: "notice", scope: "home" });
+  redirect("/", RedirectType.replace);
 }
