@@ -469,3 +469,4 @@
 
 [CodeX][261011111807] 调整ask推断与仲裁的认知范围/反证标准、完整命题示例匹配和证据先输出；inferential移除历史主持判定，保留有依据多步推理；增加5项认知离线用例。35WE8U原问按两种历史真实重放inferential与最终各15/15（1项另审），独立回归最终31/36仍有5项失败，未认定稳定修复；同步prompt文档、本地分析归档及索引，在lessons.md沉淀单路/最终指标不可混用的经验，9项单测/typecheck/lint/build通过，未部署或修改数据库。
 [Claude Code][261011115032] 更新 Windows CLI 测试清单：改为从网站安装 0.3.0 包，自动化测试改为可选的三目录稀疏检出；新增浏览器登录检查项；CLI 账号改为专用 wintest（test 名下有开放房间会触发 OWNED_ROOM_ACTIVE）；接管项改为先出现网页确认弹窗
+[Claude Code][261011131104] CLI 0.3.1：按 Windows 实测修复 --password-stdin 开头 UTF-8 BOM、正文按模式本地字数校验并明确提示、未知选项提示具体名称及 PowerShell 去掉 -- 时改用 soup.cmd、测试子进程路径改用 fileURLToPath；新增 2 项 CLI 用例（20/20 通过），打包 0.3.1 并通过离线安装检查；存档 Windows 验收记录

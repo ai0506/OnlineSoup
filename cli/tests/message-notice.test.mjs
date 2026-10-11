@@ -1,3 +1,4 @@
+import{fileURLToPath}from'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
@@ -28,7 +29,7 @@ test('real CLI ask/reason/chat and room reads append one JSON check without cons
   try {
     await writeFile(join(home, 'session.json'), JSON.stringify({ origin, room: 'ABCDEF', user_id: 'fixture', pending: {}, sync: { 'fixture:ABCDEF': { cursor: 'original', messages: [] } } }));
     async function run(args) {
-      const child = spawn(process.execPath, [new URL('../dist/cli/src/main.js', import.meta.url).pathname, '--json', ...args], {
+      const child = spawn(process.execPath, [fileURLToPath(new URL('../dist/cli/src/main.js',import.meta.url)), '--json', ...args], {
         env: { ...process.env, ONLINESOUP_HOME: home, ONLINESOUP_URL: origin }, stdio: ['ignore', 'pipe', 'pipe'],
       });
       let stdout = ''; child.stdout.on('data', c => stdout += c);

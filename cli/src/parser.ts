@@ -12,6 +12,14 @@ export function tokenize(line:string):string[] {
   }
   if(quote)throw new Error('INVALID_INPUT');if(active)result.push(word);return result;
 }
+export function inputErrorDetail(error:unknown):string|undefined {
+  return (error as {detail?:string})?.detail;
+}
+function unknownOption(arg:string):Error {
+  // PowerShell drops a bare -- before a script such as soup.ps1, so literal text arrives as an option.
+  const hint=/\s/.test(arg)?'；若这是要发送的文字：在 PowerShell 中单独的 -- 会被去掉，请改用 soup.cmd 执行':'';
+  return Object.assign(new Error('INVALID_INPUT'),{detail:`未知选项：${arg}${hint}`});
+}
 export function parse(args:string[]):Command {
   if(!args.length)return {name:'help',text:'',options:{}};
   const first=args[0];
@@ -23,7 +31,7 @@ export function parse(args:string[]):Command {
   for(let i=1;i<args.length;i++) {
     const arg=args[i];if(arg==='--'&&!literal){literal=true;continue;}
     if(!literal&&arg.startsWith('--')) {
-      const key=arg.slice(2);if(!flags[name]?.includes(key))throw new Error('INVALID_INPUT');
+      const key=arg.slice(2);if(!flags[name]?.includes(key))throw unknownOption(arg);
       if(['browser','no-browser','wait','takeover','use-personal-points','reset','cached'].includes(key))options[key]=true;
       else{if(args[i+1]===undefined||args[i+1].startsWith('--'))throw new Error('REQUIRED_INPUT_MISSING');options[key]=args[++i];}
     }else words.push(arg);

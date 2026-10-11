@@ -1,3 +1,4 @@
+import{fileURLToPath}from'node:url';
 import{test}from'node:test';import assert from'node:assert/strict';import{mkdtemp,readFile,stat,rm}from'node:fs/promises';import{tmpdir}from'node:os';import{join}from'node:path';import{spawn}from'node:child_process';import{once}from'node:events';
 import{parse,tokenize}from'../dist/cli/src/parser.js';
 import{openSession}from'../dist/cli/src/session.js';
@@ -8,6 +9,8 @@ test('same parser handles chat, escaping, argv, and command errors',()=>{
 assert.equal(parse(['//help']).text,'/help');assert.equal(parse(['/say','--','/help']).text,'/help');
 assert.deepEqual(parse(tokenize('/ask --use-personal-points "他认识她吗？"')),parse(['/ask','--use-personal-points','他认识她吗？']));
 assert.throws(()=>parse(['/shell','rm','-rf']),/INVALID_COMMAND/);assert.throws(()=>parse(['/join','ABCDEF','--password','123456']),/INVALID_INPUT/);
+assert.throws(()=>parse(['/say','--json 不是选项']),e=>e.message==='INVALID_INPUT'&&/未知选项：--json 不是选项/.test(e.detail)&&/soup\.cmd/.test(e.detail));
+assert.throws(()=>parse(['/ask','--usepersonal']),e=>e.detail==='未知选项：--usepersonal');
 });
 test('cookie jar respects domain, path, Secure, expiry, chunks',()=>{
 const jar=new CookieJar();jar.setCookieSync('sb-auth.0=abc; Path=/; Secure','https://example.com');jar.setCookieSync('sb-auth.1=def; Path=/api; Secure','https://example.com');
@@ -51,8 +54,34 @@ res.end(JSON.stringify({api_version:1,ok:true,error:null,data:{status:'completed
 });server.listen(0,'127.0.0.1');await once(server,'listening');
 const home=await mkdtemp(join(tmpdir(),'soup-password-'));
 try{
-const child=spawn(process.execPath,[new URL('../dist/cli/src/main.js',import.meta.url).pathname,'--json','--password-stdin','/join','ABCDEF'],{env:{...process.env,ONLINESOUP_HOME:home,ONLINESOUP_URL:`http://127.0.0.1:${server.address().port}`},stdio:['pipe','pipe','pipe']});
+const child=spawn(process.execPath,[fileURLToPath(new URL('../dist/cli/src/main.js',import.meta.url)),'--json','--password-stdin','/join','ABCDEF'],{env:{...process.env,ONLINESOUP_HOME:home,ONLINESOUP_URL:`http://127.0.0.1:${server.address().port}`},stdio:['pipe','pipe','pipe']});
 let out='';child.stdout.on('data',c=>out+=c);child.stdin.end('654321\n');await once(child,'close');assert.equal(JSON.parse(out).ok,true);assert.equal(received.password,'654321');
 const stored=await readFile(join(home,'session.json'),'utf8');assert.equal(stored.includes('654321'),false);assert.deepEqual(JSON.parse(stored).pending,{});
 }finally{server.close();await rm(home,{recursive:true,force:true});}
+});
+test('stdin password strips a UTF-8 BOM written by Notepad',async()=>{
+let received;const server=createServer(async(req,res)=>{
+res.setHeader('Content-Type','application/json');
+if(req.url.endsWith('/join-info'))return res.end(JSON.stringify({api_version:1,ok:true,error:null,data:{requires_password:true}}));
+let body='';for await(const chunk of req)body+=chunk;received=JSON.parse(body);
+res.end(JSON.stringify({api_version:1,ok:true,error:null,data:{status:'completed'}}));
+});server.listen(0,'127.0.0.1');await once(server,'listening');
+const home=await mkdtemp(join(tmpdir(),'soup-bom-'));
+try{
+const child=spawn(process.execPath,[fileURLToPath(new URL('../dist/cli/src/main.js',import.meta.url)),'--json','--password-stdin','/join','ABCDEF'],{env:{...process.env,ONLINESOUP_HOME:home,ONLINESOUP_URL:`http://127.0.0.1:${server.address().port}`},stdio:['pipe','pipe','pipe']});
+let out='';child.stdout.on('data',c=>out+=c);child.stdin.end(Buffer.concat([Buffer.from([0xef,0xbb,0xbf]),Buffer.from('654321\r\n')]));await once(child,'close');
+assert.equal(JSON.parse(out).ok,true);assert.equal(received.password,'654321');
+}finally{server.close();await rm(home,{recursive:true,force:true});}
+});
+test('over-length content is rejected locally with the limit and never sent',async()=>{
+let posts=0;const server=createServer((req,res)=>{if(req.method==='POST')posts++;res.setHeader('Content-Type','application/json');res.end(JSON.stringify({api_version:1,ok:true,error:null,data:{}}));});
+server.listen(0,'127.0.0.1');await once(server,'listening');
+const home=await mkdtemp(join(tmpdir(),'soup-length-'));const prior=process.env.ONLINESOUP_HOME;process.env.ONLINESOUP_HOME=home;
+try{
+const origin=`http://127.0.0.1:${server.address().port}`;const s=await openSession(origin);s.state.room='ABCDEF';await s.save();await s.close();
+const child=spawn(process.execPath,[fileURLToPath(new URL('../dist/cli/src/main.js',import.meta.url)),'--json','/say','长'.repeat(301)],{env:{...process.env,ONLINESOUP_HOME:home,ONLINESOUP_URL:origin},stdio:['ignore','pipe','pipe']});
+let out='';child.stdout.on('data',c=>out+=c);const [code]=await once(child,'close');
+const result=JSON.parse(out.trim().split('\n')[0]);
+assert.equal(result.error.code,'INVALID_INPUT');assert.match(result.error.message,/300 字上限（当前 301 字）/);assert.equal(code,2);assert.equal(posts,0);
+}finally{if(prior===undefined)delete process.env.ONLINESOUP_HOME;else process.env.ONLINESOUP_HOME=prior;server.close();await rm(home,{recursive:true,force:true});}
 });

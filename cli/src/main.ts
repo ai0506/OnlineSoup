@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { randomUUID } from 'node:crypto';
 import { createInterface } from 'node:readline/promises';
-import { parse,tokenize,parseLine,type Command } from './parser.js';
+import { parse,tokenize,parseLine,inputErrorDetail,type Command } from './parser.js';
 import { openSession,type Pending } from './session.js';
 import { api,closeConnections } from './api-client.js';
 import { checkpoint,messagePage,stateFingerprint,waitForChanges } from './sync.js';
@@ -33,7 +33,7 @@ function output(result:NotifiedResult) {
   else (result.ok?process.stdout:process.stderr).write(textOutput(result)+'\n');
 }
 async function password():Promise<string> {
-  if(passwordStdin){let value='';for await(const chunk of process.stdin)value+=chunk;return value.replace(/[\r\n]+$/,'');}
+  if(passwordStdin){let value='';for await(const chunk of process.stdin)value+=chunk;return value.replace(/^\uFEFF/,'').replace(/[\r\n]+$/,'');}
   if(!process.stdin.isTTY)throw new Error('REQUIRED_INPUT_MISSING');
   process.stderr.write('密码: ');process.stdin.setRawMode(true);process.stdin.resume();
   try{return await new Promise<string>((resolve,reject)=>{
@@ -44,6 +44,7 @@ async function password():Promise<string> {
     }};process.stdin.on('data',listener);
   });}finally{process.stdin.setRawMode(false);process.stdin.pause();process.stderr.write('\n');}
 }
+const contentLimits:Record<string,number>={say:300,ask:100,hint:50,reason:300};
 const invalidRooms=new Set(['IDLE_TIMEOUT','KICKED','ROOM_CLOSED','ROOM_NOT_FOUND','ROOM_MEMBERSHIP_REQUIRED']);
 async function execute(command:Command):Promise<PlayerEnvelope> {
   const {name,text,options}=command;
@@ -129,6 +130,8 @@ async function execute(command:Command):Promise<PlayerEnvelope> {
   }
   if(['say','ask','hint','reason'].includes(name)){
     const content=name==='hint'&&!text?'请给我一个提示':text;if(!content.trim())throw new Error('REQUIRED_INPUT_MISSING');
+    const limit=contentLimits[name],length=content.trim().length;
+    if(length>limit)return failure('INVALID_INPUT',`内容超过 ${limit} 字上限（当前 ${length} 字）`);
     payload={content};
     if(name!=='say') {
       if(old)payload={...old.payload,content,use_personal_points:options['use-personal-points']===true};
@@ -176,8 +179,8 @@ async function main() {
     const input=createInterface({input:process.stdin,output:process.stderr});
     let line:string;try{line=await input.question('soup> ');}catch{break;}finally{input.close();}
     if(!line.trim())continue;
-    try{output(await executeAndCheck(parseLine(line)));}catch(e){output(failure((e as Error).message,'请检查命令或输入'));}
+    try{output(await executeAndCheck(parseLine(line)));}catch(e){output(failure((e as Error).message,inputErrorDetail(e)??'请检查命令或输入'));}
   }
 }
-try{await main();}catch(e){output(failure((e as Error).message,'操作未完成，请检查命令、权限或会话目录'));}
+try{await main();}catch(e){output(failure((e as Error).message,inputErrorDetail(e)??'操作未完成，请检查命令、权限或会话目录'));}
 finally{await session?.close();await closeConnections();}

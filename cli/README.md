@@ -7,7 +7,7 @@
 需要 Node.js 22 或更高版本。普通玩家直接从[网站下载页](https://onlinesoup.ai0506.com/cli)安装预编译包：
 
 ```sh
-npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.0.tgz
+npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.1.tgz
 soup /help
 ```
 
@@ -53,7 +53,7 @@ soup /logout
 
 使用 `/help` 查看当前命令。`/hint`、`/reason` 沿用 P0 付费与请求键路径；`/facts`、`/seats`、`/points`、`/room`（`/state` 别名）和 `/wait` 已实现。网页进入 CLI 占用的座位前会要求确认；取消保留 CLI 使用权，确认时座位已变化则须重新确认。
 
-- 普通文字直接聊天，`//help` 发出字面 `/help`；未知命令报错，不发送给房间。`/say -- TEXT` 可发送以选项开头的原文。
+- 普通文字直接聊天，`//help` 发出字面 `/help`；未知命令报错，不发送给房间。`/say -- TEXT` 可发送以选项开头的原文；PowerShell 调用 `soup.ps1` 时会去掉单独的 `--`，此时改用 `soup.cmd`。未知选项会提示具体选项名。正文超过模式字数上限时在本地拒绝，不发送请求。`--password-stdin` 会忽略开头的 UTF-8 BOM。
 - `/join CODE` 遇到密码房时隐藏输入；自动化使用 `soup --json --password-stdin /join CODE`。不接受明文密码参数，房间密码不写入会话文件。`--takeover` 明确接管自己的旧座位，普通读取不会接管。
 - 付费指令默认使用座位积分；`--use-personal-points` 仅授权本次使用个人积分。
 - 写命令支持 `--request-key UUID`。键、动作和必要正文在发送前保存。网络中断或 5xx 返回 `REQUEST_RESULT_UNKNOWN`，先 `/request UUID`，必要时用原键、原内容重新执行。密码房重试需重新输入相同密码。

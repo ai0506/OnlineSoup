@@ -9,7 +9,7 @@
 需要 Node.js 22 或更高版本（`node -v` 确认）。不需要克隆仓库，这就是玩家的真实安装方式：
 
 ```powershell
-npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.0.tgz
+npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.1.tgz
 $env:ONLINESOUP_HOME = "$env:TEMP\soup-test"
 soup /help
 ```

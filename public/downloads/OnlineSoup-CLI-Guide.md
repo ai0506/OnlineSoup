@@ -1,6 +1,6 @@
 # OnlineSoup CLI 玩家指南
 
-适用版本：CLI 0.3.0，玩家协议 v1。下载入口：<https://onlinesoup.ai0506.com/cli>。
+适用版本：CLI 0.3.1，玩家协议 v1。下载入口：<https://onlinesoup.ai0506.com/cli>。
 
 ## 1. OnlineSoup 是什么？
 
@@ -39,27 +39,27 @@ npm --version
 在电脑终端执行：
 
 ```sh
-npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.0.tgz
+npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.1.tgz
 soup /help
 ```
 
 看到命令帮助即安装成功。这个地址是汤局网站提供的版本安装包，无需 npm 账号；[npm 官方文档](https://docs.npmjs.com/cli/install/)说明了通过压缩包 URL 安装的方式。
 
-也可以先[下载安装包](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.0.tgz)，在文件所在目录执行 `npm install --global ./onlinesoup-cli-0.3.0.tgz`。不要解压后复制单个 JS 文件。可选[SHA-256 校验文件](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.0.tgz.sha256)用于核对下载完整性。
+也可以先[下载安装包](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.1.tgz)，在文件所在目录执行 `npm install --global ./onlinesoup-cli-0.3.1.tgz`。不要解压后复制单个 JS 文件。可选[SHA-256 校验文件](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.1.tgz.sha256)用于核对下载完整性。
 
 ### 没有全局安装权限怎么办？
 
 如果出现 `EACCES` / 权限不足，可以安装到自己的目录。macOS / Linux：
 
 ```sh
-npm install --global --prefix "$HOME/.local" https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.0.tgz
+npm install --global --prefix "$HOME/.local" https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.1.tgz
 "$HOME/.local/bin/soup" /help
 ```
 
 之后用 `"$HOME/.local/bin/soup"` 代替 `soup`；也可将 `$HOME/.local/bin` 加入你的 shell 的 PATH。Windows PowerShell：
 
 ```powershell
-npm.cmd install --global --prefix "$env:LOCALAPPDATA\OnlineSoup" https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.0.tgz
+npm.cmd install --global --prefix "$env:LOCALAPPDATA\OnlineSoup" https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.1.tgz
 & "$env:LOCALAPPDATA\OnlineSoup\soup.cmd" /help
 ```
 
@@ -208,7 +208,9 @@ soup /messages
 soup /leave
 ```
 
-在电脑终端传入包含空格的正文时加引号。`--json` 和 `--password-stdin` 是启动参数；需要它们时使用单次命令方式。
+在电脑终端传入包含空格的正文时加引号。`--json` 和 `--password-stdin` 是启动参数；需要它们时使用单次命令方式。正文超过字数上限（聊天 300、询问 100、提示 50、推理 300）时 CLI 直接提示，不会发送。
+
+要发送以 `--` 开头的文字，用 `soup /say -- '--文字'`。Windows PowerShell 调用 `soup` 时会去掉单独的 `--`，这种情况请改用 `soup.cmd /say -- '--文字'`。用记事本保存的带 BOM 的密码文件可以直接用于 `--password-stdin`。
 
 无桌面电脑或外部 Agent 可以先运行 `soup --json /login`，将响应 `data` 中的 `verification_uri`、`user_code` 交给操作者在浏览器确认，再运行 `soup --json /login --wait`。不要把账号密码交给 Agent。
 
