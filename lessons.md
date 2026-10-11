@@ -1757,3 +1757,83 @@ Preventability:
 
 Origin:
 OnlineSoup 2026-10-10 updates.md [CodeX][261010140747]
+
+
+## 短 JSON 判定必须显式控制提供方思考模式，双路审计一致不代表独立成功
+
+Project: OnlineSoup
+Date: 2026-10-10
+
+Area:
+- AI / LLM
+- Backend / API
+- Testing
+
+Problem Type:
+- 提供方默认思考、输出预算截断与单路降级的审计误读
+
+Incident:
+放宽 inferential prompt 后，用房间 35WE8U 的 Doubao 原问回归；1413 两路调用 HTTP 200 但 content 为空，finish_reason 为 length。提高 ask 预算到 1024 后仍出现单路截断，但返回的两份 audit 完全一致，看上去像双路一致成功。
+
+Initial Assumption:
+只返回 answer_type 和简短 reason，320 token 应足够；两份 audit 相同可以代表两次独立调用都成功。
+
+Root Cause:
+当前 DeepSeek 文档说明默认启用思考，原 DeepSeek ask 调用未显式设置 thinking，短预算可能先耗在 reasoning_content，尚未产出最终 content 就被截断。GLM 原调用已显式关闭思考，不能据此推断 DeepSeek 也关闭。另一个独立因素是 askWithCrossCheck 单路失败时会复制成功路线填充两份 audit，虽然 cacheEligible=false，但外部查看一致 audit 容易误认。
+
+Resolution:
+仅对 ask 的 strict、inferential 与仲裁显式传入 thinking={type: "disabled"}，维持原 320 token 输出预算及多步推理 prompt；hint/reason 和摘要参数保持原状。真实回归工具同时记录各请求 status、finish_reason、contentLength 和 thinking，要求各判定调用都完整返回才通过，不能只检查最终答案或 audit 标签。另用 strict/仲裁不读取历史主持判定的方式降低错误历史锚定。
+
+Evidence:
+ai-error/10-10/inference-recheck-1413.json 记录 strict/inferential 均 status=200、finishReason=length、contentLength=0；inference-budget-1024.json 记录4项即使最终正确仍因单路未完整返回判失败。最终 inference-regression-final.json 为19/19，所有判定请求 thinking=disabled 且完整返回；新增单测检查双路/仲裁非思考参数、历史隔离、单路失败 cacheEligible=false 与玩家脱敏，共9/9测试通过，typecheck/lint/build通过。官方依据 https://api-docs.deepseek.com/guides/thinking_mode/ 。仅本地连接真实模型验证，未部署。
+
+Lesson:
+提供方默认模式会变化，短 JSON 输出预算必须结合思考模式设计；HTTP 200 不代表最终答案生成成功。两份相同审计记录也未必是独立证据，必须核对降级路径和原始请求完成状态。
+
+Rule:
+为短判定显式指定 thinking 策略，验证 finish_reason 和 content，而非只看 HTTP 状态。需要思考模式时，单独设计思考/输出预算和超时，不能靠盲目扩大 max_tokens。双路回归记录实际请求状态，不把单路回退复制的 audit 计为双路一致；历史主持判定不作为真相依据。此次未新增模型级两路一致结果校验器，也未改变原审计 schema。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-10-10 updates.md [CodeX][261010154539]
+
+## 双路判定必须分开统计单路正确率和仲裁后的正确率
+
+Project: OnlineSoup
+Date: 2026-10-11
+
+Area:
+- AI / LLM
+- Testing
+
+Problem Type:
+- 回归指标混淆与单轮成绩误读
+
+Incident:
+评估 inferential 调整时，最终答案的通过数容易被误读成推断路通过数；重复修改 prompt 后，不同版本的一轮高分也不能代表最终版本稳定。
+
+Initial Assumption:
+原问题经仲裁后全部正确，就足以说明推断路的问题解决了。
+
+Root Cause:
+仲裁可以纠正 inferential，也可能改坏正确候选。两路同模型同真相会相关犯错，且不同历史、题目 examples 与采样轮次都可能改变结果。
+
+Resolution:
+在本次分析中分别统计 strict、inferential 和最终答案，明确评分集合、排除项、源快照与源码哈希；各次修改的报告保留独立文件，最新版本同时报告原问重放及独立回归的失败，不用早先最好的一轮替代最终结果。
+
+Evidence:
+ai-error/10-11/fourth-fresh_history-results.json 与 fourth-original_history-results.json 中，最终均15/15，但 inferential 均14/15，1421由仲裁纠正。最终源码的两种原问重放 inferential 均15/15；独立36项中 inferential 29/36、最终31/36，仍有失败。详见 inferential-cognitive-boundary-review.md。本条解决的是评估口径，不能当作所有模型判定错误已经修复的证据。
+
+Lesson:
+最终正确率衡量整条决策链，单路正确率衡量该路能力；原问回归和独立边界回归是不同证据，不可替换。
+
+Rule:
+问“某一路对了吗”时直接统计该路 audit；先确认两个请求都完整成功，避免降级复制审计被算作独立判断。模型改动同时报告最新版本的通过、失败和未评分项，并保留每轮版本边界。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-10-11 updates.md [CodeX][261011111807]
