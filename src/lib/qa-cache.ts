@@ -240,6 +240,9 @@ export async function recordCacheHit(admin: SupabaseClient, entryId: number): Pr
   }
 }
 
+/** v1 entries predate content versions; v2 entries only match the puzzle content they were judged against. */
+export type CacheScope = { engine: "v1" } | { engine: "v2"; contentVersion: number };
+
 /**
  * Write a pending entry to puzzle_qa_cache. Only stable yes/no answers reach here
  * (gated by isCacheWorthy), but an admin must approve it before it can be used.
@@ -250,6 +253,7 @@ export async function saveToPuzzleQaCache(
   questionText: string,
   normalizedQuestion: string,
   answerType: CacheHit["answer_type"],
+  scope: CacheScope = { engine: "v1" },
 ): Promise<void> {
   const { error } = await admin.from("puzzle_qa_cache").insert({
     puzzle_id: puzzleId,
@@ -257,6 +261,8 @@ export async function saveToPuzzleQaCache(
     normalized_question: normalizedQuestion,
     answer_type: answerType,
     status: "pending",
+    engine: scope.engine,
+    content_version: scope.engine === "v2" ? scope.contentVersion : null,
   });
   if (error) {
     console.error("Failed to save QA cache entry", { puzzleId, message: error.message });
@@ -270,17 +276,21 @@ export async function saveToPuzzleQaCache(
 export async function fetchPuzzleQaCache(
   admin: SupabaseClient,
   puzzleId: number,
+  scope: CacheScope = { engine: "v1" },
 ): Promise<CacheCandidate[]> {
   const { error: cleanupError } = await admin.rpc("cleanup_expired_qa_cache_pending");
   if (cleanupError) {
     console.error("Failed to clean expired QA cache entries", { message: cleanupError.message });
   }
 
-  const { data, error } = await admin
+  let query = admin
     .from("puzzle_qa_cache")
     .select("id, question_text, normalized_question, answer_type")
     .eq("puzzle_id", puzzleId)
-    .eq("status", "approved");
+    .eq("status", "approved")
+    .eq("engine", scope.engine);
+  if (scope.engine === "v2") query = query.eq("content_version", scope.contentVersion);
+  const { data, error } = await query;
 
   if (error) {
     console.error("Failed to fetch approved QA cache entries", { puzzleId, message: error.message });

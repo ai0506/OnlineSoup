@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import type { MessageMode, RoomMessage } from "@/lib/types";
 
-type PuzzleContext = {
+export type PuzzleContext = {
   title: string;
   surface: string;
   bottom: string;
@@ -10,7 +10,7 @@ type PuzzleContext = {
   examples?: unknown;
 };
 
-type PuzzleMessage = Pick<
+export type PuzzleMessage = Pick<
   RoomMessage,
   "sender_name" | "message_type" | "message_mode" | "content"
 >;
@@ -25,7 +25,16 @@ type ChatJsonConfig = {
   url: string;
   model: string;
 };
-type AiCallPurpose = "ask_strict" | "ask_inferential" | "ask_arbitration" | "hint" | "reason" | "fact_summary";
+type AiCallPurpose =
+  | "ask_strict"
+  | "ask_inferential"
+  | "ask_arbitration"
+  | "ask_v2_a"
+  | "ask_v2_b1"
+  | "ask_v2_arbitration"
+  | "hint"
+  | "reason"
+  | "fact_summary";
 type ChatJsonCaller = (system: string, user: string, maxTokens: number, purpose: AiCallPurpose) => Promise<unknown>;
 type AskAuditEntry = {
   answer_type: AskResult["answer_type"];
@@ -313,7 +322,7 @@ function formatList(items: string[]) {
   return items.map((item, index) => `${index + 1}. ${item}`).join("\n");
 }
 
-function escapePromptText(text: string) {
+export function escapePromptText(text: string) {
   return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -325,7 +334,7 @@ function getPuzzlePoints(points: unknown) {
   return parsed.success ? parsed.data : [];
 }
 
-function getPuzzleExamples(examples: unknown) {
+export function getPuzzleExamples(examples: unknown) {
   const parsed = z.array(puzzleExampleSchema).safeParse(examples);
   return parsed.success ? parsed.data : [];
 }
@@ -1076,6 +1085,20 @@ async function askWithCrossCheck(
 }
 
 export { requestFactSummary };
+
+/** DeepSeek caller for the ask v2 engine, using the same per-request deadline and timeouts as production ask. */
+export function createAskV2DeepSeekCaller() {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) {
+    throw new Error("缺少 DEEPSEEK_API_KEY 环境变量");
+  }
+  return createChatJsonCaller(
+    getDeepSeekConfig(apiKey),
+    getDeepSeekPrimaryTimeoutMs("ask"),
+    createAiHostDeadline(),
+    true,
+  );
+}
 
 export async function askDeepSeekHost({
   mode,
