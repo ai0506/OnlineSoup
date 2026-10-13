@@ -16,7 +16,7 @@ export type AdminUserEntry = {
   username: string | null;
   points: number;
   createdAt: string;
-  lastSignInAt: string | null;
+  lastActiveAt: string | null;
 };
 
 export type AdminUserSort = "created" | "active";
@@ -81,7 +81,7 @@ export function AdminUserSection({
 
   const sortedUsers = [...users].sort((a, b) =>
     sort === "active"
-      ? sortTime(b.lastSignInAt) - sortTime(a.lastSignInAt)
+      ? sortTime(b.lastActiveAt) - sortTime(a.lastActiveAt)
       : sortTime(b.createdAt) - sortTime(a.createdAt),
   );
 
@@ -115,7 +115,7 @@ export function AdminUserSection({
             onClick={() => changeSort("active")}
             type="button"
           >
-            最近登录
+            最近活跃
           </button>
         </div>
         <button
@@ -143,7 +143,7 @@ export function AdminUserSection({
                 <th>邮箱</th>
                 <th className="admin-table-num">积分</th>
                 <th>注册时间</th>
-                <th>最近登录</th>
+                <th>最近活跃</th>
                 <th className="admin-table-actions">操作</th>
               </tr>
             </thead>
@@ -168,7 +168,7 @@ export function AdminUserSection({
                     <td className="admin-table-num">{displayPoints}</td>
                     <td className="muted">{formatDate(user.createdAt)}</td>
                     <td className="muted">
-                      {user.lastSignInAt ? formatDate(user.lastSignInAt) : "从未登录"}
+                      {user.lastActiveAt ? formatDate(user.lastActiveAt) : "暂无记录"}
                     </td>
                     <td className="admin-table-actions">
                       <button

@@ -792,6 +792,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     { data: feedbackEntries, error: feedbackError },
     { data: markedAiMessages },
     { data: profiles, error: profilesError },
+    { data: userActivity, error: userActivityError },
   ] = await Promise.all([
     loadAccounts
       ? admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
@@ -830,6 +831,16 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           }[],
           error: null,
         }),
+    loadAccounts
+      ? admin
+          .from("user_activity")
+          .select("user_id, last_active_at")
+          .limit(1000)
+          .returns<{ user_id: string; last_active_at: string }[]>()
+      : Promise.resolve({
+          data: [] as { user_id: string; last_active_at: string }[],
+          error: null,
+        }),
   ]);
 
   if (usersError) {
@@ -866,6 +877,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   if (feedbackError) {
     throw new Error(`读取用户反馈失败：${feedbackError.message}`);
+  }
+
+  // 活跃时间只是辅助列，读取失败时显示为暂无记录，不影响账户管理。
+  if (userActivityError) {
+    console.error("读取用户活跃时间失败:", userActivityError.message);
   }
 
   // 聊天备份列表不影响其他 tab，报错时降级为空列表，避免整页崩溃。
@@ -1076,6 +1092,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     <AdminPuzzleImport action={importPuzzles} key="import-puzzle-form" />
   );
 
+  const lastActiveById = new Map(
+    (userActivity ?? []).map((item) => [item.user_id, item.last_active_at]),
+  );
   const accountUsers: AdminUserEntry[] = visibleUsers.map((user) => {
     const profile = profileById.get(user.id);
     return {
@@ -1084,7 +1103,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       username: profile?.username ?? null,
       points: profile?.points ?? 0,
       createdAt: user.created_at,
-      lastSignInAt: user.last_sign_in_at ?? null,
+      lastActiveAt: lastActiveById.get(user.id) ?? null,
     };
   });
 
