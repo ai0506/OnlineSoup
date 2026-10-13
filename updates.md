@@ -516,3 +516,5 @@
 [Claude Code][261013213336] Ask v2 接入线上准备（未部署）：新增迁移 20261013132907_ask_v2_facts_and_cache_engine（puzzles.facts/content_version、内容变化自动加版本并将 Facts 置待复核的触发器、puzzle_qa_cache.engine/content_version 及约束索引、service_role 专用 admin_set_puzzle_facts）；qa-cache 按引擎与版本隔离；新增 src/lib/ask-v2-host.ts（ASK_ENGINE 全局开关，v2 失败改由 v1 作答且不缓存，审计记 v2_failure）；room-ai-runner 仅在 v2 读新字段、发布前校验 content_version、AI 内容超 4000 字时裁剪审计；.env.example 增加 ASK_ENGINE；新增 4 项 host 测试；typecheck/lint/72项测试/build 通过；线上 dry-run 仅待推此迁移，事务内执行并回滚验证触发器/约束/授权符合预期且已确认回滚；本地生成已批准 Facts 文件（ai-error）；计划文档同步；未推迁移、未写数据、未改 Vercel 配置。
 
 [CodeX][261013220615] Ask v2发布前复核：72项测试/typecheck/build通过，lint仅3条旧警告；线上已记录20261013132907迁移，启用题20/21分别8/13条批准Facts；生产评估接口强制404，私密用例/令牌保持Git忽略。当前全部实现已提交8831f63，准备推送GitHub main自动部署并设置Production ASK_ENGINE=v2后重部署；未重复迁移或改写题库。
+
+[CodeX][261013220742] Ask v2实现8831f63及验证记录bc65063已推送GitHub main，Git自动生产部署dpl_GSK9PLgu9PXdMoTd5fJcig82dTMU READY；Production ASK_ENGINE已设为v2并通过单变量API核对。提交此记录以通过Git触发应用新配置的第二次生产构建，不使用CLI上传源码；待最终部署/域名/生产评估404核验。
