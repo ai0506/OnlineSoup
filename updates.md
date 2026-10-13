@@ -496,3 +496,5 @@
 [CodeX][261013191543] 按用户指定仅发布DeepSeek usage：以当前线上dpl_AQbxRWDcag4JsUDdvUabPSSi9Tku的CLI0.3.2源码备份隔离构建，逐文件确认唯一运行差异为src/lib/deepseek.ts，排除工作区其他未提交改动；隔离源码11项测试/lint/build通过（lint保留3项旧警告），Vercel生产部署dpl_24H1sPRpEsJisHtBBaougem34wNy READY且主域名已绑定，主页及/cli返回200，线上CLI清单与0.3.2安装包哈希保持一致；未进行真实付费模型调用或线上usage日志端到端核验，无数据库变更、未推送GitHub。无secret部署源码备份：/Users/shuwenai/Desktop/Projects/.codex-backups/onlinesoup-usage-release-20261013-191452.tar.gz。
 
 [CodeX][261013191938] 按用户要求准备提交并发布工作区全部改动：CLI0.3.2账号隔离/凭据文件/安装包、管理账户表格与时间排序、CLI在线绿点、房间人数徽标、DeepSeek usage及文档/回归；将AI评估脚本内嵌的36项私密题目用例完整迁移至Git忽略的ai-error/fixtures/ask-inference-cases.json，公开工具新增--fixtures输入并保留本地默认路径，同步prompt工具说明。网站28项/CLI24项测试、typecheck/build/安装包检查通过，lint0错误3项旧警告；MCP确认线上20261012112106迁移、anon/authenticated RPC权限及cli_online实现，11场景事务回滚测试通过，CLI直连中断已改用MCP，无新增数据库变更；凭据模式扫描与私密用例忽略检查通过，未执行付费AI回归。
+
+[CodeX][261013192138] 全部工作区改动已提交e360c02并推送origin/main；从该提交git archive干净源码发布Vercel生产dpl_ENGDDzgyorwiEg5MfUV7uuJMVDoh，READY且onlinesoup.ai0506.com已绑定。主页/cli/login返回200、未登录/admin跳转/login、未知房间状态404；生产CLI0.3.2包/清单/指南/校验文件一致及下载包离线安装通过；公开key可到达成员RPC且无效房间拒绝。未执行管理员二次验证后交互、生产房间多客户端在线绿点实测或真实付费AI调用；数据库使用已部署迁移，未重复应用。私密评估用例留在忽略目录，不随提交或生产源码上传。
