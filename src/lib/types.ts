@@ -26,6 +26,7 @@ export type RoomSeat = {
   occupied_at: string | null;
   /** Returned only by protected room-state reads. */
   is_current_user?: boolean;
+  cli_online?: boolean;
 };
 
 export type RoomMemberState = {

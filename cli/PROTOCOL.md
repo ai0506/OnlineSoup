@@ -17,7 +17,7 @@ POST 使用 `Content-Type: application/json`。原生 CLI 无 Origin 时还须�
 | POST `/browser-login/start` | `{secret,challenge,previous_user_id?}`；secret 为随机 32 字节 base64url，challenge 为独立随机验证器的 SHA256 十六进制。返回 id、user_code、5 分钟期限；服务端仅保存哈希。复用登录尝试限流。 |
 | POST `/browser-login/poll` | `{id,secret,verifier}`；pending/issuing 等待；网页批准后仅一个发行者创建独立 CLI 会话，完成时只通过 Set-Cookie 交付，不返回令牌。未知网络结果可重复相同 poll，不新建授权。 |
 | POST `/browser-login/ack` | 同 poll 输入；CLI 原子保存 Cookie 与账号后确认，服务端清空加密暂存凭证。 |
-| POST `/login` | `{identity,password}`，identity 为用户名或邮箱；认证失效后恢复原账号时可带 `previous_user_id` 防止误换账号。成功安装并登记 CLI 会话。密码只通过安全 stdin 或 TTY 提供。 |
+| POST `/login` | `{identity,password}`，identity 为用户名或邮箱；认证失效后恢复原账号时可带 `previous_user_id` 防止误换账号。成功安装并登记 CLI 会话。CLI 密码通过安全 stdin、TTY 或操作者指定的私有账号文件提供，不进入命令参数或本地会话文件。 |
 | GET `/session` | 登录与 CLI 会话状态；无登录可返回 authenticated=false。 |
 | POST `/logout` | 吊销当前 CLI 登记及 Auth 会话；仍有有效座位则先离开。 |
 | GET `/rooms/CODE/join-info` | 受限加入信息，不返回密码或私密成员凭证。 |

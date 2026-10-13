@@ -6,6 +6,7 @@ import { openSession,type Pending } from './session.js';
 import { api,closeConnections } from './api-client.js';
 import { checkpoint,messagePage,stateFingerprint,waitForChanges } from './sync.js';
 import { browserLogin } from './browser-login.js';
+import { readCredentials } from './credentials.js';
 import { withMessageCheck,type NotifiedResult } from './message-notice.js';
 import { textOutput } from './output.js';
 import { success,failure,exitCode,type PlayerEnvelope } from '../../src/lib/player-api/protocol.js';
@@ -13,6 +14,7 @@ import { success,failure,exitCode,type PlayerEnvelope } from '../../src/lib/play
 const help=`OnlineSoup CLI（协议 1）
 /login [--no-browser]  浏览器登录；--json 返回链接，/login --wait 等待确认
 /login USERNAME_OR_EMAIL  密码从终端隐藏输入或 --password-stdin 读取
+/login --credentials-file FILE  从私有 JSON 文件读取 identity 和 password
 /join CODE [--takeover] [--request-key UUID]  密码房隐藏输入或 --password-stdin
 /state（或 /room） /puzzle /facts /seats /points
 /messages [--after CURSOR | --before CURSOR] [--limit 1-100]
@@ -53,6 +55,8 @@ async function execute(command:Command):Promise<PlayerEnvelope> {
   const s=session!;
   if(name==='login') {
     if(/\s/.test(text)||(text&&Object.keys(options).length))throw new Error('INVALID_INPUT');
+    const credentialsFile=options['credentials-file'];
+    if(credentialsFile!==undefined&&(typeof credentialsFile!=='string'||!credentialsFile||passwordStdin||Object.keys(options).length!==1))throw new Error('INVALID_INPUT');
     if(s.state.room) {
       const current=await api(s,'/session');
       if(current.ok&&current.data?.authenticated) {
@@ -62,9 +66,9 @@ async function execute(command:Command):Promise<PlayerEnvelope> {
         delete s.state.room;
       }else if(!current.ok && !['AUTH_EXPIRED','LOGIN_REQUIRED'].includes(current.error?.code??''))return current;
     }
-    if(!text)return browserLogin(s,options,json);
-    const pwd=await password();
-    const result=await api(s,'/login',{identity:text,password:pwd,...(s.state.room?{previous_user_id:s.state.user_id}:{})});
+    if(!text&&!credentialsFile)return browserLogin(s,options,json);
+    const credentials=typeof credentialsFile==='string'?await readCredentials(credentialsFile):{identity:text,password:await password()};
+    const result=await api(s,'/login',{...credentials,...(s.state.room?{previous_user_id:s.state.user_id}:{})});
     if(result.ok){delete s.state.browser_login;if(s.state.user_id!==result.data!.user_id)delete s.state.sync;s.state.user_id=String(result.data!.user_id);s.state.username=String(result.data!.username);await s.save();}
     return result;
   }

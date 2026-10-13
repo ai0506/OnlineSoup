@@ -471,3 +471,28 @@
 [Claude Code][261011115032] 更新 Windows CLI 测试清单：改为从网站安装 0.3.0 包，自动化测试改为可选的三目录稀疏检出；新增浏览器登录检查项；CLI 账号改为专用 wintest（test 名下有开放房间会触发 OWNED_ROOM_ACTIVE）；接管项改为先出现网页确认弹窗
 [Claude Code][261011131104] CLI 0.3.1：按 Windows 实测修复 --password-stdin 开头 UTF-8 BOM、正文按模式本地字数校验并明确提示、未知选项提示具体名称及 PowerShell 去掉 -- 时改用 soup.cmd、测试子进程路径改用 fileURLToPath；新增 2 项 CLI 用例（20/20 通过），打包 0.3.1 并通过离线安装检查；存档 Windows 验收记录
 [Claude Code][261011131355] 按用户要求提交工作区其余改动（ask 两路判定规则重写与 thinking 关闭、ask-inference 测试、Arena 房间实施计划、lessons 与文档索引）；含线上题目汤底/核心线索的 scripts/evaluate-ask-inference.mjs 与 docs/ai/prompts_suggestion.md 暂不提交，因仓库公开
+
+[CodeX][261011135314] 将 OnlineSoupArena 六工作区共享 CLI 从 0.3.0 升级为 0.3.1：核对生产发布清单及本地 tgz SHA-256，离线暂存安装并验证共享协议/原生锁后切换 .runtime；备份旧运行文件和指南，更新 README/包内玩家与 Agent 指南。六个 ./soup 入口从外部目录执行帮助均通过，所有工作区原文件及私密会话内容哈希保持不变；未登录、加入房间或修改账号/积分，保留项目其他未提交改动。
+
+[CodeX][261012141316] 修复 CLI 浏览器“使用其他账号”覆盖网页会话：signInForCli 改用公开 key 非持久化 Auth 客户端，账号密码与终端验证码同表单授权原 RPC，不写网页 Cookie；失败清理临时 session、成功保留发行校验；新增10项隔离回归及验收说明。19项单测/typecheck/build通过，lint 0错误3条旧警告；本地构建+真实Supabase验证网页A保持、CLI登录B及ack/logout，测试账号清理；无迁移，未部署/推送。
+
+[CodeX][261012142719] 审查网页/CLI账号切换与退出路径；修复CLI登录/浏览器收取/logout先保存Cookie再保存身份的中断窗口，改为验证响应后将Cookie、账号与缓存边界原子保存。新增/login --credentials-file FILE（UTF-8/BOM、普通文件/16KiB上限、POSIX私有权限及防符号链接、错误不泄露密码），每Agent独立home。CLI升级0.3.2并生成安装包/指南/清单，新增审查报告；24项CLI、19项网站测试及typecheck/lint/build、离线安装通过。真实Supabase双CLI文件登录/错密码保留/网页账号保持/logout通过，测试账号和文件清理；无迁移，未部署/推送/升级现有Agent运行时。
+
+[CodeX][261012151536] 生产发布CLI0.3.2及网页授权账号隔离修复，Vercel dpl_AQbxRWDcag4JsUDdvUabPSSi9Tku READY/主域名已绑定；部署从HEAD 27297ee加本次白名单文件构建，排除未完成AI prompt/评估脚本。更新线上/cli多Agent文件登录说明、生产Markdown指南及本地README/tasks/实施计划/索引/验收记录。生产tgz/清单/指南/校验哈希一致并通过离线安装；真实网页A-CLI B授权及两CLI账号文件登录/错密码保留/logout通过，测试用户/文件清理。Arena共享runtime升0.3.2，六入口/17个原私密文件哈希通过，更新各工作区文档与忽略规则；未登录Arena、无数据库迁移、未推送GitHub。部署源备份/Users/shuwenai/Desktop/Projects/.codex-backups/onlinesoup-release-0.3.2-20261012-151536.tar.gz。
+
+[CodeX][261012160113] 为六个Arena工作区创建各自私有account.json，identity与目录同名、密码采用操作者指定值，文件权限0600；更新六份AGENTS和各目录updates及根README，确认各.gitignore忽略账号文件/会话。原11个私密会话文件哈希保持；未登录/修改线上密码/加入房间。
+
+[CodeX][261012160651] 登记线上 AI 错误案例 f7ca798c-1390-4d14-8de0-24b3e6bc1f9f：ZC82YQ 题目21、消息1504，正确答案否，保留消息及题目快照；归档 ai-error/10-12/ZC82YQ-puzzle21-direct-causality.md，状态open，推断及仲裁混淆直接与间接因果，尚未修复。
+[Claude Code][261012191555] 房间标题栏“x/y 人”徽标加 flex-shrink:0 与 nowrap，修复桌面端被挤成两行
+
+[CodeX][261012192650] 修复CLI活跃玩家被网页座位标为离线：get_room_member_state新增脱敏cli_online布尔标记（当前有效CLI会话、2分钟活动窗口或有效pending AI租期），网页合并Presence与该标记；线上已应用20261012112106迁移并同版本本地归档，新增11场景回滚SQL回归及真实CLI/公开key/游客Cookie/SSR验收；typecheck/build/19项单测通过，lint仅3条旧警告；网页改动未部署，未提交推送。
+[Claude Code][261013161545] 管理端账户页改为紧凑表格，改用户名/改密码/重置邮件收进行内「编辑」弹层，清理旧账户卡片样式
+[Claude Code][261013162740] 管理端账户表新增注册时间/最近登录列及两种排序（URL 参数 sort 保留），创建账户降为工具栏小按钮并去掉冗余标题
+[CodeX][261013185502] 新增 docs/ai/Ask分支验证实施计划.md：明确 A→B1/B2→冲突仲裁，B1仅验证完整命题证据、不验证主线相关性；规划独立Facts审核与版本、旧缓存隔离、共享事实准入、串行预算/失败补偿、版本化审计和分路径验收，补充文档索引并归档ai-error/10-13设计审阅；仅文档，未修改运行代码/数据库/线上配置，未执行付费模型评估。
+
+[CodeX][261013190741] DeepSeek统一JSON调用补齐服务端[ai-usage]结构化日志：按strict/inferential/arbitration/hint/reason/fact_summary区分用途，记录输入/输出/总token、缓存命中/未命中及推理token、HTTP状态、finish_reason和耗时；在内容解析前提取usage，空内容/截断/非法JSON仍保留用量，缺失或非法usage记null；字段白名单剥离额外数据，不记录prompt/密钥，不改变玩家响应和数据库；新增9项usage回归测试，与ask既有测试共11项通过，typecheck通过，lint零错误及3项既有警告；未调用真实模型、未部署。
+[Claude Code][261013191354] 更新 docs/ai/Ask分支验证实施计划.md：确认 A 与 B1 并发、B2 串行，补充分路径时延/调用数表、并发失败规则、公共前缀以命中 DeepSeek 上下文缓存、限制 B 输出长度及并发测试场景；更正 CLI 已共用 room-ai-runner 的描述；仅文档。
+
+[CodeX][261013191543] 按用户指定仅发布DeepSeek usage：以当前线上dpl_AQbxRWDcag4JsUDdvUabPSSi9Tku的CLI0.3.2源码备份隔离构建，逐文件确认唯一运行差异为src/lib/deepseek.ts，排除工作区其他未提交改动；隔离源码11项测试/lint/build通过（lint保留3项旧警告），Vercel生产部署dpl_24H1sPRpEsJisHtBBaougem34wNy READY且主域名已绑定，主页及/cli返回200，线上CLI清单与0.3.2安装包哈希保持一致；未进行真实付费模型调用或线上usage日志端到端核验，无数据库变更、未推送GitHub。无secret部署源码备份：/Users/shuwenai/Desktop/Projects/.codex-backups/onlinesoup-usage-release-20261013-191452.tar.gz。
+
+[CodeX][261013191938] 按用户要求准备提交并发布工作区全部改动：CLI0.3.2账号隔离/凭据文件/安装包、管理账户表格与时间排序、CLI在线绿点、房间人数徽标、DeepSeek usage及文档/回归；将AI评估脚本内嵌的36项私密题目用例完整迁移至Git忽略的ai-error/fixtures/ask-inference-cases.json，公开工具新增--fixtures输入并保留本地默认路径，同步prompt工具说明。网站28项/CLI24项测试、typecheck/build/安装包检查通过，lint0错误3项旧警告；MCP确认线上20261012112106迁移、anon/authenticated RPC权限及cli_online实现，11场景事务回滚测试通过，CLI直连中断已改用MCP，无新增数据库变更；凭据模式扫描与私密用例忽略检查通过，未执行付费AI回归。

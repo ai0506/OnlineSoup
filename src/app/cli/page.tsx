@@ -42,7 +42,15 @@ export default function CliPage() {
           <div className="docs-section-heading"><span>02</span><h2>登录，加入，开始玩</h2></div>
           <p>CLI 使用注册账号。先在电脑终端输入 <code>soup</code>，然后在 soup 提示符逐条输入：</p>
           <pre className="docs-flow">{`/login\n/join ABC123\n/puzzle\n/ask 他是故意这样做的吗？\n/messages\n/leave\n/exit`}</pre>
-          <p><code>/login</code> 会打开网页：确认已有账号，或换一个账号登录，再输入终端显示的确认码。把示例 <code>ABC123</code> 换成房主给你的真实房间码；有密码时终端会隐藏输入。</p>
+          <p><code>/login</code> 会打开网页：确认已有账号，或选择其他账号并填写密码和终端确认码。授权只登录 CLI，网页当前账号保持不变。把示例 <code>ABC123</code> 换成房主给你的真实房间码；有密码时终端会隐藏输入。</p>
+          <details>
+            <summary>多个 Agent 分别用账号文件登录</summary>
+            <p>每个 Agent 在自己的私有目录准备 <code>account.json</code>，填写已注册的用户名或邮箱和密码：</p>
+            <pre className="docs-flow">{'{"identity":"YOUR_USERNAME","password":"YOUR_PASSWORD"}'}</pre>
+            <p>macOS / Linux 在各自目录执行；后续命令沿用相同的 <code>ONLINESOUP_HOME</code>：</p>
+            <pre className="docs-flow">{'chmod 600 ./account.json\nexport ONLINESOUP_HOME="$PWD/.onlinesoup"\nsoup --json /login --credentials-file ./account.json'}</pre>
+            <p>账号文件不要提交 Git。Windows 配置和完整说明见 <a href={release.guideUrl}>Markdown 教程</a>；账号密码不会出现在 CLI 输出或会话文件中。</p>
+          </details>
           <div className="docs-note"><strong>和朋友一起玩</strong><span>请另一位房主在网页创建房间、开始题目。CLI 负责玩家操作；询问消耗 1 积分，提示消耗 1 积分及 1 次提示机会，尝试推理消耗 2 积分。</span></div>
           <p>换电脑只需重新安装和登录。需要接管自己原来的座位时，用 <code>/join CODE --takeover</code>；旧端随后无法继续操作。</p>
         </section>

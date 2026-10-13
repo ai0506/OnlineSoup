@@ -2,9 +2,17 @@
 
 日期：2026-10-09。状态：已实现、迁移并部署生产，真实浏览器与 CLI 互通验证通过。
 
+## 2026-10-12 其他账号授权隔离修复（已发布）
+
+- 原实现“使用其他账号”调用 Cookie 客户端的 `signInWithPassword`，会将网页账号也切换。下文 10-09 的“网页 session 保留”仅能覆盖直接确认当前账号，不能作为切换账号不影响网页的证据。
+- 现在其他账号／未登录表单同时收集账号、密码和终端验证码，点击“确认使用此账号登录 CLI”后，在服务端使用公开 key 的非持久化 Auth 客户端验证密码，并以该账号的真实 authenticated session 调用原授权 RPC。登录凭证不返回浏览器、不写网页 Cookie；当前网页账号确认与取消路径保留。
+- 验证码、原 CLI 账号约束、有效期、真实 Auth session 检查仍由既有 RPC 执行，权限及表结构无变化。授权失败退出本次临时 Auth session；成功时不能立即退出，因为后续 CLI 发行还会核验批准者 session 存在。
+- 本地生产构建 + 真实 Supabase HTTP 流程：网页账号 A（测试账号）保持登录 → 使用账号 B 的用户名、密码及终端验证码提交实际 Server Action 表单 → approved → CLI poll 收到账号 B → `/session` 核对 user_id → ack → logout。检查授权响应没有 Supabase Auth Set-Cookie、网页原 Cookie 保持且仍识别账号 A。临时账号按管理端清理 RPC 与 Auth 删除顺序清理，未加入房间。
+- 新增 10 项隔离回归，全部 19 项单元测试、typecheck、build 通过；lint 0 错误、3 条既有警告。生产部署后，主域名实际 Server Action 表单 → 批准 → CLI 收取、/session核对 → ack/logout 全流程通过，网页原账号保留且授权响应没有覆盖网页 Auth Cookie。部署 dpl_AQbxRWDcag4JsUDdvUabPSSi9Tku；未推送 GitHub，未做真实浏览器点击验收。
+
 ## 使用
 
-终端运行 `/login`，自动打开 `/auth/cli?id=...`。网页显示当前账号，用户可以确认或选择其他账号输入密码，再输入终端的 8 位验证码明确授权。无网页登录时直接显示登录表单。完成后返回终端，不自动加入或接管房间。`/login 用户名` 的隐藏密码输入保留。
+终端运行 `/login`，自动打开 `/auth/cli?id=...`。网页显示当前账号，可以输入终端验证码确认；选择其他账号或网页未登录时，在同一表单输入账号、密码和终端的 8 位验证码，再明确授权 CLI。网页原账号保持不变，未登录的网页也不会因此登录。完成后返回终端，不自动加入或接管房间。`/login 用户名` 的隐藏密码输入保留。
 
 非桌面/Agent 可运行 `soup --json /login` 获取 verification_uri 与 user_code，由操作者确认后 `soup --json /login --wait`。`--no-browser` 禁止自动打开，Ctrl+C 后可恢复未过期请求。
 

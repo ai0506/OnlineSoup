@@ -68,7 +68,7 @@ const MSG_SUB_TAB_PARAM: Record<MessageSubTab, string> = {
 };
 
 const TAB_PARAMS: Record<AdminTab, string[]> = {
-  accounts: ["q"],
+  accounts: ["q", "sort"],
   puzzles: ["q"],
   messages: [
     "roomCode",

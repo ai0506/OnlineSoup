@@ -1,6 +1,17 @@
 # OnlineSoup CLI 网站安装包验收
 
-## 当前发布摘要
+## 0.3.2 发布与安装包验收（2026-10-12）
+
+- 新增 `/login --credentials-file FILE`；每个 Agent 以独立 JSON 账号文件和 `ONLINESOUP_HOME` 管理身份。
+- 修复登录、浏览器收取及退出时 Cookie 与本地身份分两次保存的窗口；成功切换账号一并清理旧房间缓存，损坏／未知登录响应不安装新 Cookie。
+- 包：`public/downloads/onlinesoup-cli-0.3.2.tgz`，1,838,861 字节；SHA-256 `107f5a8d8195358ffa85c822a29d386eb252f611daa989215a7a57850f6c63c6`。旧包保留，网站指南和发布清单已同步生产。
+- CLI 24 项测试、网站 19 项测试、typecheck、build 通过；lint 0 错误、3 条旧警告。空目录、空 npm 缓存离线安装、原生锁、JSON help/exit 通过（macOS arm64，Node v26.11.1）。
+- 本地生产构建配合真实 Supabase：两个实际 CLI 从独立账号文件登录、分别持久化身份；错误密码保留原 Cookie/身份；网页原账号保持；CLI logout 成功。密码不出现在输出／session.json，临时用户和文件已清理，未创建房间。
+- 2026-10-12 生产部署 `dpl_AQbxRWDcag4JsUDdvUabPSSi9Tku` READY，别名 `https://onlinesoup.ai0506.com`。0.3.2 生产清单、tgz、SHA-256 与 Markdown 指南均与本地一致，生产下载包离线安装通过。网页 A／CLI B 的密码+终端码授权、CLI ack/logout、两个实际 CLI 私有账号文件登录、错误密码保留原身份及 Cookie 均通过。临时用户与凭证文件已清理，未创建房间或修改数据库。Arena 六工作区共享运行时已升级0.3.2，17个原入口/私密会话文件哈希保留。未推送GitHub；Windows/Linux实机及真实房间付费流程未重测。 账号审查详情见 [账号隔离检查](OnlineSoup-CLI-账号隔离检查.md)。
+
+部署源使用 HEAD `27297ee` 加本次账号/CLI/文档白名单改动，排除未完成的 `docs/ai/prompts_suggestion.md` 和 `scripts/evaluate-ask-inference.mjs`。部署快照保存在 `/Users/shuwenai/Desktop/Projects/.codex-backups/onlinesoup-release-0.3.2-20261012-151536.tar.gz`；本地其他未提交改动保留。
+
+## 2026-10-10 发布摘要（历史）
 
 截至 2026-10-10，当前版本为 **0.3.0**，玩家协议仍为 v1。
 

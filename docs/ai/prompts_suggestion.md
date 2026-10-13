@@ -8,55 +8,25 @@
 
 ## 1. 回答玩家提问
 
-**用途**：玩家在游戏中提交正式提问时，AI 根据汤底和已有事实给出标准回答（是/否/与此无关/模糊问题）。
+当前实际实现以 `src/lib/deepseek.ts` 的 `buildAskPrompt`、`buildAskArbitrationPrompt` 和 `askWithCrossCheck` 为准。以下描述 2026-10-11 的本地修改；是否上线需结合部署记录确认。
 
-**输入变量**：
+- 两路都读取汤面、汤底、关键点和最近 5 个正式提问；strict 只读取 fact examples，inferential 只读取 inferential examples。两路与仲裁都不接收历史主持判定；历史问题只帮助理解指代，其中的猜测和前提不能作为事实。
+- strict 保持严格字面标准：明确、无歧义的事实才回答是／否。
+- inferential 允许有事实依据的多步常识推理、语义概括、比喻、因果链，以及行为明确传达的动机和情绪。原文未使用相同词语，不构成回避判断的理由。
+- 明令禁止添加题目未给出的具体身份、关系、承诺、经历、身体状况、事件或心理动机；每一步须有真相或不新增故事事实的普通常识依据。仅仅“可能如此”或“类似故事通常如此”不够。
+- 如果同样符合真相、同样有依据的合理推理方向会产生不同答案，不能擅选一个：命题清楚但信息不足用“与此无关”，问法或独立命题无法统一用“模糊问题”。不要求排除所有凭空设想的例外。
+- 判断须保留玩家所问的对象、前提和原因。不能用“发现朋友有手”的证据，认可“发现朋友能看见”；理由也必须支持实际命题。
+- 区分客观事实、人物认知与他人陈述。现实中某事为假，不等于人物没有误以为它为真；否定认知必须有该人物当时认知的证据。只描述一种欺骗或认知，不代表排除了其他认知；未交代的认知及其原因回答“与此无关”。仍允许从明确的发现、感知和行为推导认知。
+- “否”必须有与完整命题不能同时成立的依据；“未提及／没有该设定／实际是另一回事”本身不是反证。仲裁也遵守这一边界，命题清楚但事实不明不能改判“模糊问题”。
+- 本题 examples 仅在完整命题等价时优先：对象、认知范围、原因、前提都须一致；新增具体条件的窄命题不能套用宽泛示例答案。
+- 不注入跨题目的通用故事或示例；examples 仅来自当前题目并按 fact/inferential 分路。通用推理边界用规则表达，其他故事只留在离线回归测试中。此前通用示范方案已撤回，历史记录见 `ai-error/10-10/ask-boundary-examples.md`。
+- ask 两路与仲裁显式发送 `thinking: { type: "disabled" }`，避免提供方默认思考耗尽 320 token 的短 JSON 预算；这不删除 prompt 中的推理规则，hint/reason 的调用参数保持原状。
+- 两路答案类别一致直接采用；不同则仲裁。仲裁同样允许稳定、有依据的多步推理，不能仅因 strict 缺少直接原文而否决。当前仍无独立的“两路一致但都错”校验器。
+- 单路失败使用另一路，不允许缓存；GLM 是整条调用失败后的可选降级，不是另一条独立常驻路线。
 
-- {surface} - 汤面（公开故事）
-- {bottom} - 汤底（完整真相，仅服务端可见）
-- {known_facts} - 当前已发现的事实列表（字符串，每行一个事实）
-- {examples_text} - 该题目的示例问答（格式化文本）
+模型先输出简短 `reason` 说明完整命题的证据，再输出 `answer_type: yes|no|irrelevant|ambiguous`；证据仅说明未知时应为 irrelevant。两个字段的存储和玩家脱敏格式保持原状。`ask_audit` 保留两路与可选仲裁结果，玩家侧沿用现有脱敏流程，不展示内部理由。一致的 yes/no 仍可能生成共享事实和缓存候选，因此双路一致不能当作独立正确性证明。
 
-**Prompt 模板**：
-
-You are the host of a turtle soup mystery game.
-
-Public story:
-{surface}
-
-True answer:
-{bottom}
-
-Known facts already discovered by the player:
-{known_facts if known_facts else 'None'}
-
-{examples_text}
-
-Reply with JSON only using this schema:
-{
-  "answer_type": "yes|no|irrelevant|ambiguous",
-  "summary": "A short factual summary or null"
-}
-
-Rules:
-
-- "yes"：问题里的判断能被汤底明确、直接支持。
-- "no"：问题里的判断和汤底明确、直接冲突。
-- "irrelevant"：问题问的东西不影响真相——无论这一点是什么答案，汤底依然成立。不要因为问题"看起来不重要"就判为 irrelevant，只有当汤底真的不依赖它时才用。
-- "ambiguous"：问题不能稳定地用是/否回答。包括：问法太主观（问感受/看法而非事实）、太宽泛或复合（一次问多件事，或者是"为什么/怎么样"而非可验证的判断）、汤底信息不足以判断、或者根本不算一个是非问题（闲聊、请求、开放式提问等）。
-- 只有当汤底对问题给出明确、直接的判断时才回答 yes/no；如果要靠猜测或超出汤底本身的推断才能回答，不要硬凑成是非，改用 irrelevant 或 ambiguous（视情况而定）。
-- Do not invent facts outside the true answer.
-- Keep summary concise. Use null for irrelevant or ambiguous.
-- If the same question was answered before, keep the answer consistent.
-
-**输出示例**：
-
-{
-  "answer_type": "yes",
-  "summary": "男人曾遭遇海难，被困荒岛。"
-}
-
-**调用时机**：玩家点击「提问」按钮并成功扣除积分后。
+真实模型回归工具：`node scripts/evaluate-ask-inference.mjs --live --fixtures <本地用例JSON路径> --output <报告JSON路径>`。用例数组每项包含 `id`、`question`、`expected`（答案类型数组）、`puzzle`（含汤面/汤底，可含 key_points/examples）及 `history`（消息数组）；线上题目快照仅保存在 Git 忽略的 `ai-error/fixtures/ask-inference-cases.json`，不进入公开仓库。省略 `--fixtures` 时读取该本地文件。（Node 24 或支持 TypeScript type stripping 的版本）。只有显式 `--live` 才调用付费 AI，读取本机环境配置但不输出密钥，不写房间、题库或积分。可用 `--filter <ID片段>` 单独复查；测试共 36 项，覆盖本次 Doubao 原问、错误历史干扰及独立的离线故事，包含指代、主观／开放／选择问法、动机、反讽、谐音、职责、因果链和认知范围回归。
 
 ---
 

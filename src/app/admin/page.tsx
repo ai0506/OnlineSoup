@@ -77,6 +77,7 @@ type AdminPageProps = {
     ptDateTo?: string;
     fbStatus?: string;
     fbCategory?: string;
+    sort?: string;
   }>;
 };
 
@@ -1082,6 +1083,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       email: user.email,
       username: profile?.username ?? null,
       points: profile?.points ?? 0,
+      createdAt: user.created_at,
+      lastSignInAt: user.last_sign_in_at ?? null,
     };
   });
 
@@ -1095,6 +1098,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         adjustUserPoints={adjustUserPoints}
         updateUserUsername={updateUserUsername}
         users={accountUsers}
+        initialSort={params.sort === "active" ? "active" : "created"}
         truncated={usersTruncated}
       />
     </div>

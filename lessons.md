@@ -1837,3 +1837,164 @@ Preventability:
 
 Origin:
 OnlineSoup 2026-10-11 updates.md [CodeX][261011111807]
+
+## CLI 选择其他账号授权不能复用网页 Cookie 登录客户端
+
+Project: OnlineSoup
+Date: 2026-10-12
+
+Area:
+- Auth / User System
+- Backend / API
+- Testing
+
+Problem Type:
+- 跨客户端身份覆盖
+
+Incident:
+CLI 网页授权选择其他账号后，CLI 和原网页都切换成了新账号，无法分别使用不同账号。
+
+Initial Assumption:
+CLI 最终会生成独立会话，因此授权前先用普通网页客户端登录另一个账号似乎不会影响隔离。
+
+Root Cause:
+signInForCli 使用 createServerClient 包装的 Cookie 客户端执行 signInWithPassword，在 CLI 发行之前就替换了网页 Auth Cookie；独立发行 CLI session 不能撤回这一副作用。
+
+Resolution:
+其他账号表单一次收集账号、密码和终端验证码，由服务端公开 key 非持久化 Auth 客户端验证并调用原 authenticated 授权 RPC。既有网页确认仍用网页 session。失败只退出新建临时 session；成功保留批准 session，避免后续发行检查失效，不把其令牌返回客户端或写入 Cookie。
+
+Evidence:
+tests/cli-browser-login.test.ts 10项通过，全部19项单测、typecheck/build通过，lint无错误。实际本地生产构建 Server Action 表单配合真实Supabase：网页A保持原Cookie及身份、授权响应无Auth Set-Cookie、CLI收取B并核对/session、ack/logout成功；临时用户按admin_cleanup_user_before_delete后Auth删除。见docs/testing/OnlineSoup-CLI-浏览器登录验收.md的2026-10-12记录。未部署，未做浏览器点击验收。
+
+Lesson:
+会话隔离必须覆盖验证密码、批准、发行和收取整条路径，不能只验证最终两份session不同。清理临时session前还要检查下游是否依赖它存在。
+
+Rule:
+为其他客户端验证账号时使用不读写网页Cookie的Auth客户端；授权必须绑定服务端认证出的user.id及终端证明。回归同时断言原网页身份、授权响应Cookie和CLI最终身份，并分别标注本地与生产证据。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-10-12 updates.md [CodeX][261012141316]
+
+## 身份切换时凭证与账号缓存必须一起保存
+
+Project: OnlineSoup
+Date: 2026-10-12
+
+Area:
+- Auth / User System
+- Security / Privacy
+- Testing
+
+Problem Type:
+- 客户端认证状态持久化不一致
+
+Incident:
+账号隔离审查发现，CLI api() 收到 Set-Cookie 后先 save()，登录主命令随后才写 user_id/username 并清理旧缓存。若两次保存之间退出或响应损坏，本地可能留下新凭证与旧账号标识。
+
+Initial Assumption:
+本地会话文件采用原子 rename，即可保证登录状态整体一致。
+
+Root Cause:
+原子文件写只能保证单次保存完整；认证 Cookie 与身份边界分属两次保存，中间状态本身就不一致。缓存按旧 user_id 分组也无法纠正错误的本地身份。
+
+Resolution:
+登录、浏览器收取和退出响应先验证，再在同一次 save() 保存 Cookie、身份与缓存边界；账号变化清空 sync/room，损坏或失败的登录响应不安装新 Cookie。普通业务请求仍按既有方式保存刷新Cookie，浏览器待收取证明仍可恢复。
+
+Evidence:
+cli/tests/auth-isolation.test.mjs 在 API save 时断言 Cookie/身份一致、旧缓存已清除，以及损坏/失败登录不安装Cookie、退出同步清理。24项CLI/19项网站测试、typecheck/build通过，lint无错误。真实Supabase双CLI账号文件登录、故意错密码后session文件原样保留、网页账号保持和logout通过；临时账号/文件已清理。详见docs/testing/OnlineSoup-CLI-账号隔离检查.md，未发布。
+
+Lesson:
+原子写入不能代替跨字段的一致性设计，必须先定义一个完整的账号状态，再一起提交。
+
+Rule:
+身份切换涉及的凭证、账号标识和缓存可见边界在单次持久化提交中完成；无效响应不能提前安装凭证。回归在持久化边界检查中间快照，不只检查命令最终输出。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-10-12 updates.md [CodeX][261012142719]
+
+## 多种客户端的在线状态不能只依赖网页 Presence
+
+Project: OnlineSoup
+Date: 2026-10-12
+
+Area:
+- Realtime / Shared State
+- Database
+- Frontend / UX
+- Testing
+
+Problem Type:
+- 多客户端活动状态与在线展示不一致
+
+Incident:
+CLI 玩家正在提问，但网页座位显示离线。
+
+Initial Assumption:
+网页 Realtime Presence 可以代表所有占座玩家是否在线。
+
+Root Cause:
+网页只通过浏览器 Presence 频道计算绿点；CLI 走 HTTP，已有 last_cli_action_at 却未参与展示。另经线上权限检查确认 service_role 不能直接 SELECT room_seats，不能假设管理客户端可读所有表。
+
+Resolution:
+在已有成员状态 RPC 内根据当前未撤销CLI会话、最近2分钟有效活动或有效pending AI租期计算cli_online，保留成员/设备校验，仅返回布尔标记；网页将其与Presence合并，沿用10秒受保护状态补拉及原闲置清退规则。
+
+Evidence:
+线上11场景回滚SQL检查通过；临时真实CLI登录、入房、发言，公开key房主RPC和游客Cookie本地状态路由均返回在线，SSR显示在线绿点，非成员拒绝，leave/logout释放座位；typecheck/build/19项单测通过，lint无错误。数据库迁移已记录，网页尚未发布；未做真实付费AI或浏览器点击验收。
+
+Lesson:
+Presence只代表接入该传输频道的客户端；多端产品需定义统一且可过期的活动信号。近期活动与持续连接的含义应明确区分，不能把占座直接当作在线。
+
+Rule:
+新增客户端时同步核对在线展示、活动来源、过期及正在处理请求的边界；身份细节在既有受保护接口内归约为展示标记，不为在线状态扩大私密表权限。验证同时覆盖正常活动、失效会话和非成员访问，并分别说明数据库与网页发布状态。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-10-12 updates.md [CodeX][261012192650]
+
+## AI 输出不可用时仍须保留已返回的 token 用量
+
+Project: OnlineSoup
+Date: 2026-10-13
+
+Area:
+- AI / LLM
+- Backend / API
+- Testing
+
+Problem Type:
+- AI 用量观测缺失
+
+Incident:
+DeepSeek 统一调用入口只提取 choices.content，丢弃响应 usage，无法从服务端日志核对各次调用消耗。
+
+Initial Assumption:
+原调用入口仅关注可用的业务 JSON，没有采集响应中的 token 统计。
+
+Root Cause:
+传输层用量未被提取；如果在业务内容解析成功之后才记录，空内容、截断和非法 JSON 路径仍会漏记供应商已经返回的 usage。
+
+Resolution:
+在解析模型输出前对白名单 usage 字段做校验并保留，在 finally 中输出各次 DeepSeek 调用的用途、状态、耗时及用量。缺失或非法统计记 null，避免把未知用量伪装成零消耗。
+
+Evidence:
+9 项 mock usage 测试覆盖并发双路与仲裁、空内容、非法 JSON、截断、缺失/非法 usage、事实摘要、HTTP/网络错误及日志字段脱敏；连同既有 ask 测试共 11 项通过，typecheck 通过，lint 零错误。未进行真实计费核对或部署。
+
+Lesson:
+模型输出是否可用与供应商是否产生 token 消耗是不同维度；失败的业务响应也可能带有可记录的用量。
+
+Rule:
+在供应商响应层采集 usage，并覆盖内容解析失败路径；只保留明确允许的统计字段，未知值保持 null，不将 prompt、凭据或原始响应写入用量日志。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-10-13 updates.md [CodeX][261013190741]

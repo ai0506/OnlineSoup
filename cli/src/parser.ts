@@ -26,7 +26,7 @@ export function parse(args:string[]):Command {
   if(first.startsWith('//'))return {name:'say',text:[first.slice(1),...args.slice(1)].join(' '),options:{}};
   if(!first.startsWith('/'))return {name:'say',text:args.join(' '),options:{}};
   const rawName=first.slice(1).toLowerCase();const name=rawName==='room'?'state':rawName;if(!names.has(name))throw new Error('INVALID_COMMAND');
-  const flags:Record<string,string[]>= {login:['browser','no-browser','wait'],join:['takeover','request-key'],ask:['use-personal-points','request-key'],hint:['use-personal-points','request-key'],reason:['use-personal-points','request-key'],say:['request-key'],leave:['request-key'],messages:['after','before','limit','reset','cached'],wait:['timeout']};
+  const flags:Record<string,string[]>= {login:['browser','no-browser','wait','credentials-file'],join:['takeover','request-key'],ask:['use-personal-points','request-key'],hint:['use-personal-points','request-key'],reason:['use-personal-points','request-key'],say:['request-key'],leave:['request-key'],messages:['after','before','limit','reset','cached'],wait:['timeout']};
   const options:Record<string,string|boolean>={}, words:string[]=[];let literal=false;
   for(let i=1;i<args.length;i++) {
     const arg=args[i];if(arg==='--'&&!literal){literal=true;continue;}

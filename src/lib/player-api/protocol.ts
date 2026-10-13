@@ -8,7 +8,7 @@ export function exitCode(code?: string): number {
   if (!code) return 0;
   if (['REQUEST_RESULT_UNKNOWN', 'REQUEST_PENDING', 'NETWORK_ERROR'].includes(code)) return 5;
   if (['LOGIN_REQUIRED','CLI_SESSION_REQUIRED','AUTH_EXPIRED','USERNAME_REQUIRED','OWNER_NOT_SUPPORTED','USE_PLAYER_API'].includes(code)) return 3;
-  if (['INVALID_INPUT','INVALID_COMMAND','REQUIRED_INPUT_MISSING','CLIENT_TOO_OLD'].includes(code)) return 2;
+  if (['INVALID_INPUT','INVALID_COMMAND','REQUIRED_INPUT_MISSING','CLIENT_TOO_OLD','INVALID_CREDENTIALS_FILE','UNSAFE_CREDENTIALS_FILE'].includes(code)) return 2;
   if (['SERVER_ERROR','REQUEST_RECORD_UNAVAILABLE'].includes(code)) return 6;
   return 4;
 }

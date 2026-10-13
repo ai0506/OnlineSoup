@@ -25,7 +25,8 @@ type ChatJsonConfig = {
   url: string;
   model: string;
 };
-type ChatJsonCaller = (system: string, user: string, maxTokens: number) => Promise<unknown>;
+type AiCallPurpose = "ask_strict" | "ask_inferential" | "ask_arbitration" | "hint" | "reason" | "fact_summary";
+type ChatJsonCaller = (system: string, user: string, maxTokens: number, purpose: AiCallPurpose) => Promise<unknown>;
 type AskAuditEntry = {
   answer_type: AskResult["answer_type"];
   text: string;
@@ -34,6 +35,16 @@ type AskAuditEntry = {
 
 const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
 const DEFAULT_MODEL = "deepseek-v4-flash";
+const tokenCountSchema = z.number().int().nonnegative();
+const usageSchema = z.object({
+  prompt_tokens: tokenCountSchema.optional(),
+  completion_tokens: tokenCountSchema.optional(),
+  total_tokens: tokenCountSchema.optional(),
+  prompt_cache_hit_tokens: tokenCountSchema.optional(),
+  prompt_cache_miss_tokens: tokenCountSchema.optional(),
+  prompt_tokens_details: z.object({ cached_tokens: tokenCountSchema.optional() }).optional(),
+  completion_tokens_details: z.object({ reasoning_tokens: tokenCountSchema.optional() }).optional(),
+});
 const GLM_API_BASE_URL = "https://open.bigmodel.cn/api/paas/v4";
 const DEFAULT_GLM_ASK_FALLBACK_MODEL = "glm-4.7-flashx";
 const DEFAULT_GLM_HINT_FALLBACK_MODEL = "glm-4.7";
@@ -702,6 +713,7 @@ async function requestChatJson({
   maxTokens,
   timeoutMs,
   disableThinking = false,
+  purpose,
 }: {
   config: ChatJsonConfig;
   system: string;
@@ -709,7 +721,13 @@ async function requestChatJson({
   maxTokens: number;
   timeoutMs: number;
   disableThinking?: boolean;
+  purpose: AiCallPurpose;
 }) {
+  const startedAt = Date.now();
+  let usage: z.infer<typeof usageSchema> | null = null;
+  let finishReason: string | null = null;
+  let status: "ok" | "http_error" | "response_error" | "request_error" = "request_error";
+  let httpStatus: number | null = null;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const label = config.provider === "deepseek" ? "DeepSeek" : "GLM";
@@ -735,13 +753,20 @@ async function requestChatJson({
       signal: controller.signal,
     });
 
+    httpStatus = response.status;
     if (!response.ok) {
+      status = "http_error";
       throw new Error(`${label} 请求失败：${response.status}`);
     }
 
+    status = "response_error";
     const result = (await response.json()) as {
       choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+      usage?: unknown;
     };
+    const parsedUsage = usageSchema.safeParse(result.usage);
+    usage = parsedUsage.success ? parsedUsage.data : null;
+    finishReason = result.choices?.[0]?.finish_reason ?? null;
     const rawContent = result.choices?.[0]?.message?.content;
 
     if (!rawContent) {
@@ -752,9 +777,23 @@ async function requestChatJson({
       throw new Error(`${label} 输出被截断（max_tokens 不足）`);
     }
 
-    return parseJson(rawContent);
+    const parsed = parseJson(rawContent);
+    status = "ok";
+    return parsed;
   } finally {
     clearTimeout(timeout);
+    if (config.provider === "deepseek") {
+      console.info("[ai-usage]", {
+        provider: config.provider,
+        model: config.model,
+        purpose,
+        status,
+        http_status: httpStatus,
+        finish_reason: finishReason,
+        elapsed_ms: Date.now() - startedAt,
+        usage,
+      });
+    }
   }
 }
 
@@ -764,7 +803,7 @@ function createChatJsonCaller(
   deadline: ReturnType<typeof createAiHostDeadline> | null,
   disableThinking = false,
 ): ChatJsonCaller {
-  return (system, user, maxTokens) =>
+  return (system, user, maxTokens, purpose) =>
     requestChatJson({
       config,
       system,
@@ -772,6 +811,7 @@ function createChatJsonCaller(
       maxTokens,
       timeoutMs: getBudgetedTimeoutMs(deadline, timeoutCapMs),
       disableThinking,
+      purpose,
     });
 }
 
@@ -788,6 +828,7 @@ async function requestDeepSeekJson(
     user,
     maxTokens,
     timeoutMs: DEEPSEEK_FACT_SUMMARY_TIMEOUT_MS,
+    purpose: "fact_summary",
   });
 }
 
@@ -950,8 +991,8 @@ async function askWithCrossCheck(
   const inferentialPrompt = buildAskPrompt("inferential", puzzle, content, puzzleMessages);
 
   const [strictResult, inferentialResult] = await Promise.allSettled([
-    requestJson(strictPrompt.system, strictPrompt.user, ASK_MAX_TOKENS),
-    requestJson(inferentialPrompt.system, inferentialPrompt.user, ASK_MAX_TOKENS),
+    requestJson(strictPrompt.system, strictPrompt.user, ASK_MAX_TOKENS, "ask_strict"),
+    requestJson(inferentialPrompt.system, inferentialPrompt.user, ASK_MAX_TOKENS, "ask_inferential"),
   ]);
 
   if (strictResult.status === "rejected" && inferentialResult.status === "rejected") {
@@ -996,6 +1037,7 @@ async function askWithCrossCheck(
       arbitrationPrompt.system,
       arbitrationPrompt.user,
       ASK_MAX_TOKENS,
+      "ask_arbitration",
     );
     const final = askSchema.parse(arbitrationRaw);
     finalResult = final;
@@ -1084,7 +1126,7 @@ export async function askDeepSeekHost({
     // reason 模式关闭 thinking 后不再消耗推理预算，但评分点较多时
     // JSON 数组本身仍可能偏长，保留较高的 max_tokens 以避免截断。
     const maxTokens = mode === "reason" ? 1024 : 120;
-    const parsedContent = await caller(prompt.system, prompt.user, maxTokens);
+    const parsedContent = await caller(prompt.system, prompt.user, maxTokens, mode);
 
     return mode === "reason"
       ? formatReasonContent(parsedContent, puzzlePoints)

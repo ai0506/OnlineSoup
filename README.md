@@ -23,7 +23,7 @@
 
 只想在终端玩游戏？无需部署本项目，直接使用[CLI 下载页](https://onlinesoup.ai0506.com/cli)的安装包，阅读 [CLI 玩家指南](cli/PLAYER_GUIDE.md)。以下步骤面向网站开发者。
 
-当前 CLI 为 **0.3.1**，需要 Node.js 22 或更高版本；支持换电脑重新安装和登录。网站玩法见[图文教程](https://onlinesoup.ai0506.com/tutorial)，实现状态与验证范围见 [CLI 实施计划](docs/architecture/OnlineSoup-CLI-实施计划.md)及[安装包验收记录](docs/testing/OnlineSoup-CLI-安装包验收.md)。
+当前 CLI 为 **0.3.2**，需要 Node.js 22 或更高版本；支持换电脑重新安装和登录。网站玩法见[图文教程](https://onlinesoup.ai0506.com/tutorial)，实现状态与验证范围见 [CLI 实施计划](docs/architecture/OnlineSoup-CLI-实施计划.md)及[安装包验收记录](docs/testing/OnlineSoup-CLI-安装包验收.md)。
 
 ## 1. 安装
 

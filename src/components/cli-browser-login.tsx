@@ -21,10 +21,12 @@ export function CliBrowserLogin({id,user}:{id:string;user:{id:string;username:st
       <button type="submit" name="intent" value="deny" className="button secondary" disabled={busy}>取消授权</button>
     </form>:<form action={signIn} className="form-card form-grid">
       <input type="hidden" name="id" value={id}/>
+      <p>此账号仅用于登录 CLI，网页当前账号保持不变。</p>
       <label>邮箱或用户名<input name="identity" autoComplete="username" required disabled={busy}/></label>
       <label>密码<input name="password" type="password" autoComplete="current-password" minLength={6} required disabled={busy}/></label>
+      <label>终端验证码<input name="code" autoComplete="off" spellCheck={false} placeholder="例如 ABCD-EFGH" maxLength={9} required disabled={busy}/></label>
       {login.message&&<p className="error" role="alert">{login.message}</p>}
-      <button className="button" type="submit" disabled={busy}>{signingIn?'正在登录…':'登录并继续确认'}</button>
+      <button className="button" type="submit" disabled={busy}>{signingIn?'正在授权…':'确认使用此账号登录 CLI'}</button>
       {user&&<button type="button" className="button secondary" onClick={()=>setSwitching(false)} disabled={busy}>返回当前账号</button>}
     </form>}
     <p>登录不会加入房间或接管座位。进房后使用现有游戏规则。</p>

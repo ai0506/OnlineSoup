@@ -962,7 +962,7 @@ export function LiveRoomSeats({
 
           <div className="seat-grid">
             {seats.map((seat) => {
-              const isSeatOnline = Boolean(seat.nickname && onlineSeatIds.has(seat.id));
+              const isSeatOnline = Boolean(seat.nickname && (onlineSeatIds.has(seat.id) || seat.cli_online));
               const identity =
                 seat.seat_number === 1 ? "owner" : seat.user_id ? "registered" : "guest";
               const identityLabel =

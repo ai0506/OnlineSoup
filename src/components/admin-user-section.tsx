@@ -15,7 +15,29 @@ export type AdminUserEntry = {
   email: string | undefined;
   username: string | null;
   points: number;
+  createdAt: string;
+  lastSignInAt: string | null;
 };
+
+export type AdminUserSort = "created" | "active";
+
+const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
+  timeZone: "Asia/Shanghai",
+  year: "2-digit",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+function formatDate(value: string | null) {
+  return value ? dateFormatter.format(new Date(value)) : "—";
+}
+
+function sortTime(value: string | null) {
+  return value ? new Date(value).getTime() : 0;
+}
 
 type AdminUserSectionProps = {
   users: AdminUserEntry[];
@@ -25,6 +47,7 @@ type AdminUserSectionProps = {
   updateUserPassword: (formData: FormData) => Promise<void>;
   sendPasswordReset: (formData: FormData) => Promise<void>;
   deleteAdminUser: (formData: FormData) => Promise<void>;
+  initialSort: AdminUserSort;
   truncated?: boolean;
 };
 
@@ -36,11 +59,14 @@ export function AdminUserSection({
   updateUserPassword,
   sendPasswordReset,
   deleteAdminUser,
+  initialSort,
   truncated,
 }: AdminUserSectionProps) {
   const [createOpen, setCreateOpen] = useState(false);
+  const [sort, setSort] = useState<AdminUserSort>(initialSort);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [adjustingUser, setAdjustingUser] = useState<AdminUserEntry | null>(null);
+  const [editingUser, setEditingUser] = useState<AdminUserEntry | null>(null);
   const [adjustDirection, setAdjustDirection] = useState<"add" | "subtract">("add");
   // 提交后先本地更新积分/用户名，避免等服务端整页刷新才看到变化；服务端数据回来后自动覆盖
   const [optimisticPoints, setOptimisticPoints] = useState<Record<string, number>>({});
@@ -53,135 +79,223 @@ export function AdminUserSection({
     setOptimisticUsernames({});
   }
 
+  const sortedUsers = [...users].sort((a, b) =>
+    sort === "active"
+      ? sortTime(b.lastSignInAt) - sortTime(a.lastSignInAt)
+      : sortTime(b.createdAt) - sortTime(a.createdAt),
+  );
+
+  function changeSort(next: AdminUserSort) {
+    setSort(next);
+    // 写回地址栏，刷新或操作后跳回时保持当前排序
+    const url = new URL(window.location.href);
+    url.searchParams.set("sort", next);
+    window.history.replaceState(null, "", url);
+  }
+
   const deletingUser = deletingUserId
     ? users.find((u) => u.id === deletingUserId)
     : null;
 
   return (
     <>
-      <div className="admin-section-heading">
-        <div>
-          <h2>账户管理</h2>
-          <p className="muted">创建账户，或修改用户名、密码、积分。</p>
-          {truncated && (
-            <p className="admin-truncated-hint">
-              已达到本次查询上限（1000 个账户），可能还有账户未显示，请用搜索缩小范围查看。
-            </p>
-          )}
+      <div className="admin-table-toolbar">
+        <div className="admin-subtabs" role="group" aria-label="账户排序">
+          <button
+            aria-pressed={sort === "created"}
+            className={`admin-subtab${sort === "created" ? " active" : ""}`}
+            onClick={() => changeSort("created")}
+            type="button"
+          >
+            最新注册
+          </button>
+          <button
+            aria-pressed={sort === "active"}
+            className={`admin-subtab${sort === "active" ? " active" : ""}`}
+            onClick={() => changeSort("active")}
+            type="button"
+          >
+            最近登录
+          </button>
         </div>
         <button
-          className="button"
+          className="button ghost small"
           onClick={() => setCreateOpen(true)}
           type="button"
         >
-          创建账户
+          + 创建账户
         </button>
       </div>
+      {truncated && (
+        <p className="admin-truncated-hint">
+          已达到本次查询上限（1000 个账户），可能还有账户未显示，请用搜索缩小范围查看。
+        </p>
+      )}
 
-      <div className="admin-list">
-        {users.map((user) => {
-          const emailless = isEmailless(user.email);
-          const displayEmail = emailless
-            ? "无邮箱账户"
-            : (user.email ?? "无邮箱账户");
-          const displayUsername = optimisticUsernames[user.id] ?? user.username;
-          const displayPoints = optimisticPoints[user.id] ?? user.points;
+      {users.length === 0 ? (
+        <div className="card muted">没有找到匹配的账户。</div>
+      ) : (
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>用户名</th>
+                <th>邮箱</th>
+                <th className="admin-table-num">积分</th>
+                <th>注册时间</th>
+                <th>最近登录</th>
+                <th className="admin-table-actions">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedUsers.map((user) => {
+                const emailless = isEmailless(user.email);
+                const displayUsername = optimisticUsernames[user.id] ?? user.username;
+                const displayPoints = optimisticPoints[user.id] ?? user.points;
 
-          return (
-            <article className="admin-user-card" key={user.id}>
-              <div className="admin-user-summary">
-                <div>
-                  <strong>{displayEmail}</strong>
-                  <span>{displayUsername ?? "未设置用户名"}</span>
-                </div>
-                <div className="admin-user-summary-right">
-                  <div className="points-badge">{displayPoints} 积分</div>
-                  <button
-                    className="button secondary small"
-                    onClick={() => {
-                      setAdjustDirection("add");
-                      setAdjustingUser({ ...user, points: displayPoints });
-                    }}
-                    type="button"
-                  >
-                    调整积分
-                  </button>
-                  <button
-                    className="button danger small"
-                    onClick={() => setDeletingUserId(user.id)}
-                    type="button"
-                  >
-                    删除
-                  </button>
-                </div>
-              </div>
+                return (
+                  <tr key={user.id}>
+                    <td>
+                      {displayUsername ? (
+                        <strong>{displayUsername}</strong>
+                      ) : (
+                        <span className="muted">未设置用户名</span>
+                      )}
+                    </td>
+                    <td className={emailless ? "muted" : undefined}>
+                      {emailless ? "无邮箱" : user.email}
+                    </td>
+                    <td className="admin-table-num">{displayPoints}</td>
+                    <td className="muted">{formatDate(user.createdAt)}</td>
+                    <td className="muted">
+                      {user.lastSignInAt ? formatDate(user.lastSignInAt) : "从未登录"}
+                    </td>
+                    <td className="admin-table-actions">
+                      <button
+                        className="button ghost small"
+                        onClick={() => setEditingUser({ ...user, username: displayUsername })}
+                        type="button"
+                      >
+                        编辑
+                      </button>
+                      <button
+                        className="button ghost small"
+                        onClick={() => {
+                          setAdjustDirection("add");
+                          setAdjustingUser({ ...user, points: displayPoints });
+                        }}
+                        type="button"
+                      >
+                        调整积分
+                      </button>
+                      <button
+                        className="button danger-text small"
+                        onClick={() => setDeletingUserId(user.id)}
+                        type="button"
+                      >
+                        删除
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-              <div className="admin-user-actions">
+      {/* Edit account modal */}
+      {editingUser && (
+        <div
+          aria-label="编辑账户"
+          aria-modal="true"
+          className="dialog-backdrop"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setEditingUser(null);
+          }}
+          role="dialog"
+        >
+          <div className="dialog-panel admin-user-edit-panel">
+            <h2>编辑账户</h2>
+            <p className="muted">
+              {editingUser.username ?? "未设置用户名"}
+              &nbsp;·&nbsp;
+              {isEmailless(editingUser.email) ? "无邮箱账户" : editingUser.email}
+            </p>
+            <form
+              action={updateUserUsername}
+              className="inline-admin-form"
+              onSubmit={(event) => {
+                const value = (
+                  event.currentTarget.elements.namedItem(
+                    "username",
+                  ) as HTMLInputElement | null
+                )?.value.trim();
+                if (value) {
+                  setOptimisticUsernames((prev) => ({ ...prev, [editingUser.id]: value }));
+                }
+                setEditingUser(null);
+              }}
+            >
+              <input name="userId" type="hidden" value={editingUser.id} />
+              <label>
+                用户名
+                <input
+                  defaultValue={editingUser.username ?? ""}
+                  maxLength={8}
+                  minLength={3}
+                  name="username"
+                  pattern="[A-Za-z0-9_]{3,8}"
+                  required
+                />
+              </label>
+              <SubmitButton pendingText="保存中...">保存</SubmitButton>
+            </form>
+
+            <form
+              action={updateUserPassword}
+              className="inline-admin-form"
+              onSubmit={() => setEditingUser(null)}
+            >
+              <input name="userId" type="hidden" value={editingUser.id} />
+              <label>
+                新密码
+                <input
+                  autoComplete="new-password"
+                  maxLength={72}
+                  minLength={6}
+                  name="password"
+                  placeholder="至少 6 位"
+                  required
+                  type="password"
+                />
+              </label>
+              <SubmitButton pendingText="保存中...">修改密码</SubmitButton>
+            </form>
+
+            <div className="dialog-actions">
+              {!isEmailless(editingUser.email) && (
                 <form
-                  action={updateUserUsername}
-                  className="inline-admin-form"
-                  onSubmit={(event) => {
-                    const value = (
-                      event.currentTarget.elements.namedItem(
-                        "username",
-                      ) as HTMLInputElement | null
-                    )?.value.trim();
-                    if (value) {
-                      setOptimisticUsernames((prev) => ({ ...prev, [user.id]: value }));
-                    }
-                  }}
+                  action={sendPasswordReset}
+                  onSubmit={() => setEditingUser(null)}
                 >
-                  <input name="userId" type="hidden" value={user.id} />
-                  <label>
-                    用户名
-                    <input
-                      defaultValue={user.username ?? ""}
-                      maxLength={8}
-                      minLength={3}
-                      name="username"
-                      pattern="[A-Za-z0-9_]{3,8}"
-                      required
-                    />
-                  </label>
-                  <SubmitButton pendingText="保存中...">保存用户名</SubmitButton>
+                  <input name="userId" type="hidden" value={editingUser.id} />
+                  <SubmitButton className="button secondary" pendingText="发送中...">
+                    发送重置邮件
+                  </SubmitButton>
                 </form>
-
-                <form action={updateUserPassword} className="inline-admin-form">
-                  <input name="userId" type="hidden" value={user.id} />
-                  <label>
-                    新密码
-                    <input
-                      maxLength={72}
-                      minLength={6}
-                      name="password"
-                      placeholder="至少 6 位"
-                      required
-                      type="password"
-                    />
-                  </label>
-                  <SubmitButton pendingText="保存中...">修改密码</SubmitButton>
-                </form>
-
-                {!emailless && (
-                  <form action={sendPasswordReset} className="password-reset-form">
-                    <input name="userId" type="hidden" value={user.id} />
-                    <SubmitButton
-                      className="button secondary"
-                      pendingText="发送中..."
-                    >
-                      发送重置邮件
-                    </SubmitButton>
-                  </form>
-                )}
-              </div>
-            </article>
-          );
-        })}
-
-        {users.length === 0 && (
-          <div className="card muted">没有找到匹配的账户。</div>
-        )}
-      </div>
+              )}
+              <button
+                className="button secondary"
+                onClick={() => setEditingUser(null)}
+                type="button"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Adjust points modal */}
       {adjustingUser && (

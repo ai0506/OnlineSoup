@@ -3007,48 +3007,84 @@ textarea:focus {
   gap: 14px;
 }
 
-.admin-user-card {
-  padding: 18px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-}
-
-.admin-user-summary {
+.admin-table-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--line);
+  gap: 10px;
 }
 
-.admin-user-summary strong,
-.admin-user-summary span {
-  display: block;
+.admin-table-toolbar .admin-subtabs {
+  margin-bottom: 0;
 }
 
-.admin-user-summary span {
-  margin-top: 4px;
-  color: var(--muted);
+.admin-table td.muted {
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 0.86rem;
 }
 
-.admin-user-summary-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
+.admin-table th,
+.admin-table td {
+  padding: 6px 12px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line);
 }
 
-.points-badge {
-  flex: 0 0 auto;
-  padding: 6px 12px;
-  color: #14532d;
-  background: #f0fdf4;
-  border-radius: 999px;
+.admin-table th {
+  position: sticky;
+  top: 0;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 0.78rem;
   font-weight: 700;
-  font-size: 0.88rem;
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.admin-table tbody tr:hover {
+  background: var(--surface);
+}
+
+.admin-table td.admin-table-num,
+.admin-table th.admin-table-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-table td.admin-table-actions,
+.admin-table th.admin-table-actions {
+  width: 1%;
+  text-align: right;
+}
+
+.admin-table-actions .button + .button {
+  margin-left: 4px;
+}
+
+.admin-user-edit-panel {
+  display: grid;
+  gap: 14px;
+  width: min(440px, 100%);
+}
+
+.admin-user-edit-panel h2,
+.admin-user-edit-panel p {
+  margin-bottom: 0;
 }
 
 /* ── Admin rooms overview ── */
@@ -3176,24 +3212,11 @@ textarea:focus {
   background: #cffafe !important;
 }
 
-.admin-user-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  padding-top: 14px;
-}
-
 .inline-admin-form {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: end;
   gap: 8px;
-}
-
-.password-reset-form {
-  display: flex;
-  align-items: end;
-  justify-content: flex-end;
 }
 
 .admin-puzzle-create,
@@ -3660,7 +3683,6 @@ textarea:focus {
     flex-direction: column;
   }
 
-  .admin-user-actions,
   .inline-admin-form,
   .admin-ai-error-form,
   .admin-ai-error-edit,
@@ -5137,6 +5159,8 @@ textarea:focus {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
   margin-left: auto;
   padding: 2px 9px;
   background: #eef2f7;
@@ -5783,12 +5807,6 @@ body:has(.docs-layout) {
   min-width: 0;
 }
 
-/* 长邮箱等不含空格的字符串是撑宽卡片的主因 */
-.admin-user-summary strong,
-.admin-user-summary span {
-  overflow-wrap: anywhere;
-}
-
 @media (max-width: 760px) {
   .admin-heading,
   .admin-section-heading.with-action {
@@ -5835,29 +5853,8 @@ body:has(.docs-layout) {
     white-space: nowrap;
   }
 
-  /* 账户卡片：双列操作区 + 输入框固有最小宽度会把卡片撑出视口 */
-  .admin-user-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-user-summary {
-    flex-wrap: wrap;
-  }
-
-  .admin-user-summary > * {
-    min-width: 0;
-  }
-
   .inline-admin-form input,
   .inline-admin-form label {
     min-width: 0;
-  }
-
-  .password-reset-form {
-    justify-content: stretch;
-  }
-
-  .password-reset-form .button {
-    width: 100%;
   }
 }

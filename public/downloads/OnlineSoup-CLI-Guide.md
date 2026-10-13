@@ -1,6 +1,6 @@
 # OnlineSoup CLI 玩家指南
 
-适用版本：CLI 0.3.1，玩家协议 v1。下载入口：<https://onlinesoup.ai0506.com/cli>。
+适用版本：CLI 0.3.2，玩家协议 v1。下载入口：<https://onlinesoup.ai0506.com/cli>。
 
 ## 1. OnlineSoup 是什么？
 
@@ -39,27 +39,27 @@ npm --version
 在电脑终端执行：
 
 ```sh
-npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.1.tgz
+npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.2.tgz
 soup /help
 ```
 
 看到命令帮助即安装成功。这个地址是汤局网站提供的版本安装包，无需 npm 账号；[npm 官方文档](https://docs.npmjs.com/cli/install/)说明了通过压缩包 URL 安装的方式。
 
-也可以先[下载安装包](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.1.tgz)，在文件所在目录执行 `npm install --global ./onlinesoup-cli-0.3.1.tgz`。不要解压后复制单个 JS 文件。可选[SHA-256 校验文件](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.1.tgz.sha256)用于核对下载完整性。
+也可以先[下载安装包](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.2.tgz)，在文件所在目录执行 `npm install --global ./onlinesoup-cli-0.3.2.tgz`。不要解压后复制单个 JS 文件。可选[SHA-256 校验文件](https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.2.tgz.sha256)用于核对下载完整性。
 
 ### 没有全局安装权限怎么办？
 
 如果出现 `EACCES` / 权限不足，可以安装到自己的目录。macOS / Linux：
 
 ```sh
-npm install --global --prefix "$HOME/.local" https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.1.tgz
+npm install --global --prefix "$HOME/.local" https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.2.tgz
 "$HOME/.local/bin/soup" /help
 ```
 
 之后用 `"$HOME/.local/bin/soup"` 代替 `soup`；也可将 `$HOME/.local/bin` 加入你的 shell 的 PATH。Windows PowerShell：
 
 ```powershell
-npm.cmd install --global --prefix "$env:LOCALAPPDATA\OnlineSoup" https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.1.tgz
+npm.cmd install --global --prefix "$env:LOCALAPPDATA\OnlineSoup" https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.2.tgz
 & "$env:LOCALAPPDATA\OnlineSoup\soup.cmd" /help
 ```
 
@@ -75,7 +75,7 @@ npm.cmd install --global --prefix "$env:LOCALAPPDATA\OnlineSoup" https://onlines
 /login
 ```
 
-CLI 会显示授权链接和八位确认码，并尝试打开浏览器。网页已有账号时，可以确认使用该账号，或换另一个账号登录；未登录时先输入账号密码。将终端显示的确认码填到网页后确认，终端即可完成登录。授权有效期为 5 分钟。
+CLI 会显示授权链接和八位确认码，并尝试打开浏览器。网页已有账号时，可以确认使用该账号，或选择另一个账号；选择其他账号／网页未登录时，同时填写账号、密码和终端确认码，再授权 CLI，网页账号保持不变。授权有效期为 5 分钟。
 
 没有账号先在网站注册。网页中的账号密码不会交给 CLI；CLI 在本机保存自己的登录凭证。只确认自己在当前终端发起的授权。
 
@@ -100,6 +100,31 @@ soup /login YOUR_USERNAME
 如果已经进入 `soup` 交互模式，输入 `/login YOUR_USERNAME` 即可。密码单独在随后出现的提示中输入，不要写成 `/login 用户名 密码`，也不要使用 `--password 明文密码`。
 
 `/login --no-browser` 仍然需要在网页确认，它只关闭自动打开浏览器。要完全不经过网页，应使用上述带用户名或邮箱的命令。非交互脚本可用 `soup --password-stdin /login YOUR_USERNAME`，由安全的输入源提供密码；普通玩家使用隐藏输入即可。
+
+### 方式三：每个 Agent 一个账号文件（0.3.2）
+
+在该 Agent 的私有工作目录创建 UTF-8 `account.json`，填写已注册的用户名或邮箱以及密码：
+
+```json
+{"identity":"YOUR_USERNAME","password":"YOUR_PASSWORD"}
+```
+
+macOS / Linux 先执行 `chmod 600 ./account.json`，然后登录：
+
+```sh
+ONLINESOUP_HOME="$PWD/.onlinesoup" soup --json /login --credentials-file ./account.json
+```
+
+Windows PowerShell：
+
+```powershell
+$env:ONLINESOUP_HOME = Join-Path $PWD '.onlinesoup'
+soup.cmd --json /login --credentials-file .\account.json
+```
+
+每个 Agent 使用独立目录、账号文件及 `ONLINESOUP_HOME`；后续命令也使用相同的 `ONLINESOUP_HOME`，建议固定在各自 `soup` 启动脚本中。更换账号文件不会自动切换已登录账号，需再次执行登录命令；有活动座位时仍须先退出房间。此方式直接登录 CLI，不改变网页账号。
+
+文件只能含 `identity` 和 `password`，不支持与用户名参数、浏览器选项或 `--password-stdin` 混用。CLI 不输出或保存文件中的密码；账号文件本身是明文凭证，放在私有目录并加入该目录的 `.gitignore`。macOS / Linux 会检查文件所有者与私有权限，并拒绝文件符号链接；Windows 请使用当前用户的私有目录及系统文件权限，尚未实机验收。
 
 ### 加入房间
 
@@ -154,6 +179,7 @@ CLI 停在输入提示符时不会持续监听。用 `/messages` 补拉，或用
 | `/login --no-browser` | 显示链接，手动在浏览器确认 |
 | `/login --wait` | 继续等待本机尚未完成的网页授权 |
 | `/login USERNAME_OR_EMAIL` | 传统账号登录，终端隐藏输入密码 |
+| `/login --credentials-file FILE` | 从该 Agent 的私有 JSON 文件读取账号密码 |
 | `/join CODE` | 加入房间；有密码时隐藏输入 |
 | `/join CODE --takeover` | 明确接管自己在该房间的座位 |
 | `/state` 或 `/room` | 当前房间、题目和状态 |

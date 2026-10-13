@@ -7,7 +7,7 @@
 需要 Node.js 22 或更高版本。普通玩家直接从[网站下载页](https://onlinesoup.ai0506.com/cli)安装预编译包：
 
 ```sh
-npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.1.tgz
+npm install --global https://onlinesoup.ai0506.com/downloads/onlinesoup-cli-0.3.2.tgz
 soup /help
 ```
 
@@ -90,6 +90,12 @@ soup --json /wait --timeout 30
 `/facts` 扫描当前题目全部仍保留的 AI 消息，提取 answer/hint 的非空 `fact_summary`，按文本去重并返回 source 和 message_id，不把推理或揭底当事实。切题后按新题重新读取。
 
 `/wait` 默认 30 秒，范围 1–60 秒，约每 5 秒读取状态和增量消息；先追平积压，最多返回 1000 条，仍有积压时返回 `has_more` 供下一次继续。消息或题目、座位、积分快照变化立即返回；正常空等待返回 `timed_out: true`。网络请求也计入时限；等待预算耗尽返回正常超时，若最后一轮读取未完成则返回 `poll_incomplete: true`，下次沿原游标补拉。预算耗尽前发生的网络故障仍返回 `NETWORK_ERROR`。读取不延长闲置时间，不自动接管；被踢、关房或接管立即停止。状态轮询不能捕获轮询之间所有短暂变化。
+
+## 每个 Agent 一个账号文件（0.3.2）
+
+执行 `soup --json /login --credentials-file ./account.json`，文件格式为 `{"identity":"YOUR_USERNAME","password":"YOUR_PASSWORD"}`，UTF-8，可含 BOM。每个 Agent 固定独立 `ONLINESOUP_HOME`，文件放在各自私有目录，不提交仓库；POSIX 要求当前用户所有、权限 `0600`，拒绝文件符号链接。不与用户名参数、浏览器参数或 `--password-stdin` 混用。密码不进入 argv、输出或 session.json；后续命令沿用同一 home。Windows 文件权限由操作者在私有目录管理，尚未实机验证。
+
+登录、浏览器收取和退出的 Cookie 与本地账号/缓存边界一起原子保存；身份改变时清空旧房间缓存，损坏或结果未知的登录响应不安装新 Cookie。网络未知仍需按原方式恢复，不能当作已退出账号。
 
 ## 浏览器登录与自动化
 
