@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { SubmitButton } from "@/components/submit-button";
+import { formatAdminTime } from "@/lib/admin-time";
 
 const NOEMAIL_DOMAIN = "@noemail.internal";
 
@@ -21,20 +22,6 @@ export type AdminUserEntry = {
 
 export type AdminUserSort = "created" | "active";
 
-const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
-  timeZone: "Asia/Shanghai",
-  year: "2-digit",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-});
-
-function formatDate(value: string | null) {
-  return value ? dateFormatter.format(new Date(value)) : "—";
-}
-
 function sortTime(value: string | null) {
   return value ? new Date(value).getTime() : 0;
 }
@@ -48,6 +35,7 @@ type AdminUserSectionProps = {
   sendPasswordReset: (formData: FormData) => Promise<void>;
   deleteAdminUser: (formData: FormData) => Promise<void>;
   initialSort: AdminUserSort;
+  search?: React.ReactNode;
   truncated?: boolean;
 };
 
@@ -60,6 +48,7 @@ export function AdminUserSection({
   sendPasswordReset,
   deleteAdminUser,
   initialSort,
+  search,
   truncated,
 }: AdminUserSectionProps) {
   const [createOpen, setCreateOpen] = useState(false);
@@ -118,6 +107,7 @@ export function AdminUserSection({
             最近活跃
           </button>
         </div>
+        {search}
         <button
           className="button ghost small"
           onClick={() => setCreateOpen(true)}
@@ -166,9 +156,9 @@ export function AdminUserSection({
                       {emailless ? "无邮箱" : user.email}
                     </td>
                     <td className="admin-table-num">{displayPoints}</td>
-                    <td className="muted">{formatDate(user.createdAt)}</td>
+                    <td className="muted">{formatAdminTime(user.createdAt)}</td>
                     <td className="muted">
-                      {user.lastActiveAt ? formatDate(user.lastActiveAt) : "暂无记录"}
+                      {user.lastActiveAt ? formatAdminTime(user.lastActiveAt) : "暂无记录"}
                     </td>
                     <td className="admin-table-actions">
                       <button

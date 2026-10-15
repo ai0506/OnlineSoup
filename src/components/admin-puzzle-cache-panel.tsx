@@ -11,10 +11,13 @@ export type PuzzleCacheEntry = {
   hit_count: number;
   created_at: string;
   last_hit_at: string | null;
+  engine?: "v1" | "v2";
+  content_version?: number | null;
 };
 
 type AdminPuzzleCachePanelProps = {
   puzzleId: number;
+  puzzleContentVersion: number | null;
   entries: PuzzleCacheEntry[];
   approveAction: (formData: FormData) => void | Promise<void>;
   deleteAction: (formData: FormData) => void | Promise<void>;
@@ -42,6 +45,7 @@ function answerLabel(type: "yes" | "no") {
 
 export function AdminPuzzleCachePanel({
   puzzleId,
+  puzzleContentVersion,
   entries,
   approveAction,
   deleteAction,
@@ -95,6 +99,17 @@ export function AdminPuzzleCachePanel({
                     {answerLabel(entry.answer_type)}
                   </span>
                   <span>{entry.status === "approved" ? "已批准" : "待批准"}</span>
+                  {entry.engine === "v2" ? (
+                    entry.content_version !== puzzleContentVersion ? (
+                      <span className="admin-cache-stale">
+                        v2 · 内容版本 {entry.content_version}（题目已更新，不再命中）
+                      </span>
+                    ) : (
+                      <span>v2 · 内容版本 {entry.content_version}</span>
+                    )
+                  ) : (
+                    <span>v1</span>
+                  )}
                   <span>命中 {entry.hit_count} 次</span>
                   <span>最近命中 {formatTime(entry.last_hit_at)}</span>
                 </div>

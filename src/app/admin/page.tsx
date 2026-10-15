@@ -38,8 +38,14 @@ import {
   AdminRoomOverviewList,
   type AdminActiveRoom,
 } from "@/components/admin-room-overview-list";
+import {
+  AdminMessageAuditList,
+  type AdminMessage,
+  type AdminMessageRoom,
+  type AdminPuzzleFactRef,
+  type AdminQuestionMessage,
+} from "@/components/admin-message-audit-list";
 import { AdminTabs } from "@/components/admin-tabs";
-import { AdminAiErrorForm } from "@/components/admin-ai-error-form";
 import { AdminAiErrorCaseList } from "@/components/admin-ai-error-case-list";
 import {
   AdminChatBackupList,
@@ -53,6 +59,7 @@ import { AdminFilterForm } from "@/components/admin-filter-form";
 import { AdminEmailForm } from "@/components/admin-email-form";
 import { FlashCookieCleaner } from "@/components/flash-cookie-cleaner";
 import { requireAdmin } from "@/lib/admin";
+import { formatAdminTime } from "@/lib/admin-time";
 import { getFlashMessage } from "@/lib/flash";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -86,6 +93,8 @@ type AdminPuzzle = Required<Pick<AdminPuzzleFormValue, "id">> &
     difficulty: "简单" | "中等" | "困难" | "抽象";
     is_active: boolean;
     created_at: string;
+    facts: unknown;
+    content_version: number;
   };
 
 type AdminTab =
@@ -97,28 +106,6 @@ type AdminTab =
   | "feedback"
   | "emails";
 type AiErrorStatus = "open" | "reviewed" | "fixed" | "ignored";
-
-type AdminMessageRoom = {
-  code: string;
-  name: string;
-  status: "waiting" | "playing" | "closed";
-};
-
-type AdminMessage = {
-  id: number;
-  room_id: string;
-  seat_id: string;
-  sender_name: string;
-  sender_seat_number: number;
-  sender_type: "registered" | "guest";
-  message_type: "chat" | "system" | "ai";
-  message_mode: "chat" | "ask" | "hint" | "reason";
-  content: string;
-  puzzle_id: number | null;
-  reply_to_id: number | null;
-  created_at: string;
-  rooms: AdminMessageRoom | null;
-};
 
 type AdminCleanupRoom = {
   room_id: string;
@@ -192,39 +179,6 @@ type SupabaseResult<T> = PromiseLike<{
   error: { message: string } | null;
 }>;
 
-type ReasoningCoverage = {
-  id: number;
-  text?: string;
-  covered: boolean;
-};
-
-type AskAuditEntry = {
-  label: string;
-  answerType: string;
-  text: string;
-  factSummary: string | null;
-  reason: string | null;
-};
-
-type FactSummarySource = "glm" | "deepseek" | "unknown";
-
-type AskCacheHitDetails = {
-  entryId: number;
-  questionText: string;
-  normalizedQuestion: string | null;
-  answerType: string;
-  matchType: "exact" | "equivalent" | "unknown";
-};
-
-type AskAnswerDetails = {
-  text: string;
-  factSummary: string | null;
-  factSummarySource: FactSummarySource;
-  auditEntries: AskAuditEntry[];
-  usedArbitration: boolean;
-  cacheHit: AskCacheHitDetails | null;
-};
-
 const errors: Record<string, string> = {
   invalid_points: "调整数量必须是非零整数。",
   points_insufficient: "积分不足，无法扣除。",
@@ -288,16 +242,6 @@ const messages: Record<string, string> = {
   email_sent: "邮件已发送。",
   feedback_updated: "反馈已更新。",
 };
-
-const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-});
 
 function getAdminTab(value?: string): AdminTab {
   if (
@@ -374,60 +318,6 @@ function getAiErrorStatusFilter(value?: string) {
 }
 
 
-function formatTime(value?: string | null) {
-  return value ? timeFormatter.format(new Date(value)) : "无消息";
-}
-
-function getSenderTypeLabel(value: "registered" | "guest") {
-  return value === "registered" ? "已注册" : "访客";
-}
-
-function getMessageTypeLabel(value: AdminMessage["message_type"]) {
-  switch (value) {
-    case "ai":
-      return "AI返回";
-    case "system":
-      return "系统";
-    default:
-      return "聊天";
-  }
-}
-
-function getModeLabel(value: AdminMessage["message_mode"]) {
-  switch (value) {
-    case "ask":
-      return "询问";
-    case "hint":
-      return "提示";
-    case "reason":
-      return "推理";
-    default:
-      return "普通";
-  }
-}
-
-function getFactSummarySourceLabel(source: FactSummarySource) {
-  switch (source) {
-    case "glm":
-      return "GLM";
-    case "deepseek":
-      return "DeepSeek";
-    default:
-      return "历史消息";
-  }
-}
-
-function getCacheMatchTypeLabel(value: AskCacheHitDetails["matchType"]) {
-  switch (value) {
-    case "exact":
-      return "完全相同";
-    case "equivalent":
-      return "相似等价";
-    default:
-      return "未知";
-  }
-}
-
 function getModeFilter(value?: string) {
   return value === "chat" ||
     value === "ask" ||
@@ -435,151 +325,6 @@ function getModeFilter(value?: string) {
     value === "reason"
     ? value
     : "";
-}
-
-function getReasoningCoverage(message: AdminMessage) {
-  if (message.message_type !== "ai" || message.message_mode !== "reason") {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(message.content) as {
-      kind?: unknown;
-      coverage?: unknown;
-    };
-    if (parsed.kind !== "reasoning_result" || !Array.isArray(parsed.coverage)) {
-      return [];
-    }
-
-    return parsed.coverage
-      .map((item): ReasoningCoverage | null => {
-        if (typeof item !== "object" || item === null) return null;
-        const record = item as Record<string, unknown>;
-        if (typeof record.covered !== "boolean") return null;
-        const id =
-          typeof record.id === "number"
-            ? record.id
-            : Number.parseInt(String(record.id ?? ""), 10);
-        if (!Number.isFinite(id)) return null;
-
-        return {
-          id,
-          covered: record.covered,
-          text: typeof record.text === "string" ? record.text : undefined,
-        };
-      })
-      .filter((item): item is ReasoningCoverage => item !== null);
-  } catch {
-    return [];
-  }
-}
-
-function getAskAnswerDetails(message: AdminMessage): AskAnswerDetails | null {
-  if (message.message_type !== "ai" || message.message_mode !== "ask") {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(message.content) as {
-      kind?: unknown;
-      text?: unknown;
-      fact_summary?: unknown;
-      fact_summary_source?: unknown;
-      ask_audit?: unknown;
-      cache_hit?: unknown;
-    };
-    if (parsed.kind !== "answer" || typeof parsed.text !== "string") {
-      return null;
-    }
-
-    const factSummary =
-      typeof parsed.fact_summary === "string" ? parsed.fact_summary : null;
-    const factSummarySource: FactSummarySource =
-      parsed.fact_summary_source === "glm" || parsed.fact_summary_source === "deepseek"
-        ? parsed.fact_summary_source
-        : "unknown";
-    let cacheHit: AskCacheHitDetails | null = null;
-    if (typeof parsed.cache_hit === "object" && parsed.cache_hit !== null) {
-      const record = parsed.cache_hit as Record<string, unknown>;
-      const entryId =
-        typeof record.entry_id === "number"
-          ? record.entry_id
-          : Number.parseInt(String(record.entry_id ?? ""), 10);
-      if (
-        Number.isFinite(entryId) &&
-        typeof record.question_text === "string" &&
-        typeof record.answer_type === "string"
-      ) {
-        cacheHit = {
-          entryId,
-          questionText: record.question_text,
-          normalizedQuestion:
-            typeof record.normalized_question === "string"
-              ? record.normalized_question
-              : null,
-          answerType: record.answer_type,
-          matchType:
-            record.match_type === "exact" || record.match_type === "equivalent"
-              ? record.match_type
-              : "unknown",
-        };
-      }
-    }
-
-    if (typeof parsed.ask_audit !== "object" || parsed.ask_audit === null) {
-      return {
-        text: parsed.text,
-        factSummary,
-        factSummarySource,
-        auditEntries: [],
-        usedArbitration: false,
-        cacheHit,
-      };
-    }
-
-    const audit = parsed.ask_audit as Record<string, unknown>;
-    const labels: Array<[string, string]> = [
-      ["strict", "严格"],
-      ["inferential", "推断"],
-      ["final", "仲裁"],
-    ];
-
-    const auditEntries = labels
-      .map(([key, label]): AskAuditEntry | null => {
-        const value = audit[key];
-        if (typeof value !== "object" || value === null) return null;
-        const record = value as Record<string, unknown>;
-        if (
-          typeof record.answer_type !== "string" ||
-          typeof record.text !== "string"
-        ) {
-          return null;
-        }
-
-        return {
-          label,
-          answerType: record.answer_type,
-          text: record.text,
-          factSummary:
-            typeof record.fact_summary === "string"
-              ? record.fact_summary
-              : null,
-          reason: typeof record.reason === "string" ? record.reason : null,
-        };
-      })
-      .filter((item): item is AskAuditEntry => item !== null);
-
-    return {
-      text: parsed.text,
-      factSummary,
-      factSummarySource,
-      auditEntries,
-      usedArbitration: auditEntries.some((item) => item.label === "仲裁"),
-      cacheHit,
-    };
-  } catch {
-    return null;
-  }
 }
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
@@ -771,7 +516,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const cacheEntriesPromise = loadPuzzles
     ? admin
         .from("puzzle_qa_cache")
-        .select("id, puzzle_id, question_text, normalized_question, answer_type, status, hit_count, created_at, last_hit_at")
+        .select("id, puzzle_id, question_text, normalized_question, answer_type, status, hit_count, created_at, last_hit_at, engine, content_version")
         .order("status", { ascending: false })
         .order("hit_count", { ascending: false })
         .order("created_at", { ascending: false })
@@ -801,7 +546,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       ? admin
           .from("puzzles")
           .select(
-            "id, title, surface, bottom, difficulty, is_active, key_points, examples, created_at",
+            "id, title, surface, bottom, difficulty, is_active, key_points, examples, created_at, facts, content_version",
           )
           .order("id", { ascending: true })
           .returns<AdminPuzzle[]>()
@@ -903,19 +648,41 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         .filter((id): id is number => typeof id === "number"),
     ),
   ];
-  type QuestionMessage = Pick<
-    AdminMessage,
-    "id" | "sender_name" | "sender_seat_number" | "sender_type" | "content" | "message_mode" | "created_at"
-  >;
-  const questionById = new Map<number, QuestionMessage>();
+  const questionById: Record<number, AdminQuestionMessage> = {};
   if (replyToIds.length > 0) {
     const { data: questionMessages } = await admin
       .from("room_messages")
       .select("id, sender_name, sender_seat_number, sender_type, content, message_mode, created_at")
       .in("id", replyToIds)
-      .returns<QuestionMessage[]>();
+      .returns<AdminQuestionMessage[]>();
     for (const q of questionMessages ?? []) {
-      questionById.set(q.id, q);
+      questionById[q.id] = q;
+    }
+  }
+
+  // 审计详情里 B1 引用的 Fact 编号需要对应原文，只取本页消息涉及的题目
+  const auditPuzzleIds = [
+    ...new Set(
+      (adminMessages ?? [])
+        .map((m) => m.puzzle_id)
+        .filter((id): id is number => typeof id === "number"),
+    ),
+  ];
+  const factsByPuzzle: Record<number, AdminPuzzleFactRef[]> = {};
+  if (auditPuzzleIds.length > 0) {
+    const { data: auditPuzzles } = await admin
+      .from("puzzles")
+      .select("id, facts")
+      .in("id", auditPuzzleIds)
+      .returns<{ id: number; facts: unknown }[]>();
+    for (const puzzle of auditPuzzles ?? []) {
+      factsByPuzzle[puzzle.id] = Array.isArray(puzzle.facts)
+        ? puzzle.facts.flatMap((fact) =>
+            typeof fact?.id === "string" && typeof fact?.text === "string"
+              ? [{ id: fact.id, text: fact.text }]
+              : [],
+          )
+        : [];
     }
   }
 
@@ -1107,9 +874,41 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     };
   });
 
+  // 搜索框放在各自 tab 的工具栏里，页头在所有 tab 下保持同一高度，切换时内容不跳
+  const accountSearch = (
+    <form className="admin-search">
+      {params.sort === "active" && <input name="sort" type="hidden" value="active" />}
+      <input
+        defaultValue={params.q}
+        name="q"
+        placeholder="搜索邮箱或用户名"
+        type="search"
+      />
+      <button className="button secondary" type="submit">
+        搜索
+      </button>
+    </form>
+  );
+
+  const puzzleSearch = (
+    <form className="admin-search">
+      <input name="tab" type="hidden" value="puzzles" />
+      <input
+        defaultValue={params.q}
+        name="q"
+        placeholder="搜索标题、汤面或汤底"
+        type="search"
+      />
+      <button className="button secondary" type="submit">
+        搜索
+      </button>
+    </form>
+  );
+
   const accountContent = (
     <div className="admin-section" key="accounts-section">
       <AdminUserSection
+        search={accountSearch}
         createAdminUser={createAdminUser}
         deleteAdminUser={deleteAdminUser}
         sendPasswordReset={sendPasswordReset}
@@ -1128,7 +927,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       <div className="admin-section-heading">
         <h2>消息审计</h2>
         <p className="muted">
-          查看各房间最近 200 条消息，AI 询问回复会拆出最终答案、严格/推断/仲裁结果和事实总结。
+          各房间最近 200 条消息，点击一条在右侧查看 AI 判定过程、证据和事实总结。
         </p>
         {messagesTruncated && (
           <p className="admin-truncated-hint">
@@ -1197,156 +996,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </div>
       </AdminFilterForm>
 
-      <div className="admin-message-list">
-        {(adminMessages ?? []).map((message) => {
-          const reasoningCoverage = getReasoningCoverage(message);
-          const askAnswerDetails = getAskAnswerDetails(message);
-          const questionMessage = message.reply_to_id
-            ? questionById.get(message.reply_to_id)
-            : undefined;
-
-          return (
-            <article className="admin-message-row" key={message.id}>
-              <div className="admin-message-meta">
-                <strong>{message.rooms?.code ?? "未知房间"}</strong>
-                <span>{message.rooms?.name ?? "房间信息缺失"}</span>
-                <span>{formatTime(message.created_at)}</span>
-              </div>
-              <div className="admin-message-badges">
-                <span>{getMessageTypeLabel(message.message_type)}</span>
-                <span>{getModeLabel(message.message_mode)}</span>
-                <span>
-                  {message.sender_name} [{message.sender_seat_number}] [
-                  {getSenderTypeLabel(message.sender_type)}]
-                </span>
-                {message.puzzle_id && <span>题目 #{message.puzzle_id}</span>}
-              </div>
-              {questionMessage && (
-                <div className="admin-question-row">
-                  <span className="admin-question-label">
-                    {questionMessage.sender_name} [{questionMessage.sender_seat_number}]
-                    {" · "}{getModeLabel(questionMessage.message_mode)}
-                    {" · "}{formatTime(questionMessage.created_at)}
-                  </span>
-                  <p className="admin-question-content">{questionMessage.content}</p>
-                </div>
-              )}
-              {reasoningCoverage.length > 0 && (
-                <div className="admin-reasoning-section">
-                  <div className="admin-reasoning-section-header">
-                    <span className="admin-reasoning-coverage-label">
-                      覆盖率 {reasoningCoverage.filter(i => i.covered).length}/{reasoningCoverage.length} 已覆盖
-                    </span>
-                    {markedAiMessageIds.has(message.id) ? (
-                      <span className="admin-ai-error-marked-badge">已收录</span>
-                    ) : (
-                      <AdminAiErrorForm
-                        action={createAiErrorCase}
-                        aiMessageId={message.id}
-                        reasoningCoverage={reasoningCoverage}
-                      />
-                    )}
-                  </div>
-                  <details className="admin-collapsible">
-                    <summary>查看覆盖率详情</summary>
-                    <div className="admin-reasoning-coverage">
-                      {reasoningCoverage.map((item) => (
-                        <div
-                          className={`admin-coverage-item${item.covered ? " covered" : ""}`}
-                          key={item.id}
-                        >
-                          <strong>#{item.id}</strong>
-                          <span>{item.covered ? "已覆盖" : "未覆盖"}</span>
-                          {item.text && <p>{item.text}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-                </div>
-              )}
-              {askAnswerDetails && (
-                <div className="admin-ask-answer">
-                  <div className="admin-ask-answer-summary">
-                    <div>
-                      <span>最终回答</span>
-                      <strong>{askAnswerDetails.text}</strong>
-                    </div>
-                    <span>
-                      {askAnswerDetails.cacheHit
-                        ? "命中缓存"
-                        : askAnswerDetails.usedArbitration
-                          ? "已触发仲裁"
-                          : "两路一致"}
-                    </span>
-                    {markedAiMessageIds.has(message.id) ? (
-                      <span className="admin-ai-error-marked-badge">已收录</span>
-                    ) : (
-                      <AdminAiErrorForm action={createAiErrorCase} aiMessageId={message.id} />
-                    )}
-                  </div>
-                  {askAnswerDetails.factSummary && (
-                    <p className="admin-ask-fact">
-                      事实总结：{askAnswerDetails.factSummary}
-                      {" · 来源："}
-                      {getFactSummarySourceLabel(askAnswerDetails.factSummarySource)}
-                    </p>
-                  )}
-                  {askAnswerDetails.cacheHit && (
-                    <details className="admin-collapsible admin-cache-hit-details">
-                      <summary>
-                        查看缓存来源
-                        <span className="admin-cache-hit-badge">
-                          {getCacheMatchTypeLabel(askAnswerDetails.cacheHit.matchType)}
-                        </span>
-                      </summary>
-                      <div className="admin-cache-hit-body">
-                        <div>
-                          <span>缓存问题</span>
-                          <p>{askAnswerDetails.cacheHit.questionText}</p>
-                        </div>
-                        <div className="admin-cache-hit-meta">
-                          <span>缓存条目 #{askAnswerDetails.cacheHit.entryId}</span>
-                          <span>答案类型 {askAnswerDetails.cacheHit.answerType}</span>
-                          {askAnswerDetails.cacheHit.normalizedQuestion && (
-                            <span>
-                              规范化：{askAnswerDetails.cacheHit.normalizedQuestion}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </details>
-                  )}
-                  {askAnswerDetails.auditEntries.length > 0 && (
-                    <details className="admin-collapsible">
-                      <summary>审计详情（{askAnswerDetails.usedArbitration ? "已仲裁" : "两路一致"}）</summary>
-                      <div className="admin-ask-audit">
-                        {askAnswerDetails.auditEntries.map((item) => (
-                          <div className="admin-ask-audit-item" key={item.label}>
-                            <strong>{item.label}</strong>
-                            <span>
-                              {item.text} / {item.answerType}
-                            </span>
-                            {item.reason && <p className="admin-ask-audit-reason">原因：{item.reason}</p>}
-                            {item.factSummary && <p>{item.factSummary}</p>}
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  )}
-                </div>
-              )}
-              <details className="admin-collapsible">
-                <summary>原始内容</summary>
-                <pre className="admin-message-content">{message.content}</pre>
-              </details>
-            </article>
-          );
-        })}
-
-        {(adminMessages ?? []).length === 0 && (
-          <div className="card muted">没有找到匹配的消息。</div>
-        )}
-      </div>
+      <AdminMessageAuditList
+        createAiErrorCase={createAiErrorCase}
+        factsByPuzzle={factsByPuzzle}
+        markedAiMessageIds={[...markedAiMessageIds]}
+        messages={adminMessages ?? []}
+        questionById={questionById}
+      />
     </div>
   );
 
@@ -1472,40 +1128,63 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </div>
       </AdminFilterForm>
 
-      <div className="admin-points-list">
-        {visibleTxns.map((txn) => (
-          <div className="admin-points-row" key={txn.id}>
-            <div className="admin-message-meta">
-              <strong>{txn.username ?? txn.user_id.slice(0, 8)}</strong>
-              {txn.room_code && <span>房间 {txn.room_code}</span>}
-              <span>{formatTime(txn.created_at)}</span>
-            </div>
-            <div className="admin-message-badges">
-              <span className={`admin-points-type ${txn.type}`}>
-                {getPointsTypeLabel(txn.type)}
-              </span>
-              <span
-                className={`admin-points-amount ${txn.amount >= 0 ? "positive" : "negative"}`}
-              >
-                {txn.amount >= 0 ? "+" : ""}
-                {txn.amount} pt
-              </span>
-              <span>余额 {txn.balance_after} pt</span>
-            </div>
-            {(txn.login_location || txn.login_device || txn.login_ip) && (
-              <div className="admin-message-meta">
-                {txn.login_location && <span>地点 {txn.login_location}</span>}
-                {txn.login_device && <span>设备 {txn.login_device}</span>}
-                {txn.login_ip && <span>IP {txn.login_ip}</span>}
-              </div>
-            )}
-            {txn.note && <p className="admin-points-note">{txn.note}</p>}
-          </div>
-        ))}
-        {visibleTxns.length === 0 && (
-          <div className="card muted">没有找到匹配的积分记录。</div>
-        )}
-      </div>
+      {visibleTxns.length === 0 ? (
+        <div className="card muted">没有找到匹配的积分记录。</div>
+      ) : (
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>时间</th>
+                <th>用户</th>
+                <th>类型</th>
+                <th className="admin-table-num">变动</th>
+                <th className="admin-table-num">余额</th>
+                <th>房间</th>
+                <th>备注 / 来源</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleTxns.map((txn) => {
+                const source = [txn.login_location, txn.login_device, txn.login_ip]
+                  .filter(Boolean)
+                  .join(" · ");
+                const detail = [txn.note, source].filter(Boolean).join(" · ");
+                return (
+                  <tr key={txn.id}>
+                    <td className="muted">{formatAdminTime(txn.created_at)}</td>
+                    <td>
+                      <strong>{txn.username ?? txn.user_id.slice(0, 8)}</strong>
+                    </td>
+                    <td>
+                      <span className={`admin-pill admin-points-type ${txn.type}`}>
+                        {getPointsTypeLabel(txn.type)}
+                      </span>
+                    </td>
+                    <td
+                      className={`admin-table-num admin-points-amount ${txn.amount >= 0 ? "positive" : "negative"}`}
+                    >
+                      {txn.amount >= 0 ? "+" : ""}
+                      {txn.amount}
+                    </td>
+                    <td className="admin-table-num">{txn.balance_after}</td>
+                    <td>
+                      {txn.room_code ? (
+                        <span className="admin-table-code">{txn.room_code}</span>
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </td>
+                    <td className="admin-table-clip admin-table-grow muted" title={detail}>
+                      {detail || "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 
@@ -1600,10 +1279,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   return (
     <section className="admin-page">
       <div className="admin-heading">
-        <div>
-          <p className="eyebrow">管理端</p>
+        <div className="admin-heading-title">
           <h1>后台管理</h1>
-          <p className="lead">
+          <p className="muted">
             {activeTab === "accounts" && `共 ${users.length} 个账户`}
             {activeTab === "puzzles" && `共 ${(puzzles ?? []).length} 道题目`}
             {activeTab === "messages" &&
@@ -1619,22 +1297,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             {activeTab === "emails" && "发送系统邮件"}
           </p>
         </div>
-        {(activeTab === "accounts" || activeTab === "puzzles") && (
-          <form className="admin-search">
-            {activeTab === "puzzles" && (
-              <input name="tab" type="hidden" value="puzzles" />
-            )}
-            <input
-              defaultValue={params.q}
-              name="q"
-              placeholder="搜索邮箱、用户名或题目"
-              type="search"
-            />
-            <button className="button secondary" type="submit">
-              搜索
-            </button>
-          </form>
-        )}
       </div>
 
       {flash && <FlashCookieCleaner />}
@@ -1665,6 +1327,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         messageContent={messageContent}
         messageCount={loadMessageAudit ? (adminMessages?.length ?? 0) : null}
         puzzleContent={puzzleContent}
+        puzzleSearch={puzzleSearch}
         puzzleCount={loadPuzzles ? visiblePuzzles.length : null}
         roomsContent={roomsContent}
         roomsCount={loadRooms ? activeRooms.length : null}

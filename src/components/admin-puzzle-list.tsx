@@ -11,9 +11,24 @@ import {
   type PuzzleCacheEntry,
 } from "@/components/admin-puzzle-cache-panel";
 
+export type AdminPuzzleListItem = AdminPuzzleFormValue & {
+  facts?: unknown;
+  content_version?: number;
+};
+
+type PuzzleFactRow = {
+  id: string;
+  text: string;
+  kind: string | null;
+  quote: string | null;
+  dependsOn: string[];
+  note: string | null;
+  status: string | null;
+};
+
 type AdminPuzzleListProps = {
   deleteAction: (formData: FormData) => void | Promise<void>;
-  puzzles: AdminPuzzleFormValue[];
+  puzzles: AdminPuzzleListItem[];
   updateAction: (formData: FormData) => void | Promise<void>;
   approveCacheAction: (formData: FormData) => void | Promise<void>;
   cacheByPuzzle: Record<number, PuzzleCacheEntry[]>;
@@ -23,9 +38,49 @@ type AdminPuzzleListProps = {
   clearPuzzleCacheAction: (formData: FormData) => void | Promise<void>;
 };
 
-function clampText(value: string | undefined, maxLength = 42) {
-  if (!value) return "暂无汤面";
-  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+const factStatusLabels: Record<string, string> = {
+  approved: "已审核",
+  draft: "草稿",
+  needs_review: "待复核",
+};
+
+const factKindLabels: Record<string, string> = {
+  explicit: "原文",
+  derived: "推导",
+};
+
+// Facts 由服务端校验后写入，这里只做宽松读取用于展示
+function readFacts(value: unknown): PuzzleFactRow[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (typeof item !== "object" || item === null) return [];
+    const fact = item as Record<string, unknown>;
+    if (typeof fact.id !== "string" || typeof fact.text !== "string") return [];
+    return [
+      {
+        id: fact.id,
+        text: fact.text,
+        kind: typeof fact.kind === "string" ? fact.kind : null,
+        quote: typeof fact.quote === "string" ? fact.quote : null,
+        dependsOn: Array.isArray(fact.depends_on)
+          ? fact.depends_on.filter((dep): dep is string => typeof dep === "string")
+          : [],
+        note: typeof fact.note === "string" ? fact.note : null,
+        status: typeof fact.status === "string" ? fact.status : null,
+      },
+    ];
+  });
+}
+
+function FactsSummary({ facts }: { facts: PuzzleFactRow[] }) {
+  if (facts.length === 0) return <span className="muted">—</span>;
+  const pending = facts.filter((fact) => fact.status !== "approved").length;
+  return (
+    <>
+      {facts.length}
+      {pending > 0 && <span className="admin-pill admin-verdict-warn">{pending} 待审</span>}
+    </>
+  );
 }
 
 export function AdminPuzzleList({
@@ -44,6 +99,7 @@ export function AdminPuzzleList({
     null,
   );
   const [cachePuzzleId, setCachePuzzleId] = useState<number | null>(null);
+  const [factsPuzzleId, setFactsPuzzleId] = useState<number | null>(null);
   const editingPuzzle = useMemo(
     () => puzzles.find((puzzle) => puzzle.id === editingId),
     [editingId, puzzles],
@@ -52,19 +108,24 @@ export function AdminPuzzleList({
     () => puzzles.find((puzzle) => puzzle.id === cachePuzzleId),
     [cachePuzzleId, puzzles],
   );
+  const factsPuzzle = useMemo(
+    () => puzzles.find((puzzle) => puzzle.id === factsPuzzleId),
+    [factsPuzzleId, puzzles],
+  );
 
   useEffect(() => {
-    if (!editingPuzzle && !deletingPuzzle && !cachePuzzle) return;
+    if (!editingPuzzle && !deletingPuzzle && !cachePuzzle && !factsPuzzle) return;
 
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       setEditingId(null);
       setDeletingPuzzle(null);
       setCachePuzzleId(null);
+      setFactsPuzzleId(null);
     };
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [editingPuzzle, deletingPuzzle, cachePuzzle]);
+  }, [editingPuzzle, deletingPuzzle, cachePuzzle, factsPuzzle]);
 
   if (puzzles.length === 0) {
     return <div className="card muted">没有找到匹配的题目。</div>;
@@ -72,53 +133,89 @@ export function AdminPuzzleList({
 
   return (
     <>
-      <div className="admin-puzzle-summary-list">
-        {puzzles.map((puzzle) => {
-          return (
-            <article
-              className={`admin-puzzle-summary-card${puzzle.is_active ? "" : " inactive"}`}
-              key={puzzle.id}
-            >
-              <div className="admin-puzzle-summary-main">
-                <div className="admin-puzzle-summary-title">
-                  <span className="admin-puzzle-id">#{puzzle.id}</span>
-                  <strong>{puzzle.title}</strong>
-                </div>
-                <p>{clampText(puzzle.surface)}</p>
-                <div className="admin-puzzle-tags">
-                  <span>{puzzle.difficulty ?? "未设难度"}</span>
-                  <span>{puzzle.is_active ? "可用" : "已移除"}</span>
-                </div>
-              </div>
-              <div className="admin-puzzle-summary-actions">
-                <button
-                  className="button secondary"
-                  onClick={() => setEditingId(puzzle.id ?? null)}
-                  type="button"
-                >
-                  编辑
-                </button>
-                <button
-                  className="button ghost"
-                  onClick={() => setCachePuzzleId(puzzle.id ?? null)}
-                  type="button"
-                >
-                  缓存
-                  <span className="admin-puzzle-cache-count">
-                    {puzzle.id ? (cacheByPuzzle[puzzle.id]?.length ?? 0) : 0}
-                  </span>
-                </button>
-                <button
-                  className="button danger"
-                  onClick={() => setDeletingPuzzle(puzzle)}
-                  type="button"
-                >
-                  删除
-                </button>
-              </div>
-            </article>
-          );
-        })}
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>标题</th>
+              <th>汤面</th>
+              <th>难度</th>
+              <th>状态</th>
+              <th className="admin-table-num">Facts</th>
+              <th className="admin-table-num">内容版本</th>
+              <th className="admin-table-num">缓存</th>
+              <th className="admin-table-actions">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {puzzles.map((puzzle) => {
+              const facts = readFacts(puzzle.facts);
+              const cacheEntries = puzzle.id ? (cacheByPuzzle[puzzle.id] ?? []) : [];
+              const pendingCache = cacheEntries.filter((entry) => entry.status === "pending").length;
+              return (
+                <tr className={puzzle.is_active ? undefined : "admin-table-row-dim"} key={puzzle.id}>
+                  <td className="muted">#{puzzle.id}</td>
+                  <td>
+                    <strong>{puzzle.title}</strong>
+                  </td>
+                  <td className="admin-table-clip admin-table-grow muted" title={puzzle.surface}>
+                    {puzzle.surface || "暂无汤面"}
+                  </td>
+                  <td>{puzzle.difficulty ?? "未设难度"}</td>
+                  <td>
+                    {puzzle.is_active ? (
+                      <span className="admin-pill admin-verdict-ok">可用</span>
+                    ) : (
+                      <span className="admin-pill">已移除</span>
+                    )}
+                  </td>
+                  <td className="admin-table-num">
+                    <FactsSummary facts={facts} />
+                  </td>
+                  <td className="admin-table-num">{puzzle.content_version ?? 1}</td>
+                  <td className="admin-table-num">
+                    {cacheEntries.length}
+                    {pendingCache > 0 && (
+                      <span className="admin-pill admin-verdict-warn">{pendingCache} 待批</span>
+                    )}
+                  </td>
+                  <td className="admin-table-actions">
+                    <button
+                      className="button ghost small"
+                      onClick={() => setEditingId(puzzle.id ?? null)}
+                      type="button"
+                    >
+                      编辑
+                    </button>
+                    <button
+                      className="button ghost small"
+                      disabled={facts.length === 0}
+                      onClick={() => setFactsPuzzleId(puzzle.id ?? null)}
+                      type="button"
+                    >
+                      Facts
+                    </button>
+                    <button
+                      className="button ghost small"
+                      onClick={() => setCachePuzzleId(puzzle.id ?? null)}
+                      type="button"
+                    >
+                      缓存
+                    </button>
+                    <button
+                      className="button danger-text small"
+                      onClick={() => setDeletingPuzzle(puzzle)}
+                      type="button"
+                    >
+                      删除
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       {editingPuzzle && (
@@ -152,6 +249,70 @@ export function AdminPuzzleList({
         </div>
       )}
 
+      {factsPuzzle && (
+        <div className="admin-panel-overlay" role="dialog" aria-modal="true">
+          <div className="admin-panel-dialog">
+            <div className="admin-panel-header">
+              <div>
+                <h2>Facts</h2>
+                <p className="muted">
+                  #{factsPuzzle.id} · {factsPuzzle.title} · 内容版本{" "}
+                  {factsPuzzle.content_version ?? 1}
+                </p>
+              </div>
+              <button
+                aria-label="关闭 Facts 面板"
+                className="admin-panel-close"
+                onClick={() => setFactsPuzzleId(null)}
+                type="button"
+              >
+                ×
+              </button>
+            </div>
+            <p className="muted admin-facts-hint">
+              AI 主持判定时引用的事实清单，只读。修改汤面或汤底后，未同时更新的 Facts 会变为「待复核」。
+            </p>
+            <div className="admin-table-wrap">
+              <table className="admin-table admin-facts-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>内容</th>
+                    <th>类型</th>
+                    <th>依据</th>
+                    <th>状态</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {readFacts(factsPuzzle.facts).map((fact) => (
+                    <tr key={fact.id}>
+                      <td className="admin-table-code">{fact.id}</td>
+                      <td className="admin-table-text">
+                        {fact.text}
+                        {fact.note && <p className="muted">{fact.note}</p>}
+                      </td>
+                      <td>{fact.kind ? (factKindLabels[fact.kind] ?? fact.kind) : "—"}</td>
+                      <td className="admin-table-text muted">
+                        {fact.quote && <>「{fact.quote}」</>}
+                        {fact.dependsOn.length > 0 && <>依赖 {fact.dependsOn.join("、")}</>}
+                        {!fact.quote && fact.dependsOn.length === 0 && "—"}
+                      </td>
+                      <td>
+                        <span
+                          className={`admin-pill${fact.status === "approved" ? " admin-verdict-ok" : " admin-verdict-warn"}`}
+                        >
+                          {fact.status ? (factStatusLabels[fact.status] ?? fact.status) : "未知"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {cachePuzzle && (
         <div className="admin-panel-overlay" role="dialog" aria-modal="true">
           <div className="admin-panel-dialog">
@@ -177,6 +338,7 @@ export function AdminPuzzleList({
               approveAction={approveCacheAction}
               deleteAction={deleteCacheAction}
               entries={cachePuzzle.id ? (cacheByPuzzle[cachePuzzle.id] ?? []) : []}
+              puzzleContentVersion={cachePuzzle.content_version ?? null}
               puzzleId={cachePuzzle.id ?? 0}
               updateAnswerAction={updateCacheAnswerAction}
               updateTextAction={updateCacheTextAction}

@@ -1998,3 +1998,41 @@ Preventability:
 
 Origin:
 OnlineSoup 2026-10-13 updates.md [CodeX][261013190741]
+
+## 中文短标签在可收缩容器里会被压成每字一行
+
+Project: OnlineSoup
+Date: 2026-10-15
+
+Area:
+- Frontend / UX
+
+Problem Type:
+- 布局压缩导致短标签折行
+
+Incident:
+房间标题栏的“1/2 人”徽标在桌面端被挤成两行（2026-10-12 修复）；管理端题库 Facts 表中“原文”“已审核”等两三个字的列又被拆成每字一行，而长文本列却仍有余量。
+
+Initial Assumption:
+两三个字的标签足够短，不会换行；表格让所有单元格都能换行，可以避免长内容撑宽表格。
+
+Root Cause:
+中文没有词边界，每个字之间都是合法断点，其最小内容宽度只有一个字。flex 子项默认 flex-shrink: 1，自动表格布局会优先压缩可换行列，所以只要容器空间不足，短标签会先被压到最窄。Facts 表把整张表的 td 都设为 white-space: normal，自动列宽便把多余空间分给长文本列，短列被压成一个字宽。
+
+Resolution:
+房间徽标加 flex-shrink: 0 与 white-space: nowrap。管理端表格保持默认不换行，只给内容、依据等长文本列加 admin-table-text 开启换行并设置最小宽度；状态标签 admin-pill、主/子 tab 统一 nowrap。
+
+Evidence:
+本地组件预览载入线上题目 #21 的 13 条 Facts，在 716px 宽的窄面板中截图确认类型和状态列均为单行；房间徽标修复见对应 updates 记录。
+
+Lesson:
+单个元素“短”并不能保证它不被折行；是否折行取决于容器是否允许压缩它。中文标签对压缩尤其敏感。
+
+Rule:
+状态、数量、类型、按钮、tab 等短标签默认 white-space: nowrap，在 flex 中再加 flex-shrink: 0；表格默认不换行，只对明确的长文本列开启换行并给出 min-width，不要整表开启 white-space: normal。新增界面在窄屏宽度下检查短标签是否单行。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-10-12 updates.md [Claude Code][261012191555]；2026-10-15 updates.md [Claude Code][261015130743]

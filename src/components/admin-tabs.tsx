@@ -37,6 +37,7 @@ type AdminTabsProps = {
   messageCount: TabCount;
   puzzleContent: React.ReactNode;
   puzzleCount: TabCount;
+  puzzleSearch?: React.ReactNode;
   roomsContent: React.ReactNode;
   roomsCount: TabCount;
   pointsContent: React.ReactNode;
@@ -114,6 +115,7 @@ export function AdminTabs({
   messageCount,
   puzzleContent,
   puzzleCount,
+  puzzleSearch,
   roomsContent,
   roomsCount,
   pointsContent,
@@ -202,77 +204,114 @@ export function AdminTabs({
 
   return (
     <div className="admin-tabs-shell">
-      <div className="admin-tabs" role="tablist" aria-label="后台管理分类">
-        <button
-          aria-selected={activeTab === "accounts"}
-          className={`admin-tab${activeTab === "accounts" ? " active" : ""}`}
-          onClick={() => selectTab("accounts")}
-          role="tab"
-          type="button"
-        >
-          账户管理
-          <TabBadge counts={[accountCount]} />
-        </button>
-        <button
-          aria-selected={activeTab === "puzzles"}
-          className={`admin-tab${activeTab === "puzzles" ? " active" : ""}`}
-          onClick={() => selectTab("puzzles")}
-          role="tab"
-          type="button"
-        >
-          题库管理
-          <TabBadge counts={[puzzleCount]} />
-        </button>
-        <button
-          aria-selected={activeTab === "messages"}
-          className={`admin-tab${activeTab === "messages" ? " active" : ""}`}
-          onClick={() => selectTab("messages")}
-          role="tab"
-          type="button"
-        >
-          消息 &amp; 案例
-          <TabBadge counts={[messageCount, aiErrorCaseCount]} />
-        </button>
-        <button
-          aria-selected={activeTab === "rooms"}
-          className={`admin-tab${activeTab === "rooms" ? " active" : ""}`}
-          onClick={() => selectTab("rooms")}
-          role="tab"
-          type="button"
-        >
-          房间管理
-          <TabBadge counts={[roomsCount, cleanupCount]} />
-        </button>
-        <button
-          aria-selected={activeTab === "points"}
-          className={`admin-tab${activeTab === "points" ? " active" : ""}`}
-          onClick={() => selectTab("points")}
-          role="tab"
-          type="button"
-        >
-          积分流水
-          <TabBadge counts={[pointsCount]} />
-        </button>
-        <button
-          aria-selected={activeTab === "feedback"}
-          className={`admin-tab${activeTab === "feedback" ? " active" : ""}`}
-          onClick={() => selectTab("feedback")}
-          role="tab"
-          type="button"
-        >
-          用户反馈
-          <TabBadge counts={[feedbackOpenCount]} />
-        </button>
-        <button
-          aria-selected={activeTab === "emails"}
-          className={`admin-tab${activeTab === "emails" ? " active" : ""}`}
-          onClick={() => selectTab("emails")}
-          role="tab"
-          type="button"
-        >
-          邮件发送
-          <span>发送</span>
-        </button>
+      {/* 子 tab 和主 tab 同一行，切到消息页时不会多出一行把内容往下挤 */}
+      <div className="admin-tabs-bar">
+        <div className="admin-tabs" role="tablist" aria-label="后台管理分类">
+          <button
+            aria-selected={activeTab === "accounts"}
+            className={`admin-tab${activeTab === "accounts" ? " active" : ""}`}
+            onClick={() => selectTab("accounts")}
+            role="tab"
+            type="button"
+          >
+            账户管理
+            <TabBadge counts={[accountCount]} />
+          </button>
+          <button
+            aria-selected={activeTab === "puzzles"}
+            className={`admin-tab${activeTab === "puzzles" ? " active" : ""}`}
+            onClick={() => selectTab("puzzles")}
+            role="tab"
+            type="button"
+          >
+            题库管理
+            <TabBadge counts={[puzzleCount]} />
+          </button>
+          <button
+            aria-selected={activeTab === "messages"}
+            className={`admin-tab${activeTab === "messages" ? " active" : ""}`}
+            onClick={() => selectTab("messages")}
+            role="tab"
+            type="button"
+          >
+            消息 &amp; 案例
+            <TabBadge counts={[messageCount, aiErrorCaseCount]} />
+          </button>
+          <button
+            aria-selected={activeTab === "rooms"}
+            className={`admin-tab${activeTab === "rooms" ? " active" : ""}`}
+            onClick={() => selectTab("rooms")}
+            role="tab"
+            type="button"
+          >
+            房间管理
+            <TabBadge counts={[roomsCount, cleanupCount]} />
+          </button>
+          <button
+            aria-selected={activeTab === "points"}
+            className={`admin-tab${activeTab === "points" ? " active" : ""}`}
+            onClick={() => selectTab("points")}
+            role="tab"
+            type="button"
+          >
+            积分流水
+            <TabBadge counts={[pointsCount]} />
+          </button>
+          <button
+            aria-selected={activeTab === "feedback"}
+            className={`admin-tab${activeTab === "feedback" ? " active" : ""}`}
+            onClick={() => selectTab("feedback")}
+            role="tab"
+            type="button"
+          >
+            用户反馈
+            <TabBadge counts={[feedbackOpenCount]} />
+          </button>
+          <button
+            aria-selected={activeTab === "emails"}
+            className={`admin-tab${activeTab === "emails" ? " active" : ""}`}
+            onClick={() => selectTab("emails")}
+            role="tab"
+            type="button"
+          >
+            邮件发送
+            <span>发送</span>
+          </button>
+        </div>
+        {activeTab === "messages" && (
+          <div className="admin-subtabs" role="tablist" aria-label="消息子分类">
+            <button
+              aria-selected={msgSubTab === "audit"}
+              className={`admin-subtab${msgSubTab === "audit" ? " active" : ""}`}
+              onClick={() => selectMsgSubTab("audit")}
+              role="tab"
+              type="button"
+            >
+              消息审计
+              <TabBadge counts={[messageCount]} />
+            </button>
+            <button
+              aria-selected={msgSubTab === "errors"}
+              className={`admin-subtab${msgSubTab === "errors" ? " active" : ""}`}
+              onClick={() => selectMsgSubTab("errors")}
+              role="tab"
+              type="button"
+            >
+              AI 错误案例
+              <TabBadge counts={[aiErrorCaseCount]} />
+            </button>
+            <button
+              aria-selected={msgSubTab === "backup"}
+              className={`admin-subtab${msgSubTab === "backup" ? " active" : ""}`}
+              onClick={() => selectMsgSubTab("backup")}
+              role="tab"
+              type="button"
+            >
+              聊天备份
+              <TabBadge counts={[chatBackupCount]} />
+            </button>
+          </div>
+        )}
       </div>
 
       <section hidden={activeTab !== "accounts"} role="tabpanel">
@@ -286,6 +325,7 @@ export function AdminTabs({
             <p className="muted">新增、修改或移除房主可选择的海龟汤题目。</p>
           </div>
           <div className="admin-section-actions">
+            {puzzleSearch}
             <a className="button secondary" href="/admin/puzzles/export">
               下载题库 JSON
             </a>
@@ -309,38 +349,6 @@ export function AdminTabs({
       </section>
 
       <section hidden={activeTab !== "messages"} role="tabpanel">
-        <div className="admin-subtabs" role="tablist" aria-label="消息子分类">
-          <button
-            aria-selected={msgSubTab === "audit"}
-            className={`admin-subtab${msgSubTab === "audit" ? " active" : ""}`}
-            onClick={() => selectMsgSubTab("audit")}
-            role="tab"
-            type="button"
-          >
-            消息审计
-            <TabBadge counts={[messageCount]} />
-          </button>
-          <button
-            aria-selected={msgSubTab === "errors"}
-            className={`admin-subtab${msgSubTab === "errors" ? " active" : ""}`}
-            onClick={() => selectMsgSubTab("errors")}
-            role="tab"
-            type="button"
-          >
-            AI 错误案例
-            <TabBadge counts={[aiErrorCaseCount]} />
-          </button>
-          <button
-            aria-selected={msgSubTab === "backup"}
-            className={`admin-subtab${msgSubTab === "backup" ? " active" : ""}`}
-            onClick={() => selectMsgSubTab("backup")}
-            role="tab"
-            type="button"
-          >
-            聊天备份
-            <TabBadge counts={[chatBackupCount]} />
-          </button>
-        </div>
         <div hidden={msgSubTab !== "audit"}>
           {msgSubTabReady("audit") ? messageContent : <AdminTabLoading label="消息" />}
         </div>

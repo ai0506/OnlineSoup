@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { SubmitButton } from "@/components/submit-button";
+import { formatAdminTime } from "@/lib/admin-time";
 
 type AdminCleanupRoom = {
   room_id: string;
@@ -22,24 +23,10 @@ type AdminRoomCleanupListProps = {
   rooms: AdminCleanupRoom[];
 };
 
-const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-});
-
-function formatTime(value?: string | null) {
-  return value ? timeFormatter.format(new Date(value)) : "无消息";
-}
-
 function getCleanupReasonLabel(value: AdminCleanupRoom["cleanup_reason"]) {
   return value === "closed_over_3_days"
-    ? "已关闭且 3 天无新消息"
-    : "超过 7 天没有新消息";
+    ? "关闭超 3 天"
+    : "7 天无消息";
 }
 
 export function AdminRoomCleanupList({
@@ -78,12 +65,9 @@ export function AdminRoomCleanupList({
 
   return (
     <form action={action} className="admin-cleanup-list">
-      <div className="admin-cleanup-toolbar">
-        <button className="button secondary" onClick={toggleAll} type="button">
-          {allSelected ? "取消全选" : "全选"}
-        </button>
+      <div className="admin-table-toolbar">
         <span className="muted">已选择 {selectedIds.length} / {rooms.length} 个房间</span>
-        <SubmitButton className="button danger" pendingText="清理中...">
+        <SubmitButton className="button danger small" pendingText="清理中...">
           强制清理
         </SubmitButton>
       </div>
@@ -97,44 +81,66 @@ export function AdminRoomCleanupList({
         </p>
       ) : null}
 
-      {rooms.map((room) => {
-        const checked = selectedIds.includes(room.room_id);
-
-        return (
-          <article className="admin-cleanup-row" key={room.room_id}>
-            <label className="admin-cleanup-select">
-              <input
-                checked={checked}
-                name="roomId"
-                onChange={() => toggleRoom(room.room_id)}
-                type="checkbox"
-                value={room.room_id}
-              />
-              <span>选择</span>
-            </label>
-
-            <div className="admin-cleanup-main">
-              <div>
-                <strong>{room.room_code}</strong>
-                <span>{room.room_name}</span>
-              </div>
-              <div className="admin-cleanup-tags">
-                <span>{room.room_status === "closed" ? "已关闭" : "未关闭"}</span>
-                <span>{getCleanupReasonLabel(room.cleanup_reason)}</span>
-                <span>{room.message_count} 条消息</span>
-                {room.backup_pending ? (
-                  <span className="admin-cleanup-tag-warning">备份未导出</span>
-                ) : null}
-              </div>
-              <p className="muted">
-                创建：{formatTime(room.created_at)} · 更新：
-                {formatTime(room.updated_at)} · 最后消息：
-                {formatTime(room.last_message_at)}
-              </p>
-            </div>
-          </article>
-        );
-      })}
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th className="admin-table-check">
+                <input
+                  aria-label="全选"
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  type="checkbox"
+                />
+              </th>
+              <th>房间码</th>
+              <th>名称</th>
+              <th>状态</th>
+              <th>清理原因</th>
+              <th className="admin-table-num">消息</th>
+              <th>最后消息</th>
+              <th>创建时间</th>
+              <th>备份</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rooms.map((room) => (
+              <tr key={room.room_id}>
+                <td className="admin-table-check">
+                  <input
+                    aria-label={`选择房间 ${room.room_code}`}
+                    checked={selectedIds.includes(room.room_id)}
+                    name="roomId"
+                    onChange={() => toggleRoom(room.room_id)}
+                    type="checkbox"
+                    value={room.room_id}
+                  />
+                </td>
+                <td>
+                  <strong className="admin-table-code">{room.room_code}</strong>
+                </td>
+                <td className="admin-table-clip" title={room.room_name}>
+                  {room.room_name}
+                </td>
+                <td className="muted">
+                  {room.room_status === "closed" ? "已关闭" : "未关闭"}
+                </td>
+                <td>{getCleanupReasonLabel(room.cleanup_reason)}</td>
+                <td className="admin-table-num">{room.message_count}</td>
+                <td className="muted">{formatAdminTime(room.last_message_at, "无消息")}</td>
+                <td className="muted">{formatAdminTime(room.created_at)}</td>
+                <td>
+                  {room.backup_pending ? (
+                    <span className="admin-pill admin-pill-warning">未导出</span>
+                  ) : (
+                    <span className="muted">已导出</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </form>
   );
 }

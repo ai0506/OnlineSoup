@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import { SubmitButton } from "@/components/submit-button";
+import { formatAdminTime } from "@/lib/admin-time";
 
 type FeedbackStatus = "open" | "handled" | "ignored";
 
@@ -40,101 +41,87 @@ const categoryLabels: Record<FeedbackCategory, string> = {
   other: "其他",
 };
 
-// 正文最长 2000 字，超过这个长度默认折叠，避免列表被单条撑满
-const COLLAPSE_THRESHOLD = 160;
-
-const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-});
-
-function FeedbackContent({ content }: { content: string }) {
-  const [expanded, setExpanded] = useState(false);
-
-  if (content.length <= COLLAPSE_THRESHOLD) {
-    return <p className="admin-feedback-content">{content}</p>;
-  }
-
-  return (
-    <div className="admin-feedback-content-wrap">
-      <p className="admin-feedback-content">
-        {expanded ? content : `${content.slice(0, COLLAPSE_THRESHOLD)}…`}
-      </p>
-      <button
-        className="button ghost admin-feedback-expand"
-        onClick={() => setExpanded((value) => !value)}
-        type="button"
-      >
-        {expanded ? "收起" : `展开全文（${content.length} 字）`}
-      </button>
-    </div>
-  );
-}
-
 function FeedbackRow({
   entry,
+  onToggle,
+  open,
   updateAction,
 }: {
   entry: AdminFeedbackEntry;
+  onToggle: (row: HTMLTableRowElement) => void;
+  open: boolean;
   updateAction: (formData: FormData) => Promise<void>;
 }) {
   return (
-    <article className="admin-feedback-row">
-      <div className="admin-message-meta admin-feedback-meta">
-        <strong>{categoryLabels[entry.category]}</strong>
-        <span>{entry.display_name || "未知用户"}</span>
-        <span>{timeFormatter.format(new Date(entry.created_at))}</span>
-        {entry.page_path && <span>来源 {entry.page_path}</span>}
-        <span className={`admin-error-status-badge admin-error-badge-${entry.status}`}>
-          {statusLabels[entry.status]}
-        </span>
-      </div>
-
-      <FeedbackContent content={entry.content} />
-
-      <details className="admin-collapsible admin-feedback-actions">
-        <summary>处理这条反馈</summary>
-        <form action={updateAction} className="admin-feedback-form">
-          <input name="feedbackId" type="hidden" value={entry.id} />
-          <label>
-            状态
-            <select defaultValue={entry.status} name="status">
-              {(Object.entries(statusLabels) as [FeedbackStatus, string][]).map(
-                ([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ),
-              )}
-            </select>
-          </label>
-          <label>
-            内部备注
-            <textarea
-              defaultValue={entry.admin_note}
-              maxLength={1000}
-              name="adminNote"
-              placeholder="仅后台可见"
-              rows={3}
-            />
-          </label>
-          <p className="muted admin-feedback-source">
-            {entry.location_label || "未知地点"} · {entry.device_label || "未知设备"}
-          </p>
-          <SubmitButton className="button secondary" pendingText="保存中...">
-            保存
-          </SubmitButton>
-        </form>
-      </details>
-
-      {entry.admin_note && (
-        <p className="admin-ai-error-note">备注：{entry.admin_note}</p>
+    <>
+      <tr
+        aria-expanded={open}
+        className={`admin-table-expandable${open ? " open" : ""}`}
+        data-feedback-id={entry.id}
+        onClick={(event) => onToggle(event.currentTarget)}
+      >
+        <td className="muted">{formatAdminTime(entry.created_at)}</td>
+        <td>{entry.display_name || <span className="muted">未知用户</span>}</td>
+        <td>{categoryLabels[entry.category]}</td>
+        <td>
+          <span className={`admin-error-status-badge admin-error-badge-${entry.status}`}>
+            {statusLabels[entry.status]}
+          </span>
+        </td>
+        <td className="admin-table-clip admin-table-grow">
+          {entry.content}
+          {entry.admin_note && (
+            <span className="muted"> · 备注：{entry.admin_note}</span>
+          )}
+        </td>
+        <td className="admin-table-actions">
+          <button className="button ghost small" type="button">
+            {open ? "收起" : "处理"}
+          </button>
+        </td>
+      </tr>
+      {open && (
+        <tr className="admin-table-detail">
+          <td colSpan={6}>
+            <div className="admin-feedback-detail">
+              <p className="admin-feedback-content">{entry.content}</p>
+              <form action={updateAction} className="admin-feedback-form">
+                <input name="feedbackId" type="hidden" value={entry.id} />
+                <label>
+                  状态
+                  <select defaultValue={entry.status} name="status">
+                    {(Object.entries(statusLabels) as [FeedbackStatus, string][]).map(
+                      ([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </label>
+                <label>
+                  内部备注
+                  <textarea
+                    defaultValue={entry.admin_note}
+                    maxLength={1000}
+                    name="adminNote"
+                    placeholder="仅后台可见"
+                    rows={3}
+                  />
+                </label>
+                <p className="muted admin-feedback-source">
+                  {entry.page_path && `来源 ${entry.page_path} · `}
+                  {entry.location_label || "未知地点"} · {entry.device_label || "未知设备"}
+                </p>
+                <SubmitButton className="button secondary small" pendingText="保存中...">
+                  保存
+                </SubmitButton>
+              </form>
+            </div>
+          </td>
+        </tr>
       )}
-    </article>
+    </>
   );
 }
 
@@ -142,15 +129,55 @@ export function AdminFeedbackList({
   entries,
   updateAction,
 }: AdminFeedbackListProps) {
-  return (
-    <div className="admin-feedback-list">
-      {entries.map((entry) => (
-        <FeedbackRow entry={entry} key={entry.id} updateAction={updateAction} />
-      ))}
+  const [openId, setOpenId] = useState<string | null>(null);
+  // 同一时间只展开一条：上方展开的一条收起时，被点的行会跟着上移，
+  // 这里记下点击前它在屏幕上的位置，渲染后把滚动补回去，让它停在原处
+  const anchor = useRef<{ id: string; top: number } | null>(null);
 
-      {entries.length === 0 && (
-        <div className="card muted">还没有匹配的用户反馈。</div>
-      )}
+  useLayoutEffect(() => {
+    const saved = anchor.current;
+    anchor.current = null;
+    if (!saved) return;
+    const row = document.querySelector<HTMLElement>(`[data-feedback-id="${saved.id}"]`);
+    if (!row) return;
+    const shift = row.getBoundingClientRect().top - saved.top;
+    if (shift !== 0) window.scrollBy(0, shift);
+  }, [openId]);
+
+  function toggle(id: string, row: HTMLTableRowElement) {
+    anchor.current = { id, top: row.getBoundingClientRect().top };
+    setOpenId((current) => (current === id ? null : id));
+  }
+
+  if (entries.length === 0) {
+    return <div className="card muted">还没有匹配的用户反馈。</div>;
+  }
+
+  return (
+    <div className="admin-table-wrap">
+      <table className="admin-table">
+        <thead>
+          <tr>
+            <th>时间</th>
+            <th>用户</th>
+            <th>类型</th>
+            <th>状态</th>
+            <th>内容</th>
+            <th className="admin-table-actions">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((entry) => (
+            <FeedbackRow
+              entry={entry}
+              key={entry.id}
+              onToggle={(row) => toggle(entry.id, row)}
+              open={openId === entry.id}
+              updateAction={updateAction}
+            />
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

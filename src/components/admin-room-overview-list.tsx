@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { SubmitButton } from "@/components/submit-button";
+import { formatAdminTime } from "@/lib/admin-time";
 
 export type AdminActiveRoom = {
   id: string;
@@ -22,20 +23,6 @@ type AdminRoomOverviewListProps = {
   rooms: AdminActiveRoom[];
 };
 
-const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-});
-
-function formatTime(value?: string | null) {
-  return value ? timeFormatter.format(new Date(value)) : "-";
-}
-
 function RoomRow({
   action,
   room,
@@ -46,36 +33,36 @@ function RoomRow({
   const [confirming, setConfirming] = useState(false);
 
   return (
-    <article className="admin-room-row">
-      <div className="admin-room-main">
-        <div className="admin-room-title">
-          <strong>{room.code}</strong>
-          <span>{room.name}</span>
-        </div>
-        <div className="admin-message-badges">
-          <span className={`admin-room-status-badge ${room.status}`}>
-            {room.status === "playing" ? "游戏中" : "等待中"}
-          </span>
-          <span>
-            {room.occupied_count}/{room.max_members} 人
-          </span>
-          {room.puzzle_title && <span>题：{room.puzzle_title}</span>}
-          {room.points_per_seat > 0 && <span>{room.points_per_seat} pt/座</span>}
-        </div>
-        <p className="muted admin-room-meta">
-          房主：{room.owner_username ?? "未知"} · 创建：{formatTime(room.created_at)}
-        </p>
-      </div>
-
-      <div className="admin-room-actions">
+    <tr>
+      <td>
+        <strong className="admin-table-code">{room.code}</strong>
+      </td>
+      <td className="admin-table-clip" title={room.name}>
+        {room.name}
+      </td>
+      <td>
+        <span className={`admin-room-status-badge ${room.status}`}>
+          {room.status === "playing" ? "游戏中" : "等待中"}
+        </span>
+      </td>
+      <td className="admin-table-num">
+        {room.occupied_count}/{room.max_members}
+      </td>
+      <td className="admin-table-clip" title={room.puzzle_title ?? undefined}>
+        {room.puzzle_title ?? <span className="muted">—</span>}
+      </td>
+      <td className="admin-table-num">{room.points_per_seat}</td>
+      <td>{room.owner_username ?? <span className="muted">未知</span>}</td>
+      <td className="muted">{formatAdminTime(room.created_at)}</td>
+      <td className="admin-table-actions">
         {confirming ? (
-          <form action={action} className="admin-room-confirm-form">
+          <form action={action} className="admin-table-inline-form">
             <input name="roomId" type="hidden" value={room.id} />
-            <SubmitButton className="button danger" pendingText="关闭中...">
+            <SubmitButton className="button danger small" pendingText="关闭中...">
               确认关闭
             </SubmitButton>
             <button
-              className="button ghost"
+              className="button ghost small"
               onClick={() => setConfirming(false)}
               type="button"
             >
@@ -84,15 +71,15 @@ function RoomRow({
           </form>
         ) : (
           <button
-            className="button secondary"
+            className="button danger-text small"
             onClick={() => setConfirming(true)}
             type="button"
           >
             强制关闭
           </button>
         )}
-      </div>
-    </article>
+      </td>
+    </tr>
   );
 }
 
@@ -105,10 +92,27 @@ export function AdminRoomOverviewList({
   }
 
   return (
-    <div className="admin-rooms-list">
-      {rooms.map((room) => (
-        <RoomRow action={action} key={room.id} room={room} />
-      ))}
+    <div className="admin-table-wrap">
+      <table className="admin-table">
+        <thead>
+          <tr>
+            <th>房间码</th>
+            <th>名称</th>
+            <th>状态</th>
+            <th className="admin-table-num">人数</th>
+            <th>当前题目</th>
+            <th className="admin-table-num">积分/座</th>
+            <th>房主</th>
+            <th>创建时间</th>
+            <th className="admin-table-actions">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rooms.map((room) => (
+            <RoomRow action={action} key={room.id} room={room} />
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

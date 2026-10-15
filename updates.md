@@ -518,3 +518,17 @@
 [CodeX][261013220615] Ask v2发布前复核：72项测试/typecheck/build通过，lint仅3条旧警告；线上已记录20261013132907迁移，启用题20/21分别8/13条批准Facts；生产评估接口强制404，私密用例/令牌保持Git忽略。当前全部实现已提交8831f63，准备推送GitHub main自动部署并设置Production ASK_ENGINE=v2后重部署；未重复迁移或改写题库。
 
 [CodeX][261013220742] Ask v2实现8831f63及验证记录bc65063已推送GitHub main，Git自动生产部署dpl_GSK9PLgu9PXdMoTd5fJcig82dTMU READY；Production ASK_ENGINE已设为v2并通过单变量API核对。提交此记录以通过Git触发应用新配置的第二次生产构建，不使用CLI上传源码；待最终部署/域名/生产评估404核验。
+
+[CodeX][261013220901] Ask v2生产启用完成：Production ASK_ENGINE=v2，GitHub main提交7ea58e3触发的第二次生产部署dpl_3BNEKwC7pRadH82wbfi7sKQij3mL READY/source=git，主域名onlinesoup.ai0506.com绑定确认；部署后首页/cli为200，POST /api/internal/ask-eval为404。72项测试/typecheck/build通过，lint保留3项旧警告；未发送生产真实付费ask或执行房间E2E。代码已推送，此最终验收记录留本地updates.md，避免再触发一次纯文档部署。
+
+[CodeX][261014114615] 将 /docs 更新为15节架构说明，补充网页/CLI共用执行器、身份与设备接管、请求键恢复、消息游标同步、私密Facts与公开事实、A/B1证据验证/仲裁/v1回退、请求补偿与质量闭环；新增 docs/architecture/Ask新旧架构对比.md，核对两轮56题预览原始JSON并记录准确率、总往返P50/P95和缓存/未缓存/输出token，说明判定计时口径差异与日志用量局限；更新文档索引及设计计划状态说明。typecheck/build通过，lint零错误及3项既有警告，本地生产构建页面与目录锚点已检查；未改业务逻辑、数据库或生产配置，未发起新付费评估。
+
+[CodeX][261014115541] 经用户授权上线架构文档：从仅含筛选后的Git可见源码及新增对比文档的临时副本执行Vercel Production部署，dpl_9P4qXcNQhmo9kvVTY5bGwxHeAveZ READY并绑定onlinesoup.ai0506.com；正式/docs、首页、/cli HTTP 200，核验15节架构内容与ask对比数据，浏览器确认正式页面；POST /api/internal/ask-eval保持404。未修改数据库/生产环境变量，未提交或推送Git；更新记录留本地。
+
+[Claude Code][261015124009] 管理端紧凑化第二轮：页面放宽至1440px、页头压成一行、tab/筛选栏/小节标题紧凑化；积分流水、房间总览、房间清理、用户反馈改为表格（反馈点行展开处理）；新增 src/lib/admin-time.ts 统一时间格式；删除旧卡片样式；typecheck/lint/build 通过，组件级预览已验证桌面/手机/深色，未提交
+[Claude Code][261015124804] 消息审计列表从 admin/page.tsx 抽为 src/components/admin-message-audit-list.tsx（逻辑不变，为改版和预览做准备）；本地预览接入线上真实题库/缓存/消息（只读导出到会话临时目录，不入库）；发现 Ask v2 审计在后台无法解析且被误标“两路一致”，题库页未展示 Facts/content_version；typecheck/lint/build 通过，未提交
+[Claude Code][261015125119] 修复管理端切 tab 时内容上下跳：消息子 tab 移到主 tab 同一行（admin-tabs-bar），页头加 min-height 与搜索框同高；预览实测 7 个 tab 正文起点一致（114px），未提交
+[Claude Code][261015130138] 管理端题库/消息审计改版：消息审计改为左列表+右详情（新增 src/lib/admin-ask-audit.ts 统一解析 v2/v1/v1回退/缓存/截断审计，修复 v2 消息无审计且被误标“两路一致”，B1 证据显示 Fact 原文，窄屏详情为全屏浮层）；题库改为表格，新增 Facts 只读面板、内容版本列，缓存面板区分 v1/v2 并标出因改题失效的 v2 缓存；用户反馈改为同一时间只展开一条并保持被点行屏幕位置；修复 tab 栏容器在手机上撑宽整页；新增 tests/admin-ask-audit.test.ts（10项）；全量82项测试/typecheck/lint/build 通过，未提交
+[Claude Code][261015130343] 修复竖屏切 tab 时搜索框出现/消失导致内容跳动：搜索框从全局页头移到账户工具栏与题库操作区（账户搜索保留当前排序），页头各 tab 等高；竖屏下搜索框占满整行；82项测试/typecheck/lint/build 通过，未提交
+[Claude Code][261015130743] 修复题库 Facts 表“原文/已审核”等短列被压成每字一行：表格只对内容/依据列开换行（admin-table-text），状态标签与主/子 tab 统一 nowrap；lessons.md 新增“中文短标签在可收缩容器里会被压成每字一行”，CLAUDE.md 开发原则补充对应规则
+[Claude Code][261015131029] 提交管理端紧凑化与题库/消息审计改版，并按用户确认一并提交 Codex 已于 10-14 上线但未入库的 /docs 架构说明（docs 页、Ask新旧架构对比、文档索引、计划文档；本地内容与线上一致），/tutorial 未部署改动不提交；从干净源码部署 Vercel 生产
