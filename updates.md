@@ -525,6 +525,7 @@
 
 [CodeX][261014115541] 经用户授权上线架构文档：从仅含筛选后的Git可见源码及新增对比文档的临时副本执行Vercel Production部署，dpl_9P4qXcNQhmo9kvVTY5bGwxHeAveZ READY并绑定onlinesoup.ai0506.com；正式/docs、首页、/cli HTTP 200，核验15节架构内容与ask对比数据，浏览器确认正式页面；POST /api/internal/ask-eval保持404。未修改数据库/生产环境变量，未提交或推送Git；更新记录留本地。
 
+[CodeX][261014115843] 修复/tutorial及离线HTML/Markdown教程：房主章节从2.1连续编号至2.7，页面/HTML海龟汤章节重排3.1–3.3并同步目录锚点；事实总结标题去除未展开的进度；移除面向玩家文案中的760px断点；概览提前定义座位临时积分，1.7正文补充座位餐券/换座不转移解释并精简FAQ；统一移出房间/移动座位操作名称，移动步骤按当前真实菜单更正为调整位置；保留截图资源。三份教程编号/链接/唯一ID检查、typecheck/build、本地页面与目录跳转检查通过，lint零错误及3项既有警告；未部署、未提交Git。
 [Claude Code][261015124009] 管理端紧凑化第二轮：页面放宽至1440px、页头压成一行、tab/筛选栏/小节标题紧凑化；积分流水、房间总览、房间清理、用户反馈改为表格（反馈点行展开处理）；新增 src/lib/admin-time.ts 统一时间格式；删除旧卡片样式；typecheck/lint/build 通过，组件级预览已验证桌面/手机/深色，未提交
 [Claude Code][261015124804] 消息审计列表从 admin/page.tsx 抽为 src/components/admin-message-audit-list.tsx（逻辑不变，为改版和预览做准备）；本地预览接入线上真实题库/缓存/消息（只读导出到会话临时目录，不入库）；发现 Ask v2 审计在后台无法解析且被误标“两路一致”，题库页未展示 Facts/content_version；typecheck/lint/build 通过，未提交
 [Claude Code][261015125119] 修复管理端切 tab 时内容上下跳：消息子 tab 移到主 tab 同一行（admin-tabs-bar），页头加 min-height 与搜索框同高；预览实测 7 个 tab 正文起点一致（114px），未提交
@@ -532,8 +533,15 @@
 [Claude Code][261015130343] 修复竖屏切 tab 时搜索框出现/消失导致内容跳动：搜索框从全局页头移到账户工具栏与题库操作区（账户搜索保留当前排序），页头各 tab 等高；竖屏下搜索框占满整行；82项测试/typecheck/lint/build 通过，未提交
 [Claude Code][261015130743] 修复题库 Facts 表“原文/已审核”等短列被压成每字一行：表格只对内容/依据列开换行（admin-table-text），状态标签与主/子 tab 统一 nowrap；lessons.md 新增“中文短标签在可收缩容器里会被压成每字一行”，CLAUDE.md 开发原则补充对应规则
 [Claude Code][261015131029] 提交管理端紧凑化与题库/消息审计改版，并按用户确认一并提交 Codex 已于 10-14 上线但未入库的 /docs 架构说明（docs 页、Ask新旧架构对比、文档索引、计划文档；本地内容与线上一致），/tutorial 未部署改动不提交；从干净源码部署 Vercel 生产
+[Claude Code][261015131143] b0348f7 已推送 origin/main，干净副本 82 项测试与 build 通过；Git 触发生产部署 dpl_896gX2TFjFYGtoppJjT9JhE8Pq8A READY 并绑定 onlinesoup.ai0506.com；首页/login/docs/tutorial 200、未登录 /admin 307、ask-eval POST 404；/docs 新内容 375/375 段与上线前一致未回退；管理端登录后交互待用户验证
+[Claude Code][261015131719] 管理端写库操作补点击反馈与防重复提交：新增 src/lib/use-pending-action.ts（同一时间一个请求、显示处理中、服务端数据回来即解除）；题库缓存面板5个操作与删除题目改用它，确认框处理中保持打开；编辑账户/调整积分弹窗提交时不再立即关闭以显示保存中，数据刷新后关闭；SubmitButton 增加600ms重复点击拦截（全站共用，校验未通过不计）；预览模拟1.5s延迟实测连点仅1次请求；82项测试/typecheck/lint/build 通过，未提交
 [Claude Code][261015194640] 新增房间页 spotlight 新手引导（首次进入房间时弹出，可跳过，按账号记在 localStorage；房主/玩家步骤分开：开题入口、聊天与问 AI 区分、提问输入、房间码），教程页增加「重新播放引导」
 [Claude Code][261015195813] 新手引导改为可实操的练习房间：首次登录后首页弹出（按账号记在 localStorage，可随时跳过），纯前端假房间（练习模式标签、无房间码），只能点高亮按钮，依次打开题库→选题→开始题目→切询问→自动写入预设问题→发送→预设回答（不调用 AI、不写入任何真实房间）；移除上一版只看式房间引导；教程页改为「进入新手练习」
 [Claude Code][261015201244] 新手引导重做为独立页 /onboarding「上手教程」：按真实房间页 DOM 和 class 复刻（聊天区、模式栏、AI主持「回复」气泡与答案变色、题目▾菜单→选择题目→预览→开始这道题、事实总结、竖屏分段与置顶题面），房间码留空；数据全部本地预设、不调接口不写真实房间；首次登录进首页自动跳转，完成/跳过记在 localStorage（待改为账户字段）；教程页入口改为「进入上手教程」；删除上一版练习组件
 [Claude Code][261015202236] 修复退出登录确认弹窗在竖屏向右撑宽：弹窗改用 createPortal 挂到 body（父级账户菜单有 transform 导致 fixed 相对菜单定位），打开时同时收起账户菜单；上手教程每步声明所需分段，竖屏按步骤自动显示聊天/题目，中途旋转或缩放窗口后高亮目标与卡片不再丢失，题目菜单随窗口变化重新定位
 [Claude Code][261015202933] 上手教程改为按账户首次登录触发：迁移 20261015122533_onboarding_completion 新增 profiles.onboarding_completed_at 与 complete_onboarding()（SECURITY DEFINER、空 search_path、仅 authenticated 可执行）已推送线上；密码登录/注册直登/邮件回调在未完成时直接跳 /onboarding（读取失败回首页），完成或跳过调用 RPC；移除 localStorage 与首页跳转。验证：anon 调用 42501 拒绝，test 登录→/onboarding，跳过后字段写入，再登录→/
+[Claude Code][261015203048] 提交 7a15bbc（上手教程 /onboarding、按账户首次登录跳转、onboarding_completion 迁移、退出登录弹窗修复）；tutorial/page.tsx 与 updates.md 只提交本次相关行，其他人未提交的 admin/文档改动保留在工作区；未推送、未部署
+[Claude Code][261015203312] 7a15bbc 已推送 origin/main，Git 触发生产部署 dpl_HAacuzRkUDt9vWsVBV3YMrFfVYjy READY 并绑定 onlinesoup.ai0506.com（GitHub 部署记录 sha=7a15bbc）；线上 /、/login、/tutorial、/onboarding 均 200，教程页含「进入上手教程」，访客身份走通 /onboarding 开题流程、跳过后回首页且无控制台错误；线上登录跳转因安全规则未用密码实测，代码与本地已验证版本一致，待用户用未完成教程的账号登录确认
+[Claude Code][261015205459] 按用户要求清空线上 test 账号的 profiles.onboarding_completed_at（仅 1 行），便于在线上重新测试首次登录跳转上手教程
+
+[CodeX][261015210236] 审查并整理本地未提交修改：教程页面与离线HTML/Markdown的编号、目录锚点、临时积分说明及菜单名称修订；管理端缓存/题目删除的处理中状态与防重复调用、账户弹窗延后关闭、SubmitButton的600ms防连点及usePendingAction。未发现阻碍提交的问题；typecheck、82项Vitest测试、build、git diff --check及教程唯一ID/锚点/截图引用/房主章节编号检查通过，lint零错误及3项既有警告。未执行真实管理员写操作E2E，未修改数据库，按用户要求仅本地提交、不推送或部署。

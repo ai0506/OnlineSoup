@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { usePendingAction } from "@/lib/use-pending-action";
+
 export type PuzzleCacheEntry = {
   id: number;
   question_text: string;
@@ -53,10 +55,23 @@ export function AdminPuzzleCachePanel({
   updateTextAction,
   clearAction,
 }: AdminPuzzleCachePanelProps) {
-  const [deletingEntry, setDeletingEntry] = useState<PuzzleCacheEntry | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
   const [clearing, setClearing] = useState(false);
+  const [syncedEntries, setSyncedEntries] = useState(entries);
+  const { busy, pendingKey, run } = usePendingAction<string>(entries);
+
+  // 服务端数据回来即视为本次操作结束：收起编辑态和确认框
+  if (syncedEntries !== entries) {
+    setSyncedEntries(entries);
+    setEditingId(null);
+    setDeletingId(null);
+    setClearing(false);
+  }
+
+  const deletingEntry = entries.find((entry) => entry.id === deletingId) ?? null;
+  const pendingLabel = "处理中…";
 
   if (entries.length === 0) {
     return <div className="card muted">这道题还没有任何问答缓存。</div>;
@@ -70,6 +85,7 @@ export function AdminPuzzleCachePanel({
         </span>
         <button
           className="button danger"
+          disabled={busy}
           onClick={() => setClearing(true)}
           type="button"
         >
@@ -120,6 +136,7 @@ export function AdminPuzzleCachePanel({
                     <button
                       className="button"
                       disabled={
+                        busy ||
                         editingText.trim().length === 0 ||
                         editingText.trim() === entry.question_text
                       }
@@ -127,15 +144,15 @@ export function AdminPuzzleCachePanel({
                         const formData = new FormData();
                         formData.set("entryId", String(entry.id));
                         formData.set("questionText", editingText.trim());
-                        setEditingId(null);
-                        void updateTextAction(formData);
+                        run(`text-${entry.id}`, updateTextAction, formData, () => setEditingId(null));
                       }}
                       type="button"
                     >
-                      保存
+                      {pendingKey === `text-${entry.id}` ? pendingLabel : "保存"}
                     </button>
                     <button
                       className="button secondary"
+                      disabled={busy}
                       onClick={() => setEditingId(null)}
                       type="button"
                     >
@@ -147,18 +164,20 @@ export function AdminPuzzleCachePanel({
                     {entry.status === "pending" && (
                       <button
                         className="button"
+                        disabled={busy}
                         onClick={() => {
                           const formData = new FormData();
                           formData.set("entryId", String(entry.id));
-                          void approveAction(formData);
+                          run(`approve-${entry.id}`, approveAction, formData);
                         }}
                         type="button"
                       >
-                        批准
+                        {pendingKey === `approve-${entry.id}` ? pendingLabel : "批准"}
                       </button>
                     )}
                     <button
                       className="button secondary"
+                      disabled={busy}
                       onClick={() => {
                         setEditingId(entry.id);
                         setEditingText(entry.question_text);
@@ -169,19 +188,23 @@ export function AdminPuzzleCachePanel({
                     </button>
                     <button
                       className="button secondary"
+                      disabled={busy}
                       onClick={() => {
                         const formData = new FormData();
                         formData.set("entryId", String(entry.id));
                         formData.set("answerType", entry.answer_type === "yes" ? "no" : "yes");
-                        void updateAnswerAction(formData);
+                        run(`answer-${entry.id}`, updateAnswerAction, formData);
                       }}
                       type="button"
                     >
-                      改为「{answerLabel(entry.answer_type === "yes" ? "no" : "yes")}」
+                      {pendingKey === `answer-${entry.id}`
+                        ? pendingLabel
+                        : `改为「${answerLabel(entry.answer_type === "yes" ? "no" : "yes")}」`}
                     </button>
                     <button
                       className="button danger"
-                      onClick={() => setDeletingEntry(entry)}
+                      disabled={busy}
+                      onClick={() => setDeletingId(entry.id)}
                       type="button"
                     >
                       删除
@@ -202,22 +225,23 @@ export function AdminPuzzleCachePanel({
             <div className="dialog-actions">
               <button
                 className="button secondary"
-                onClick={() => setDeletingEntry(null)}
+                disabled={busy}
+                onClick={() => setDeletingId(null)}
                 type="button"
               >
                 取消
               </button>
               <button
                 className="button danger"
+                disabled={busy}
                 onClick={() => {
                   const formData = new FormData();
                   formData.set("entryId", String(deletingEntry.id));
-                  setDeletingEntry(null);
-                  void deleteAction(formData);
+                  run("delete", deleteAction, formData, () => setDeletingId(null));
                 }}
                 type="button"
               >
-                确认删除
+                {pendingKey === "delete" ? "删除中…" : "确认删除"}
               </button>
             </div>
           </div>
@@ -232,6 +256,7 @@ export function AdminPuzzleCachePanel({
             <div className="dialog-actions">
               <button
                 className="button secondary"
+                disabled={busy}
                 onClick={() => setClearing(false)}
                 type="button"
               >
@@ -239,15 +264,15 @@ export function AdminPuzzleCachePanel({
               </button>
               <button
                 className="button danger"
+                disabled={busy}
                 onClick={() => {
                   const formData = new FormData();
                   formData.set("puzzleId", String(puzzleId));
-                  setClearing(false);
-                  void clearAction(formData);
+                  run("clear", clearAction, formData, () => setClearing(false));
                 }}
                 type="button"
               >
-                确认清空
+                {pendingKey === "clear" ? "清空中…" : "确认清空"}
               </button>
             </div>
           </div>

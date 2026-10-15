@@ -10,6 +10,7 @@ import {
   AdminPuzzleCachePanel,
   type PuzzleCacheEntry,
 } from "@/components/admin-puzzle-cache-panel";
+import { usePendingAction } from "@/lib/use-pending-action";
 
 export type AdminPuzzleListItem = AdminPuzzleFormValue & {
   facts?: unknown;
@@ -95,9 +96,8 @@ export function AdminPuzzleList({
   clearPuzzleCacheAction,
 }: AdminPuzzleListProps) {
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [deletingPuzzle, setDeletingPuzzle] = useState<AdminPuzzleFormValue | null>(
-    null,
-  );
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const { pendingKey, run } = usePendingAction<"delete">(puzzles);
   const [cachePuzzleId, setCachePuzzleId] = useState<number | null>(null);
   const [factsPuzzleId, setFactsPuzzleId] = useState<number | null>(null);
   const editingPuzzle = useMemo(
@@ -107,6 +107,11 @@ export function AdminPuzzleList({
   const cachePuzzle = useMemo(
     () => puzzles.find((puzzle) => puzzle.id === cachePuzzleId),
     [cachePuzzleId, puzzles],
+  );
+  // 删除成功后题目从列表消失，确认框随之关闭
+  const deletingPuzzle = useMemo(
+    () => puzzles.find((puzzle) => puzzle.id === deletingId),
+    [deletingId, puzzles],
   );
   const factsPuzzle = useMemo(
     () => puzzles.find((puzzle) => puzzle.id === factsPuzzleId),
@@ -119,13 +124,13 @@ export function AdminPuzzleList({
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       setEditingId(null);
-      setDeletingPuzzle(null);
+      if (!pendingKey) setDeletingId(null);
       setCachePuzzleId(null);
       setFactsPuzzleId(null);
     };
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [editingPuzzle, deletingPuzzle, cachePuzzle, factsPuzzle]);
+  }, [editingPuzzle, deletingPuzzle, cachePuzzle, factsPuzzle, pendingKey]);
 
   if (puzzles.length === 0) {
     return <div className="card muted">没有找到匹配的题目。</div>;
@@ -205,7 +210,7 @@ export function AdminPuzzleList({
                     </button>
                     <button
                       className="button danger-text small"
-                      onClick={() => setDeletingPuzzle(puzzle)}
+                      onClick={() => setDeletingId(puzzle.id ?? null)}
                       type="button"
                     >
                       删除
@@ -357,24 +362,25 @@ export function AdminPuzzleList({
             <div className="dialog-actions">
               <button
                 className="button secondary"
-                onClick={() => setDeletingPuzzle(null)}
+                disabled={pendingKey !== null}
+                onClick={() => setDeletingId(null)}
                 type="button"
               >
                 取消
               </button>
               <button
                 className="button danger"
+                disabled={pendingKey !== null}
                 onClick={() => {
                   const formData = new FormData();
                   formData.set("returnTab", "puzzles");
                   formData.set("puzzleId", String(deletingPuzzle.id));
                   formData.set("confirmDelete", "on");
-                  setDeletingPuzzle(null);
-                  void deleteAction(formData);
+                  run("delete", deleteAction, formData, () => setDeletingId(null));
                 }}
                 type="button"
               >
-                确认删除
+                {pendingKey === "delete" ? "删除中…" : "确认删除"}
               </button>
             </div>
           </div>

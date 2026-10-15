@@ -62,10 +62,14 @@ export function AdminUserSection({
   const [optimisticUsernames, setOptimisticUsernames] = useState<Record<string, string>>({});
   const [syncedUsers, setSyncedUsers] = useState(users);
 
+  // 服务端数据回来即视为提交结束：弹窗提交时保持打开以显示“保存中…”，这里再统一关闭
   if (syncedUsers !== users) {
     setSyncedUsers(users);
     setOptimisticPoints({});
     setOptimisticUsernames({});
+    setEditingUser(null);
+    setAdjustingUser(null);
+    setCreateOpen(false);
   }
 
   const sortedUsers = [...users].sort((a, b) =>
@@ -224,7 +228,6 @@ export function AdminUserSection({
                 if (value) {
                   setOptimisticUsernames((prev) => ({ ...prev, [editingUser.id]: value }));
                 }
-                setEditingUser(null);
               }}
             >
               <input name="userId" type="hidden" value={editingUser.id} />
@@ -242,11 +245,7 @@ export function AdminUserSection({
               <SubmitButton pendingText="保存中...">保存</SubmitButton>
             </form>
 
-            <form
-              action={updateUserPassword}
-              className="inline-admin-form"
-              onSubmit={() => setEditingUser(null)}
-            >
+            <form action={updateUserPassword} className="inline-admin-form">
               <input name="userId" type="hidden" value={editingUser.id} />
               <label>
                 新密码
@@ -265,10 +264,7 @@ export function AdminUserSection({
 
             <div className="dialog-actions">
               {!isEmailless(editingUser.email) && (
-                <form
-                  action={sendPasswordReset}
-                  onSubmit={() => setEditingUser(null)}
-                >
+                <form action={sendPasswordReset}>
                   <input name="userId" type="hidden" value={editingUser.id} />
                   <SubmitButton className="button secondary" pendingText="发送中...">
                     发送重置邮件
@@ -322,7 +318,6 @@ export function AdminUserSection({
                     [adjustingUser.id]: adjustingUser.points + delta,
                   }));
                 }
-                setAdjustingUser(null);
               }}
             >
               <input name="userId" type="hidden" value={adjustingUser.id} />
