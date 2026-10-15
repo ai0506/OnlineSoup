@@ -63,7 +63,7 @@ export async function login(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     return await redirectLoginWithFlash("error", "invalid_credentials");
@@ -83,7 +83,14 @@ export async function login(formData: FormData) {
     });
   }
 
-  redirect("/");
+  // 还没完成上手教程的账号直接进教程，读取失败时按老用户处理回首页
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("onboarding_completed_at")
+    .eq("id", signInData.user.id)
+    .maybeSingle();
+
+  redirect(profile && !profile.onboarding_completed_at ? "/onboarding" : "/");
 }
 
 export async function signup(formData: FormData) {
@@ -142,7 +149,7 @@ export async function signup(formData: FormData) {
   }
 
   if (data.session) {
-    redirect("/");
+    redirect("/onboarding");
   }
 
   return await redirectLoginWithFlash("notice", "signup_confirmation_sent");

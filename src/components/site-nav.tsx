@@ -204,7 +204,7 @@ export function SiteNav({
           <Link className="nav-pop-item" href="/points-history">
             积分流水
           </Link>
-          <LogoutButton className="nav-pop-item nav-pop-danger" />
+          <LogoutButton className="nav-pop-item nav-pop-danger" onOpen={() => setOpenKey(null)} />
         </div>
       </div>
     );

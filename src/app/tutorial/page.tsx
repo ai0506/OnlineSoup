@@ -126,6 +126,7 @@ export default function TutorialPage() {
           <h1>使用教程</h1>
           <p className="tutorial-subtitle">汤局 OnlineSoup · 多人在线海龟汤推理游戏</p>
           <p>喜欢用终端？<Link href="/cli">下载 CLI 客户端与 Markdown 教程 →</Link></p>
+          <p>想跟着点一遍？<Link href="/onboarding">进入上手教程 →</Link></p>
 
           <section id="overview">
             <div className="tutorial-overview">

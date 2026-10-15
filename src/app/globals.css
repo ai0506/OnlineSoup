@@ -5887,3 +5887,111 @@ body:has(.docs-layout) {
     min-width: 0;
   }
 }
+
+.onboard-dim {
+  position: fixed;
+  z-index: 2010;
+  background: rgba(17, 24, 39, 0.6);
+}
+
+.onboard-hole {
+  position: fixed;
+  z-index: 2011;
+  border-radius: 10px;
+  outline: 2px solid #fff;
+  pointer-events: none;
+}
+
+.onboard-hole--pulse {
+  animation: onboard-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes onboard-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.55); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 255, 255, 0); }
+}
+
+.onboard-guard {
+  position: fixed;
+  z-index: 2012;
+}
+
+.onboard-skip {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 2030;
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
+.onboard-card {
+  position: fixed;
+  z-index: 2020;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+}
+
+.onboard-card--center {
+  top: 50%;
+  left: 50%;
+  width: min(360px, calc(100vw - 32px));
+  transform: translate(-50%, -50%);
+}
+
+.onboard-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.onboard-progress {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.onboard-card p {
+  margin: 0 0 14px;
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
+.onboard-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.onboard-actions .button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.onboard-tip {
+  color: var(--muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .onboard-dim {
+    background: rgba(0, 0, 0, 0.72);
+  }
+}

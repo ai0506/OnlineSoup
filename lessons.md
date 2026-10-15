@@ -2036,3 +2036,41 @@ Preventability:
 
 Origin:
 OnlineSoup 2026-10-12 updates.md [Claude Code][261012191555]；2026-10-15 updates.md [Claude Code][261015130743]
+
+## 带 transform 的父级会让 fixed 弹窗相对父级定位
+
+Project: OnlineSoup
+Date: 2026-10-15
+
+Area:
+- Frontend / UX
+
+Problem Type:
+- CSS 包含块被祖先 transform 改变，全屏弹窗错位
+
+Incident:
+在手机竖屏里，从顶部账户菜单点「退出登录」后，确认弹窗没有铺满屏幕居中，而是从菜单位置向右撑开，超出视口。
+
+Initial Assumption:
+弹窗用 dialog-backdrop（position: fixed; inset: 0），fixed 总是相对视口定位，所以放在哪个组件里渲染都一样。
+
+Root Cause:
+账户下拉菜单 .nav-pop 为了做展开动画设置了 transform。只要祖先元素有 transform（filter、perspective、contain 等同理），它就会成为 fixed 后代的包含块，fixed 元素改为相对这个祖先定位和计算 inset。LogoutButton 把弹窗直接渲染在菜单内部，于是"全屏"遮罩只相对窄小的菜单定位并向右溢出；菜单收起时还会随菜单一起被 visibility 隐藏。
+
+Resolution:
+LogoutButton 用 createPortal 把确认弹窗挂到 document.body，打开时通过 onOpen 回调收起账户菜单。房间页的题目菜单、座位菜单此前已采用同样的 Portal 写法。
+
+Evidence:
+本地 375x812 竖屏打开弹窗后读取 DOM：遮罩父元素为 BODY，宽 375、高 812，面板左右居中，页面 scrollWidth 等于视口宽度不再溢出；桌面端面板中心与视口中心一致，取消按钮正常关闭。
+
+Lesson:
+position: fixed 并不保证相对视口；它依赖于没有祖先建立新的包含块。下拉菜单、动画容器、details 等常带 transform 或 overflow 的容器里渲染的弹窗都会受影响。
+
+Rule:
+全屏遮罩、确认弹窗、浮层菜单一律通过 createPortal 挂到 document.body，不直接渲染在菜单、卡片等可能带 transform/filter/overflow 的容器内部。新增弹窗时在手机竖屏和桌面各检查一次是否居中铺满。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup 2026-10-15 updates.md [Claude Code][261015202236]

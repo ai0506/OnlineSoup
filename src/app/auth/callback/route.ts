@@ -56,7 +56,22 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      const response = NextResponse.redirect(`${origin}${next}`);
+      let destination = next;
+      if (next === "/") {
+        // 邮件确认后首次登录：还没完成上手教程就直接进教程
+        const { data: claimsData } = await supabase.auth.getClaims();
+        const userId = claimsData?.claims?.sub;
+        if (userId) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("onboarding_completed_at")
+            .eq("id", userId)
+            .maybeSingle();
+          if (profile && !profile.onboarding_completed_at) destination = "/onboarding";
+        }
+      }
+
+      const response = NextResponse.redirect(`${origin}${destination}`);
       pendingCookies.forEach(({ name, value, options }) => {
         response.cookies.set(name, value, options as Parameters<typeof response.cookies.set>[2]);
       });
