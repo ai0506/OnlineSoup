@@ -50,6 +50,7 @@ export type RoomMessage = {
   message_mode: MessageMode;
   content: string;
   puzzle_id?: number | null;
+  reply_to_id?: number | null;
   created_at: string;
 };
 

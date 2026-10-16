@@ -2074,3 +2074,45 @@ Preventability:
 
 Origin:
 OnlineSoup 2026-10-15 updates.md [Claude Code][261015202236]
+
+
+## 放宽 AI 并发必须消除顺序配对和退款前的余额快照
+
+Project: OnlineSoup
+Date: 2026-10-16
+
+Area:
+- AI / LLM
+- Database
+- Frontend / UX
+- Testing
+
+Problem Type:
+- 并发回答错配；超时退款后使用旧余额
+
+Incident:
+动态并发实施中发现，聊天颜色、等待状态和提示/推理历史依赖“问题之后第一条 AI 消息”的串行假设；准入先读取座位再清理超时请求，退款后仍可能用旧余额判定积分不足。
+
+Initial Assumption:
+房间只有一个 pending 请求，消息顺序可代表因果关系；准入期间座位余额不会变化。
+
+Root Cause:
+并发回答可能乱序到达，提示/揭底也不是其他问题的回答。reconcile_stale_room_ai_requests 会修改积分和提示机会，已加载的 rowtype 快照不会自动更新。
+
+Resolution:
+以数据库已有 reply_to_id 配对回答；模型历史加载 id/reply_to_id，限制 id 不超过当前请求；每条问题独立维护等待状态。清理租约后重新读取 sender_seat，再检查提示机会、余额并扣费。
+
+Evidence:
+86 项 Vitest 通过，覆盖乱序问答、未关联揭底、独立等待、超时/旧题排除和 prompt 配对。SQL 回滚测试覆盖 3/4/6/7 人档位、anon/authenticated、个人积分、拒绝不扣费、重复退款、仅剩 1 分时超时退款后再提交和切题迟到退款。公开 key 同时发请求验证 ask=3、reason=2、hint=1、混合总量=4、同玩家=1、准确退款、bootstrap 关联和审计脱敏。测试数据已清理。
+
+Lesson:
+从串行改为并发，要检查读取、展示和上下文中的顺序假设；事务原子性不等于变量始终代表最新行值。
+
+Rule:
+回答归属只认显式请求关联；补偿调用后重新读取计费快照。准入须在事务锁内、扣费前同时检查总额度、模式额度和玩家额度，并用公开角色同时发请求验证。
+
+Preventability:
+可以提前避免
+
+Origin:
+OnlineSoup updates.md [CodeX][261016182544]

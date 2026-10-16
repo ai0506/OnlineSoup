@@ -21,6 +21,23 @@ afterEach(() => {
 });
 
 describe("ask provider and inference contract", () => {
+  it("pairs concurrent Q&A by request id when constructing hint history", async () => {
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ choices: [{
+      finish_reason: "stop", message: { content: JSON.stringify({ hint: "想想声音来源", summary: "声音来源是线索" }) },
+    }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    await askDeepSeekHost({ mode: "hint", puzzle, content: "提示", puzzleMessages: [
+      { id: 1, sender_name: "甲", message_type: "chat", message_mode: "ask", content: "窗户破了吗？" },
+      { id: 2, sender_name: "乙", message_type: "chat", message_mode: "ask", content: "下雨了吗？" },
+      { id: 3, reply_to_id: 2, sender_name: "AI主持", message_type: "ai", message_mode: "ask", content: '{"kind":"answer","text":"否"}' },
+      { id: 4, reply_to_id: 1, sender_name: "AI主持", message_type: "ai", message_mode: "ask", content: '{"kind":"answer","text":"是"}' },
+    ] });
+    const system = JSON.parse(fetchMock.mock.calls[0][1].body).messages[0].content;
+    expect(system).toContain('Question - 甲: <player_message>窗户破了吗？</player_message>\nAnswer - host: 是');
+    expect(system).toContain('Question - 乙: <player_message>下雨了吗？</player_message>\nAnswer - host: 否');
+  });
+
   it("uses non-thinking short verdicts for both readings and arbitration, retaining player redaction", async () => {
     vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
     const fetchMock = vi.fn()

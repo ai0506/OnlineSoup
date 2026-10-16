@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { getAiRepliesByRequestId } from "@/lib/room-ai-messages";
 import type { MessageMode, RoomMessage } from "@/lib/types";
 
 export type PuzzleContext = {
@@ -13,7 +14,7 @@ export type PuzzleContext = {
 export type PuzzleMessage = Pick<
   RoomMessage,
   "sender_name" | "message_type" | "message_mode" | "content"
->;
+> & Partial<Pick<RoomMessage, "id" | "reply_to_id">>;
 
 type DeepSeekMode = Extract<MessageMode, "ask" | "hint" | "reason">;
 type NonAskMode = Extract<DeepSeekMode, "hint" | "reason">;
@@ -223,6 +224,7 @@ function getGlmFallbackConfig(mode: DeepSeekMode): ChatJsonConfig | null {
 
 function getRecentContext(messages: PuzzleMessage[], includeHostAnswers = true) {
   const exchanges: string[] = [];
+  const replies = getAiRepliesByRequestId(messages);
 
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i];
@@ -231,7 +233,9 @@ function getRecentContext(messages: PuzzleMessage[], includeHostAnswers = true) 
     const lines = [
       `Question - ${message.sender_name}: ${getPromptMessageContent(message)}`,
     ];
-    const reply = messages.slice(i + 1).find((candidate) => candidate.message_type === "ai");
+    const reply = message.id === undefined
+      ? undefined
+      : replies.get(message.id);
     if (reply && includeHostAnswers) {
       lines.push(`Answer - host: ${getPromptMessageContent(reply)}`);
     }

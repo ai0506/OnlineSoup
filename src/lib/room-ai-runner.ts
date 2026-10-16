@@ -50,7 +50,7 @@ function fitAiContent(aiContent: string) {
 
 type RecentMessageRow = Pick<
   RoomMessage,
-  "sender_name" | "message_type" | "message_mode" | "content"
+  "id" | "reply_to_id" | "sender_name" | "message_type" | "message_mode" | "content"
 >;
 
 function puzzleChangedResponse() {
@@ -115,9 +115,10 @@ export async function runRoomAiRequest(requestResult: AiRequestResult, code: str
   // history rather than just the last couple of exchanges.
   const { data: puzzleMessages, error: puzzleMessagesError } = await admin
     .from("room_messages")
-    .select("sender_name, message_type, message_mode, content")
+    .select("id, reply_to_id, sender_name, message_type, message_mode, content")
     .eq("room_id", requestResult.room_id)
     .eq("puzzle_id", requestResult.puzzle_id)
+    .lte("id", requestResult.request_id)
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(60);

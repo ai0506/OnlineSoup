@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 
+import { getAiRepliesByRequestId, getPendingAiMessageIds } from "@/lib/room-ai-messages";
 import type { MessageMode, RoomMessage } from "@/lib/types";
 
 const MODES = [
@@ -31,7 +32,7 @@ const MODE_LABEL: Record<MessageMode, string> = {
 const MODE_COST: Record<MessageMode, number> = { chat: 0, ask: 1, hint: 1, reason: 2 };
 
 // 待回复的 AI 请求超时阈值：超过此时间仍无 AI 消息则不再显示"回复中"
-const PENDING_AI_TIMEOUT_MS = 90_000;
+const PENDING_AI_TIMEOUT_MS = 120_000;
 const MESSAGE_FALLBACK_POLL_MS = 8_000;
 const POINTS_FALLBACK_POLL_MS = 15_000;
 
@@ -240,6 +241,7 @@ const SystemMessage = memo(function SystemMessage({ message }: { message: RoomMe
 
 type ChatMessageItemProps = {
   message: RoomMessage;
+  replyToMessage?: RoomMessage;
   aiColorClass: string | undefined;
   pendingSend: { content: string; mode: MessageMode } | undefined;
   sending: boolean;
@@ -249,6 +251,7 @@ type ChatMessageItemProps = {
 
 const ChatMessageItem = memo(function ChatMessageItem({
   message,
+  replyToMessage,
   aiColorClass,
   pendingSend,
   sending,
@@ -267,6 +270,9 @@ const ChatMessageItem = memo(function ChatMessageItem({
       >
         <div className="chat-message-meta">
           <strong>{message.sender_name}</strong>
+          {message.message_type === "ai" && replyToMessage && (
+            <span>回复 {replyToMessage.sender_name} [{replyToMessage.sender_seat_number}]</span>
+          )}
           {message.message_type !== "ai" && (
             <>
               <span>[{message.sender_seat_number}]</span>
@@ -360,7 +366,7 @@ export function RoomChat({
   const [currentPuzzleId, setCurrentPuzzleId] = useState<number | null>(initialPuzzleId);
   // pendingSends: keyed by tempId (negative number); stores failed message info for retry
   const [pendingSends, setPendingSends] = useState<Record<number, { content: string; mode: MessageMode }>>({});
-  // tickTime 每 10 秒更新一次（毫秒时间戳），驱动 pendingAiAfterMessageId 重新检查超时
+  // tickTime 每 10 秒更新一次（毫秒时间戳），驱动 pendingAiMessageIds 重新检查超时
   const [tickTime, setTickTime] = useState(() => new Date().getTime());
   const messageListRef = useRef<HTMLDivElement>(null);
   const tempIdRef = useRef(0);
@@ -788,59 +794,32 @@ export function RoomChat({
     });
   }, [messages, pendingSends]);
 
-  // 同一房间的 AI 请求严格顺序处理，所以 ask/hint/reason 消息之后
-  // 第一个 AI 消息必定是它的回复，据此把回答类型映射回询问消息本身。
+  const aiRepliesByRequestId = useMemo(() => getAiRepliesByRequestId(visibleMessages), [visibleMessages]);
+  const messagesById = useMemo(() => new Map(visibleMessages.map((message) => [message.id, message])), [visibleMessages]);
+
   const askAnswerColorByMessageId = useMemo(() => {
     const map = new Map<number, string>();
-    let pendingAskId: number | null = null;
     for (const message of visibleMessages) {
-      if (message.message_type === "chat" && message.message_mode === "ask") {
-        pendingAskId = message.id;
-        continue;
-      }
-      if (message.message_type === "ai" && pendingAskId !== null) {
-        const parsed = parseAiMessageContent(message.content);
-        if (parsed?.kind === "answer") {
-          const colorClass = ANSWER_COLOR_CLASS[parsed.text];
-          if (colorClass) map.set(pendingAskId, colorClass);
-        }
-        pendingAskId = null;
+      if (message.message_type !== "chat" || message.message_mode !== "ask") continue;
+      const reply = aiRepliesByRequestId.get(message.id);
+      const parsed = reply ? parseAiMessageContent(reply.content) : null;
+      if (parsed?.kind === "answer") {
+        const colorClass = ANSWER_COLOR_CLASS[parsed.text];
+        if (colorClass) map.set(message.id, colorClass);
       }
     }
     return map;
-  }, [visibleMessages]);
+  }, [visibleMessages, aiRepliesByRequestId]);
 
-  // tickTime 每 10 秒推进一次，驱动超时判断重算
+  // Keep each request pending until its own reply arrives, even when replies arrive out of order.
   useEffect(() => {
     const timer = window.setInterval(() => setTickTime(new Date().getTime()), 10_000);
     return () => window.clearInterval(timer);
   }, []);
 
-  // 找出最后一条尚未收到 AI 回复的 ask/hint/reason 消息（房间所有人共享此状态）。
-  // 排除已标记为失败的本地临时消息，避免失败后仍显示"回复中"。
-  // 超过 PENDING_AI_TIMEOUT_MS 的旧消息也不再显示，防止永久挂起。
-  const pendingAiAfterMessageId = useMemo(() => {
-    let lastAiRelatedId: number | null = null;
-    let hasFollowingAi = false;
-
-    for (const msg of visibleMessages) {
-      if (msg.message_type === "chat" && msg.message_mode !== "chat") {
-        if (msg.id < 0 && !!pendingSends[msg.id]) continue;
-        lastAiRelatedId = msg.id;
-        hasFollowingAi = false;
-      } else if (msg.message_type === "ai" && lastAiRelatedId !== null) {
-        hasFollowingAi = true;
-      }
-    }
-
-    if (lastAiRelatedId === null || hasFollowingAi) return null;
-
-    const lastMsg = visibleMessages.find((m) => m.id === lastAiRelatedId);
-    if (!lastMsg) return null;
-    if (tickTime - new Date(lastMsg.created_at).getTime() > PENDING_AI_TIMEOUT_MS) return null;
-
-    return lastAiRelatedId;
-  }, [visibleMessages, pendingSends, tickTime]);
+  const pendingAiMessageIds = useMemo(() => getPendingAiMessageIds(
+    visibleMessages, tickTime, PENDING_AI_TIMEOUT_MS, pendingSends, currentPuzzleId,
+  ), [visibleMessages, tickTime, pendingSends, currentPuzzleId]);
 
   return (
     <section className="room-chat">
@@ -861,9 +840,10 @@ export function RoomChat({
                 key={message.id}
                 message={message}
                 aiColorClass={askAnswerColorByMessageId.get(message.id)}
+                replyToMessage={message.reply_to_id == null ? undefined : messagesById.get(message.reply_to_id)}
                 pendingSend={message.id < 0 ? pendingSends[message.id] : undefined}
                 sending={sending}
-                isPendingAi={message.id === pendingAiAfterMessageId}
+                isPendingAi={pendingAiMessageIds.has(message.id)}
                 onRetry={stableOnRetry}
               />
             );
