@@ -545,3 +545,4 @@
 [Claude Code][261015205459] 按用户要求清空线上 test 账号的 profiles.onboarding_completed_at（仅 1 行），便于在线上重新测试首次登录跳转上手教程
 
 [CodeX][261015210236] 审查并整理本地未提交修改：教程页面与离线HTML/Markdown的编号、目录锚点、临时积分说明及菜单名称修订；管理端缓存/题目删除的处理中状态与防重复调用、账户弹窗延后关闭、SubmitButton的600ms防连点及usePendingAction。未发现阻碍提交的问题；typecheck、82项Vitest测试、build、git diff --check及教程唯一ID/锚点/截图引用/房主章节编号检查通过，lint零错误及3项既有警告。未执行真实管理员写操作E2E，未修改数据库，按用户要求仅本地提交、不推送或部署。
+[Claude Code][261016085544] 房间内复制房间链接按钮图标由上传箭头改为锁链图标，更易识别
