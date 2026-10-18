@@ -74,9 +74,21 @@ type SiteNavProps = {
 export function SiteNav({
   signedIn,
   username,
-  points,
+  points: initialPoints,
   activeRoomCode,
 }: SiteNavProps) {
+  // 服务端只在页面加载时给出积分；房间内由 live-room-seats 广播实时变化
+  // 记下实时值对应的服务端初值，服务端重新渲染给出新初值后以新初值为准
+  const [livePoints, setLivePoints] = useState<{ base: number | null; value: number } | null>(null);
+  const points = livePoints && livePoints.base === initialPoints ? livePoints.value : initialPoints;
+  useEffect(() => {
+    const onPointsChanged = (event: Event) => {
+      const { points: next } = (event as CustomEvent<{ points: number }>).detail;
+      if (typeof next === "number") setLivePoints({ base: initialPoints, value: next });
+    };
+    window.addEventListener("personal-points-changed", onPointsChanged);
+    return () => window.removeEventListener("personal-points-changed", onPointsChanged);
+  }, [initialPoints]);
   // 同一时间只允许一个展开层，新的展开会顶掉旧的
   const [openKey, setOpenKey] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);

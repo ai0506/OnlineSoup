@@ -7,7 +7,7 @@ import { redirect, RedirectType } from "next/navigation";
 
 import { flashRedirectPath, redirectWithFlash, setFlashMessage } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
-import { guestJoinSchema, roomSchema } from "@/lib/validation";
+import { guestJoinSchema, roomPasswordUpdateSchema, roomSchema } from "@/lib/validation";
 
 function isMissingDatabaseFunction(
   error: { code?: string; message: string },
@@ -214,7 +214,10 @@ export async function joinRoom(
   const isAuthenticated = Boolean(claimsData?.claims?.sub);
   const cookieStore = await cookies();
   const verifiedPassword = cookieStore.get(`room_password_${code}`)?.value;
-  if (!password && verifiedPassword && /^\d{6}$/.test(verifiedPassword)) {
+  const passwordFromCookie = Boolean(
+    !password && verifiedPassword && /^\d{6}$/.test(verifiedPassword),
+  );
+  if (passwordFromCookie) {
     password = verifiedPassword;
   }
   const identityCookieName = "guest_identity";
@@ -309,6 +312,21 @@ export async function joinRoom(
       active_room_exists: "你已经在另一个房间中，请先退出再加入新房间",
       join_failed: "加入房间失败，请稍后重试",
     };
+    // 已验证的旧密码因房主改密失效：清掉验证记录，回到输入密码步骤
+    if (matched === "wrong_password" && passwordFromCookie) {
+      cookieStore.set(`room_password_${code}`, "", {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 0,
+        path: "/",
+      });
+      return {
+        status: "error",
+        message: messages.wrong_password,
+        navigateTo: `/rooms/${code}`,
+      };
+    }
     if (matched === "guest_kicked") {
       return {
         status: "error",
@@ -403,6 +421,55 @@ export async function closeRoom(
 
   revalidatePath("/", "layout");
   return { status: "success", navigateTo: "/" };
+}
+
+export async function updateRoomPassword(
+  _previousState: RoomActionState,
+  formData: FormData,
+): Promise<RoomActionState> {
+  const parsed = roomPasswordUpdateSchema.safeParse({
+    code: formData.get("code"),
+    mode: formData.get("mode"),
+    password: formData.get("password") ?? undefined,
+  });
+
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "请输入 6 位数字密码" };
+  }
+
+  const supabase = await createClient();
+  const { data: claimsData } = await supabase.auth.getClaims();
+
+  if (!claimsData?.claims?.sub) {
+    return { status: "error", message: "请先登录" };
+  }
+
+  const { code, mode, password } = parsed.data;
+  const { error } = await supabase.rpc("update_room_password", {
+    room_code: code,
+    new_password: mode === "set" ? password : null,
+  });
+
+  if (error) {
+    const message = isMissingDatabaseFunction(error, "update_room_password")
+      ? "数据库功能不是最新版，请执行最新的 Supabase 迁移"
+      : error.message.includes("not_room_owner")
+        ? "只有房主可以修改密码"
+        : error.message.includes("room_closed")
+          ? "房间已经关闭"
+          : error.message.includes("room_not_found")
+            ? "没有找到这个房间"
+            : error.message.includes("invalid_room_password")
+              ? "房间密码必须是 6 位数字"
+              : "修改密码失败，请稍后重试";
+    return { status: "error", message };
+  }
+
+  revalidatePath(`/rooms/${code}`);
+  return {
+    status: "success",
+    message: mode === "set" ? "密码已更新" : "已取消密码",
+  };
 }
 
 export async function kickGuest(

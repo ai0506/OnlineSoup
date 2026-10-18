@@ -12,6 +12,7 @@ import { createPortal } from "react-dom";
 
 import { checkSeatSessionActive, getRoomMembershipStatus, giftPoints, kickGuest, moveSeat } from "@/app/rooms/actions";
 import type { RoomActionState } from "@/app/rooms/actions";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { CopyRoomCode } from "@/components/copy-room-code";
 import { RoomActionForm } from "@/components/room-action-form";
 import { ShareRoomLink } from "@/components/share-room-link";
@@ -107,6 +108,7 @@ export function LiveRoomSeats({
 
   // Gift points modal state
   const [giftTargetSeatId, setGiftTargetSeatId] = useState<string | null>(null);
+  const [kickTargetSeatId, setKickTargetSeatId] = useState<string | null>(null);
   const [giftAmount, setGiftAmount] = useState("1");
   const [giftError, setGiftError] = useState<string | null>(null);
   const [isGiftPending, startGiftTransition] = useTransition();
@@ -597,6 +599,7 @@ export function LiveRoomSeats({
   ).sort((a, b) => a - b);
 
   const giftTargetSeat = giftTargetSeatId ? seats.find((s) => s.id === giftTargetSeatId) : null;
+  const kickTargetSeat = kickTargetSeatId ? seats.find((s) => s.id === kickTargetSeatId) : null;
   const openSeat = openSeatMenuId ? seats.find((s) => s.id === openSeatMenuId) : null;
   const portalTarget = typeof document === "undefined" ? null : document.body;
 
@@ -649,14 +652,17 @@ export function LiveRoomSeats({
               >
                 调整位置
               </button>
-              <RoomActionForm
-                action={kickGuest}
-                buttonClassName="seat-menu-action-btn danger"
-                buttonText="移出房间"
-                code={roomCode}
-                pendingText="正在移出..."
-                seatId={openSeat.id}
-              />
+              <button
+                className="seat-menu-action-btn danger"
+                onClick={() => {
+                  setOpenSeatMenuId(null);
+                  setSeatMenuPosition(null);
+                  setKickTargetSeatId(openSeat.id);
+                }}
+                type="button"
+              >
+                移出房间
+              </button>
             </div>
           )}
         </div>,
@@ -667,6 +673,29 @@ export function LiveRoomSeats({
   return (
     <>
       {seatMenuPortal}
+      {kickTargetSeat?.nickname && (
+        <ConfirmDialog onClose={() => setKickTargetSeatId(null)} title={`移出 ${kickTargetSeat.nickname}？`}>
+          <p className="muted">移出后，对方在本房间关闭前都无法再次加入。</p>
+          <div className="dialog-actions">
+            <button
+              className="button secondary"
+              onClick={() => setKickTargetSeatId(null)}
+              type="button"
+            >
+              取消
+            </button>
+            <RoomActionForm
+              action={kickGuest}
+              buttonClassName="button danger"
+              buttonText="移出房间"
+              code={roomCode}
+              onSuccess={() => setKickTargetSeatId(null)}
+              pendingText="正在移出..."
+              seatId={kickTargetSeat.id}
+            />
+          </div>
+        </ConfirmDialog>
+      )}
       {/* Move seat modal */}
       {movingFromSeatId && (
         <div className="move-seat-overlay" role="dialog" aria-modal="true" aria-label="选择目标座位">

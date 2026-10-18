@@ -2071,6 +2071,20 @@ textarea:focus {
   margin: 0;
 }
 
+.room-password-form .dialog-actions {
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.room-password-form .room-password-clear {
+  margin-right: auto;
+}
+
+.room-password-form .dialog-actions .button {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .room-back-link {
   margin-left: auto;
 }

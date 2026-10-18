@@ -10,6 +10,7 @@ import {
   type RoomActionState,
   verifyRoomPassword,
 } from "@/app/rooms/actions";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SubmitButton } from "@/components/submit-button";
 
 const initialState: RoomActionState = { status: "idle" };
@@ -33,6 +34,7 @@ export function GuestRoomPanel({
 }: GuestRoomPanelProps) {
   const router = useRouter();
   const [password, setPassword] = useState("");
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [passwordState, passwordAction] = useActionState(
     verifyRoomPassword,
     initialState,
@@ -75,25 +77,46 @@ export function GuestRoomPanel({
     return (
       <div className="room-member-actions">
         {joinState.message && <div className="notice">{joinState.message}</div>}
-        <form
-          action={leaveAction}
-          onSubmit={() => {
-            window.dispatchEvent(new Event("room-leave-started"));
-          }}
+        <button
+          className="button secondary danger-text"
+          onClick={() => setLeaveConfirmOpen(true)}
+          type="button"
         >
-          <input name="code" type="hidden" value={roomCode} />
-          <SubmitButton
-            className="button secondary danger-text"
-            pendingText="正在退出..."
-          >
-            退出房间
-          </SubmitButton>
-          {leaveState.status === "error" && (
-            <div className="error" role="alert">
-              {leaveState.message}
+          退出房间
+        </button>
+        {leaveConfirmOpen && (
+          <ConfirmDialog onClose={() => setLeaveConfirmOpen(false)} title="退出房间？">
+            <p className="muted">退出后座位会空出来，座位上剩余的临时积分留在房间里，不会带走。</p>
+            <div className="dialog-actions">
+              <button
+                className="button secondary"
+                onClick={() => setLeaveConfirmOpen(false)}
+                type="button"
+              >
+                取消
+              </button>
+              <form
+                action={leaveAction}
+                onSubmit={() => {
+                  window.dispatchEvent(new Event("room-leave-started"));
+                }}
+              >
+                <input name="code" type="hidden" value={roomCode} />
+                <SubmitButton
+                  className="button danger"
+                  pendingText="正在退出..."
+                >
+                  退出房间
+                </SubmitButton>
+                {leaveState.status === "error" && (
+                  <div className="error" role="alert">
+                    {leaveState.message}
+                  </div>
+                )}
+              </form>
             </div>
-          )}
-        </form>
+          </ConfirmDialog>
+        )}
       </div>
     );
   }

@@ -1,14 +1,22 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 
 import type { RoomActionState } from "@/app/rooms/actions";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SubmitButton } from "@/components/submit-button";
 
 type RoomAction = (
   state: RoomActionState,
   formData: FormData,
 ) => Promise<RoomActionState>;
+
+type RoomActionConfirm = {
+  title: string;
+  message: string;
+  confirmText: string;
+  confirmClassName?: string;
+};
 
 type RoomActionFormProps = {
   action: RoomAction;
@@ -20,6 +28,7 @@ type RoomActionFormProps = {
   buttonClassName?: string;
   seatId?: string;
   onSuccess?: () => void;
+  confirm?: RoomActionConfirm;
 };
 
 const initialState: RoomActionState = { status: "idle" };
@@ -34,8 +43,10 @@ export function RoomActionForm({
   buttonClassName,
   seatId,
   onSuccess,
+  confirm,
 }: RoomActionFormProps) {
   const [state, formAction] = useActionState(action, initialState);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (state.navigateTo) {
@@ -52,16 +63,16 @@ export function RoomActionForm({
     }
   }, [state, onSuccess]);
 
-  return (
+  const form = (submitText: string, submitClassName?: string) => (
     <form action={formAction} className={className}>
       <input name="code" type="hidden" value={code} />
       {seatId && <input name="seatId" type="hidden" value={seatId} />}
       {children}
       <SubmitButton
-        className={buttonClassName}
+        className={submitClassName}
         pendingText={pendingText}
       >
-        {buttonText}
+        {submitText}
       </SubmitButton>
       {state.status === "error" && (
         <div className="error" role="alert">
@@ -72,5 +83,36 @@ export function RoomActionForm({
         <div className="notice">{state.message}</div>
       )}
     </form>
+  );
+
+  if (!confirm) {
+    return form(buttonText, buttonClassName);
+  }
+
+  return (
+    <>
+      <button
+        className={buttonClassName}
+        onClick={() => setConfirmOpen(true)}
+        type="button"
+      >
+        {buttonText}
+      </button>
+      {confirmOpen && (
+        <ConfirmDialog onClose={() => setConfirmOpen(false)} title={confirm.title}>
+          <p className="muted">{confirm.message}</p>
+          <div className="dialog-actions">
+            <button
+              className="button secondary"
+              onClick={() => setConfirmOpen(false)}
+              type="button"
+            >
+              取消
+            </button>
+            {form(confirm.confirmText, confirm.confirmClassName ?? "button danger")}
+          </div>
+        </ConfirmDialog>
+      )}
+    </>
   );
 }

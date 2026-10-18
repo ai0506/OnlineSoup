@@ -11,6 +11,7 @@ import { PuzzlePanel } from "@/components/puzzle-panel";
 import { RoomActionForm } from "@/components/room-action-form";
 import { RoomChat } from "@/components/room-chat";
 import { RoomCliTakeover } from "@/components/room-cli-takeover";
+import { RoomPasswordButton } from "@/components/room-password-button";
 import { StripRoomEnterParam } from "@/components/strip-room-enter-param";
 import { hasSupabaseEnv } from "@/lib/env";
 import { flashRedirectPath } from "@/lib/flash";
@@ -121,6 +122,8 @@ export default async function RoomPage({
     return (
       <section className="join-landing">
         <GuestRoomPanel
+          // 密码要求变化时重新挂载，清掉之前的验证状态
+          key={requiresPassword ? "password" : "open"}
           activeRoomCode={activeRoomCode && activeRoomCode !== code ? activeRoomCode : undefined}
           isAuthenticated={Boolean(userId)}
           isRegisteredMember={false}
@@ -231,9 +234,15 @@ export default async function RoomPage({
                 buttonClassName="button danger"
                 buttonText="关闭房间"
                 code={room.code}
+                confirm={{
+                  title: "关闭房间？",
+                  message: "关闭后所有成员会被移出，座位上剩余的临时积分会退回给你。",
+                  confirmText: "关闭房间",
+                }}
                 pendingText="正在关闭..."
               />
             )}
+            {isOwner && <RoomPasswordButton code={room.code} hasPassword={requiresPassword} />}
             {(isJoinedGuest || isRegisteredMember) && (
               <GuestRoomPanel
                 isAuthenticated={Boolean(userId)}

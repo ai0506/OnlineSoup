@@ -93,3 +93,16 @@ export const guestJoinSchema = z.object({
     .refine((value) => /^\d{6}$/.test(value), "房间密码必须是 6 位数字")
     .optional(),
 });
+
+export const roomPasswordUpdateSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9]{6}$/, "房间码应为 6 位")
+    .transform((value) => value.toUpperCase()),
+  mode: z.enum(["set", "clear"]),
+  password: z.string().optional(),
+}).refine(
+  (value) => value.mode === "clear" || /^\d{6}$/.test(value.password ?? ""),
+  { message: "房间密码必须是 6 位数字", path: ["password"] },
+);
