@@ -287,6 +287,7 @@ export async function joinRoom(
       "username_in_room",
       "registered_member_required",
       "room_device_in_use",
+      "owned_room_active",
       "active_room_exists",
     ];
     const matched = knownErrors.find((key) =>
@@ -304,6 +305,7 @@ export async function joinRoom(
       username_in_room: "房间里有访客正在使用你的用户名，请联系房主处理",
       registered_member_required: "登录用户需要使用账户身份加入房间",
       room_device_in_use: "这个账号在该房间已有活跃会话，请刷新后重试",
+      owned_room_active: "你还有一个自己创建的房间未关闭，请先回到原房间关闭后再加入",
       active_room_exists: "你已经在另一个房间中，请先退出再加入新房间",
       join_failed: "加入房间失败，请稍后重试",
     };

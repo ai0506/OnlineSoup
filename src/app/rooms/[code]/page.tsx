@@ -115,9 +115,13 @@ export default async function RoomPage({
     && !/^\d{6}$/.test(verifiedRoomPassword ?? "");
 
   if (!isOwner && !isRegisteredMember && !isJoinedGuest) {
+    const { data: activeRoomCode } = userId
+      ? await supabase.rpc("get_my_active_room")
+      : { data: null };
     return (
       <section className="join-landing">
         <GuestRoomPanel
+          activeRoomCode={activeRoomCode && activeRoomCode !== code ? activeRoomCode : undefined}
           isAuthenticated={Boolean(userId)}
           isRegisteredMember={false}
           initiallyJoined={false}

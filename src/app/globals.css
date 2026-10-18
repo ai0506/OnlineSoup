@@ -415,6 +415,22 @@ textarea {
   min-height: 44px;
 }
 
+.join-active-room {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  text-align: left;
+}
+
+.join-active-room p {
+  margin: 0;
+}
+
 .join-secondary-action,
 .join-back-link {
   display: block;

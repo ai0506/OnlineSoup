@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 
@@ -14,6 +15,7 @@ import { SubmitButton } from "@/components/submit-button";
 const initialState: RoomActionState = { status: "idle" };
 
 type GuestRoomPanelProps = {
+  activeRoomCode?: string;
   isAuthenticated: boolean;
   isRegisteredMember: boolean;
   initiallyJoined: boolean;
@@ -22,6 +24,7 @@ type GuestRoomPanelProps = {
 };
 
 export function GuestRoomPanel({
+  activeRoomCode,
   isAuthenticated,
   isRegisteredMember,
   initiallyJoined,
@@ -91,6 +94,23 @@ export function GuestRoomPanel({
             </div>
           )}
         </form>
+      </div>
+    );
+  }
+
+  if (activeRoomCode) {
+    return (
+      <div className="join-room-panel">
+        <p className="join-room-code">房间码 {roomCode}</p>
+        <h1>加入房间</h1>
+        <div className="join-active-room">
+          <p>
+            你当前在房间 {activeRoomCode} 中。请先回到原房间退出；如果原房间是你创建的，需要先关闭它，再加入本房间。
+          </p>
+          <Link className="button" href={`/rooms/${activeRoomCode}?action=enter`}>
+            返回原房间
+          </Link>
+        </div>
       </div>
     );
   }
