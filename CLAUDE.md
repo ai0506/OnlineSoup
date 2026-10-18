@@ -179,8 +179,8 @@ RPC 清单会随迁移变化，不在本文件维护完整表。处理具体任�
 
 ## 题库 Examples 与 AI 错误
 
-- 题目 examples 当前区分 fact 和 inferential 两类；ask 模式两路判断只读取各自模型适用的 examples。
-- 生成或修改 examples 时，优先使用项目内 `puzzle-example-generator` skill，并做预览、边界类型、近似重复、key point 复读和线上回读验证。
+- 题目 examples 当前区分 fact 和 inferential 两类；v1 严格/推断两路分别读取对应类别，v2 的 A 合并读取示例，B1 不读取示例、只验证证据。
+- 生成或修改题目、Facts 证据清单或 examples 时，优先使用项目内 `puzzle-generator` skill；完整题目需一并准备汤面、汤底、评分点、编号 Facts 和示例问答，并做预览、依据/依赖校验、边界类型、近似重复、key point 复读和线上回读验证。
 - 分析 AI 错误案例时，应先判断问题来自 prompt、examples、问答缓存、事实摘要还是代码流程，再制定小步修复和回归验证。
 - 涉及 AI 错误分析或修复规划的材料应归档到 `ai-error/M-D/`，包含错误分类、根因、修复方案、验证条目和实施顺序。
 

@@ -6,7 +6,10 @@ out
 .env.local
 .env.*.local
 supabase/.temp/
-.agents/
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/puzzle-generator/
 .claude/
 .codex-pet-runs/
 .vercel/

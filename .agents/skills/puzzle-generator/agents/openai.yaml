@@ -1,0 +1,4 @@
+interface:
+  display_name: "Puzzle Generator"
+  short_description: "Draft OnlineSoup puzzles, numbered facts and examples"
+  default_prompt: "Use $puzzle-generator to create or complete an OnlineSoup puzzle with scoring points, numbered Facts evidence and player examples, then generate a validated review preview."

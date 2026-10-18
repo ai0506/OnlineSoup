@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render a human-focused static review page for puzzle example preview JSON."""
+"""Render a single-puzzle review page with story, scoring points, Facts and examples."""
 
 from __future__ import annotations
 
@@ -79,6 +79,13 @@ def render_examples(puzzle: dict[str, Any], model: str, heading: str, descriptio
     for index, item in enumerate(selected, start=1):
         boundary = item.get("boundary_type")
         boundary_badge = f'<span class="boundary">{esc(boundary)}</span>' if boundary else ""
+        evidence = item.get("evidence_ids", [])
+        evidence_html = ""
+        if isinstance(evidence, list) and evidence:
+            links = "、".join(
+                f'<a href="#fact-{esc(value)}">{esc(value)}</a>' for value in evidence
+            )
+            evidence_html = f'<p class="evidence">审核证据：{links}</p>'
         cards.append(
             '<article class="example">'
             f'<div class="example-meta"><span>问题 {index}</span>{boundary_badge}</div>'
@@ -86,6 +93,7 @@ def render_examples(puzzle: dict[str, Any], model: str, heading: str, descriptio
             '<div class="answer"><span>答案</span>'
             f'<strong>{esc(item.get("answer", ""))}</strong></div>'
             f'<p class="reason"><strong>理由</strong>{esc(item.get("reason", ""))}</p>'
+            f'{evidence_html}'
             "</article>"
         )
     if not cards:
@@ -98,6 +106,32 @@ def render_examples(puzzle: dict[str, Any], model: str, heading: str, descriptio
     )
 
 
+def render_facts(puzzle: dict[str, Any]) -> str:
+    facts = puzzle.get("facts", [])
+    if not isinstance(facts, list) or not facts:
+        return '<p class="muted">尚无编号 Facts，需补全证据清单。</p>'
+    cards = []
+    for fact in facts:
+        if not isinstance(fact, dict):
+            continue
+        fact_id = esc(fact.get("id", ""))
+        kind = {"explicit": "原文明说", "derived": "依据推导"}.get(fact.get("kind"), "未知类型")
+        status = {"draft": "草稿", "approved": "已批准", "needs_review": "待复核"}.get(fact.get("status"), "未知状态")
+        quote = f'<p><strong>原文依据：</strong>「{esc(fact["quote"])}」</p>' if fact.get("quote") else ""
+        deps = fact.get("depends_on", [])
+        dep_html = ""
+        if isinstance(deps, list) and deps:
+            links = "、".join(f'<a href="#fact-{esc(dep)}">{esc(dep)}</a>' for dep in deps)
+            dep_html = f'<p><strong>依赖：</strong>{links}</p>'
+        note = f'<p><strong>审核说明：</strong>{esc(fact["note"])}</p>' if fact.get("note") else ""
+        cards.append(
+            f'<article class="example fact-card" id="fact-{fact_id}">'
+            f'<div class="example-meta"><span>{fact_id} · {esc(kind)}</span><span>{esc(status)}</span></div>'
+            f'<h3>{esc(fact.get("text", ""))}</h3>{quote}{dep_html}{note}</article>'
+        )
+    return '<div class="example-list">' + "".join(cards) + '</div>'
+
+
 def render_puzzle(puzzle: dict[str, Any], index: int) -> str:
     examples = puzzle.get("examples", [])
     if not isinstance(examples, list):
@@ -107,16 +141,21 @@ def render_puzzle(puzzle: dict[str, Any], index: int) -> str:
     title = esc(puzzle.get("title", f"题目 {index}"))
     surface = esc(puzzle.get("surface", ""))
     bottom = esc(puzzle.get("bottom", ""))
+    facts = puzzle.get("facts", [])
+    facts = facts if isinstance(facts, list) else []
+    approved = sum(isinstance(fact, dict) and fact.get("status") == "approved" for fact in facts)
     return f'''<main class="puzzle">
 <header class="puzzle-header"><p class="eyebrow">题目审核</p><h1>{title}</h1>
-<div class="summary"><span>事实判断 {fact_count} 条</span><span>合理推断 {inferential_count} 条</span></div></header>
+<div class="summary"><span>{esc(puzzle.get('difficulty', ''))}</span><span>Facts {len(facts)} 条 · 已批准 {approved}</span><span>事实判断示例 {fact_count} 条</span><span>合理推断示例 {inferential_count} 条</span></div></header>
 <section class="story-grid"><article class="story"><h2>汤面</h2><p>{surface}</p></article>
 <article class="story"><h2>汤底</h2><p>{bottom}</p></article></section>
 <section class="key-points"><h2>Key points</h2>
 <p class="section-note">“可接受的合理变体”是给评分使用的容错标准，只在需要放宽判定的关键点显示。</p>
 {render_key_points(puzzle)}</section>
-{render_examples(puzzle, "fact", "事实判断", "根据题面可直接判断的事实、矛盾或无关信息。")}
-{render_examples(puzzle, "inferential", "合理推断", "从题面线索出发，主持人可以合理判断的内容。")}
+<section class="example-group"><h2>Facts · 编号证据清单</h2>
+<p class="section-note">原文与推导分别编号；草稿需人工审核。引用存在不等于推导正确。</p>{render_facts(puzzle)}</section>
+{render_examples(puzzle, "fact", "事实判断示例", "依据汤面、汤底与 Facts 示范事实核对及问法边界。")}
+{render_examples(puzzle, "inferential", "合理推断示例", "依据故事与可靠推导示范玩家问题的判定边界。")}
 </main>'''
 
 
@@ -130,6 +169,8 @@ def main() -> None:
     source = Path(args.preview_json)
     output = Path(args.output) if args.output else source.with_suffix(".html")
     puzzles = load_puzzles(source)
+    if not puzzles:
+        raise SystemExit("Preview JSON must contain at least one puzzle.")
     if len(puzzles) > 1 and not args.title:
         raise SystemExit(
             "Preview HTML is per puzzle. Pass --title to select the one puzzle being designed or reviewed."
@@ -138,8 +179,10 @@ def main() -> None:
         puzzles = [puzzle for puzzle in puzzles if puzzle.get("title") == args.title]
         if not puzzles:
             raise SystemExit(f"No puzzle titled {args.title!r} was found in {source}.")
+        if len(puzzles) != 1:
+            raise SystemExit("More than one puzzle has this title; select an unambiguous source.")
     body = "\n".join(render_puzzle(puzzle, index) for index, puzzle in enumerate(puzzles, start=1))
-    title = "题库示例审核" if len(puzzles) != 1 else f"《{esc(puzzles[0].get('title', '题目'))}》示例审核"
+    title = f"《{esc(puzzles[0].get('title', '题目'))}》完整题目审核"
     document = f'''<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{title}</title><style>
@@ -153,6 +196,7 @@ h1,h2,h3,p{{margin-top:0}}h1{{font-size:36px;margin:0 0 12px}}h2{{font-size:23px
 .tolerance,.soi{{margin-top:13px;border-radius:0 8px 8px 0;padding:10px 14px}}.tolerance{{background:#fff9ec;border-left:3px solid #d0a644;color:#584b2d}}.tolerance strong,.soi strong{{display:block;font-size:14px}}.tolerance ul{{margin:5px 0 0;padding-left:20px}}.soi{{background:#eff6ff;border-left:3px solid #5483c3;color:#304d71}}.soi span{{display:block;margin-top:4px}}
 .group-heading{{display:flex;align-items:center;justify-content:space-between;gap:15px;border-bottom:1px solid var(--line);padding-bottom:13px;margin-bottom:15px}}.group-heading h2{{margin-bottom:2px}}.group-heading p{{margin:0}}.example-meta{{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted);margin-bottom:5px}}.boundary{{background:#f2f4f7;border-radius:999px;padding:2px 8px}}.fact h3{{color:var(--blue)}}.inferential h3{{color:var(--purple)}}.answer{{display:flex;align-items:center;gap:11px;margin-bottom:10px}}.answer span{{font-size:13px;color:var(--muted)}}.answer strong{{background:#e8f3ed;color:var(--green);border-radius:7px;padding:2px 11px}}.reason{{color:#4f5967;margin:0}}.reason strong{{color:#303946;margin-right:9px}}.muted{{color:var(--muted)}}
 @media(max-width:680px){{.puzzle{{padding:28px 15px 48px}}h1{{font-size:30px}}.story-grid{{grid-template-columns:1fr}}.story{{padding:18px}}.point,.example{{padding:16px}}}}
+.fact-card{{scroll-margin-top:20px}}.fact-card p{{margin:7px 0 0;white-space:pre-wrap}}.evidence{{margin:9px 0 0;color:var(--muted)}}a{{color:var(--blue)}}.fact-card h3{{margin-bottom:10px}}
 </style></head><body>{body}</body></html>'''
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(document, encoding="utf-8")

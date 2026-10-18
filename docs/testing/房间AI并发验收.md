@@ -30,3 +30,12 @@
 2. 由数据库 SQL runner 执行 setupSql；现有 service_role 没有直接写入房间/座位的权限，不为测试扩大权限。
 3. `node --env-file=.env.local scripts/check-room-ai-concurrency.mjs /private/path/fixture.json` 使用公开 key 发请求，管理结算 RPC 只用于测试退款和模拟回复。
 4. 无论成功或失败，都执行对应 cleanupSql，并删除本地 fixture JSON；清理只能针对该次生成的账号与房间。
+
+
+## 生产发布回执
+
+- 实现提交：`214c17d`，已推送 GitHub `main`，仅包含本次功能及相关文档/测试；其他未提交改动保留在原工作区。
+- Vercel CLI 直接部署返回 `Not authorized`，未创建成功部署；改走项目已有的 GitHub 自动部署。
+- 生产部署：`dpl_7XSSrA1qFTFtCGr2hiyfQqBV5uEF`，状态 Ready；GitHub 该提交的 Vercel 检查为 success，主域名 `https://onlinesoup.ai0506.com` 已指向本次部署。
+- 发布后：首页、`/docs`、`/login` 返回 200；内部评估入口 POST 返回 404。没有执行收费模型或多人浏览器完整游戏验收。
+- 临时发布工作树已归档；公开接口测试数据和私密 fixture JSON 已清理。
