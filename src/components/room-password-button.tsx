@@ -19,7 +19,7 @@ export function RoomPasswordButton({ code, hasPassword }: RoomPasswordButtonProp
   return (
     <>
       <button className="button secondary" onClick={() => setOpen(true)} type="button">
-        修改密码
+        {hasPassword ? "修改密码" : "设置密码"}
       </button>
       {open && (
         <RoomPasswordDialog code={code} hasPassword={hasPassword} onClose={() => setOpen(false)} />
@@ -41,7 +41,7 @@ function RoomPasswordDialog({
   }, [state, onClose]);
 
   return (
-    <ConfirmDialog onClose={onClose} title="修改房间密码">
+    <ConfirmDialog onClose={onClose} title={hasPassword ? "修改房间密码" : "设置房间密码"}>
       <p className="muted">
         {hasPassword
           ? "设置新的 6 位数字密码，旧密码会立即失效；已在房间里的成员不受影响。"

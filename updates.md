@@ -580,3 +580,5 @@
 [Claude Code][261018232756] 加入页：登录用户已在其他房间时隐藏密码/进入房间表单，只保留「返回原房间」主按钮，说明改为需先退出或关闭原房间（与 active_room_exists / owned_room_active 新规则一致）；test 账号本地实测显示与跳转正确，测试房间已关闭
 [Claude Code][261018234547] 房间页：新增共用 ConfirmDialog，关闭房间/移出房间/退出房间改为站内二次确认；顶部导航积分监听 personal-points-changed 在房间内实时更新；房主在关闭房间旁新增「修改密码」（次要样式）弹窗，可设新 6 位密码或改为无需密码，新迁移 20261018154232 update_room_password（仅房主、bcrypt、仅 authenticated，未 push 线上）；访客已验证的旧密码失效时清掉验证 Cookie 并回到输入密码步骤。typecheck/lint/build 通过，test 账号本地实测关闭确认、修改密码弹窗与顶部积分监听，踢人/退出确认未做浏览器实测
 [Claude Code][261018235805] 迁移 20261018154232 update_room_password 经 Session Pooler dry-run 后 push 线上并回读确认（单一签名、SECURITY DEFINER、空 search_path、仅 authenticated、房主校验、bcrypt、CLI 拦截）；公开 key 调用返回 permission denied；test 账号本地实测设置/改为无需密码/再设置均生效，新密码校验通过、旧密码失效；修复改密后「需要密码」标签不刷新（改用服务端 revalidatePath），测试房间已关闭
+
+[CodeX][261019104731] 房间密码按钮按现有 hasPassword 状态显示：无密码时为“设置密码”，有密码时为“修改密码”；同步弹窗标题为“设置房间密码”或“修改房间密码”。typecheck、lint（0错误、3条既有警告）、build及diff检查通过；未做浏览器实测，未部署。
