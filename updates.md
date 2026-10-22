@@ -1,584 +1,64 @@
-[CodeX][260928074120] 补充 Supabase Data API 默认授权变更：2026-10-30 后新建 public 表需在同一迁移显式配置最小 GRANT、RLS、policy 及适用的 sequence 权限，并同步本地部署排障说明。
-[Claude Code][260807010000] paper/ 追加 v2 验证（仍不改 deepseek.ts）：logprobs-verify-v2-no-reason.mjs 把 max_tokens 改 640、temperature 改 0.1、去掉 reason 字段后重测，10/10 未再截断；但去掉 reason 并未改变单次调用 ~100% 过度自信的现象，JSD 趋势与 v1 一致，结论写入 verification-summary.md
-[Claude Code][260807000000] 新增 paper/ 目录做 DeepSeek logprobs 可行性独立验证（不改 deepseek.ts）：paper/scripts/logprobs-verify.mjs 实测 logprobs.content 可取、token 可定位、strict/inferential 两路 JS 散度可算且随问题清晰度合理变化；paper/verification-summary.md 记录结论，并发现意外坑——deepseek-v4-flash 会自发内部推理挤占 max_tokens，线上 ASK_MAX_TOKENS=320 在较难问题上有截断风险（4/10 命中），已用更大 max_tokens 复测验证根因
-[Claude Code][260715134340] 更新过时文档：README.md 补充 RESEND_API_KEY/ADMIN_EMAIL_FROM/ZHIPU_API_KEY/ZHIPU_MODEL 等环境变量说明和 GLM 备用模型/管理端邮件/移动端三标签布局功能点；tasks.md（未纳入 git）勾选已完成的移动端竖屏三标签布局、自动深色模式、管理端筛选状态保留、GLM 备用模型项，更新下一步优先建议
-﻿[Claude Code][260709230000] 事实总结展示调整：聊天气泡里提示(hint)和是/否回答(answer)底下用小字(.ai-message-fact)显示各自 fact_summary；题目面板事实板给来源为 hint 的条目加「提示」标签(.puzzle-fact-source)，room-chat 广播的 facts 由 string[] 改为 {text,source}[]，puzzle-panel 同步类型；补浅色/深色 CSS
-[Claude Code][260709223000] 在 glm-fallback-model-plan.md 末尾追加「Claude Code 补充提醒」：AI_HOST_TOTAL_TIMEOUT_MS 需做成包住 ask 三次调用(并发两路+仲裁)+GLM fallback 的 wall-clock 总闸，且 15+12=27>25 的超时数字要对齐
-[Claude Code][260709220000] 复核 Codex 的 GLM 备用模型拆分计划（ai-error/7-9/glm-fallback-model-plan.md），对照 deepseek.ts 与 ask/route.ts 实际代码，在文档末尾追加“Claude Code 复核意见”一节：指出验证第1条清空 key 会被 route.ts:128 的 503 拦截跑不出 fallback、DeepSeek 30s+GLM 15s 超时叠加、GLM 模型ID/response_format 需先验证等 6 条问题
-[Claude Code][260709214500] 手机竖屏三段房间界面（聊天/题目/座位切换+常驻题面条）已提交并推送到 GitHub main（commit 171dfc6），仅 portrait≤760px 生效
-[Claude Code][260705200250] ask 模式给严格/推断/仲裁三路判断各加一个内部 reason 字段（DeepSeek 输出，<=40字中文短句，说明依据哪条事实/示例问题下的判断），只写进 ask_audit 供管理端排查用；ask_audit 本就在两处 API 路由对玩家侧剥离，玩家消息不受影响，管理端页面新增展示原因文案，ASK_MAX_TOKENS 由 160 调到 320 以容纳新字段
-[Claude Code][260627] 前端9项体验优化：通知自动消失+关闭按钮、弹窗背景点击关闭、聊天时间戳简化（今天只显示时:分）、字数计数器临近上限变红、积分显示tooltip说明、切换聊天模式保留内容（截断而非清空）、全站暗色模式支持
-[Claude Code][260624] 细化积分不足提示：访客提示联系房主赠积分，注册用户提示注册送100积分且可邮件申请补充
-[Claude Code][260623120000] 管理端发邮件表单新增发件人下拉（noreply/support@ai0506.com），后端校验白名单并传给 sendAdminEmail
-[Claude Code][260621-260622] ask 模式 Q&A 缓存最终方案：新增 puzzle_qa_cache 表 + src/lib/qa-cache.ts（归一化/相似度/等价判断），ask route 调 DeepSeek 前先查缓存；只缓存「yes/no 且无代词」稳定问题，按 puzzle_id 全局查询，answer_type 约束收紧为 yes/no，补 RLS/权限，迁移已推送
-[Claude Code][260620232648] 压缩 tasks.md：阶段六合并为简洁列表，阶段七补充个人主页/在线追踪/IP隐藏等已完成项，阶段八补充最新迁移，精简下一步建议
-[Claude Code][260620191500] 管理端 AI 错误案例重构：整理卡片布局（题面/汤底折叠，AI 回答展示纯文本，状态彩色徽章），新增批量多选更新状态功能，新增导出 CSV（/admin/ai-errors/export），移除冗余函数
-[Claude Code][260620175000] 管理端消息审计：询问标记错误按钮内联到摘要行；推理消息新增标记错误（对话框选 true/false）；消息审计和 AI 错误案例改为子标签切换；迁移放宽 ai_content→4000/correct_answer→2000 字符限制；已推送数据库和 GitHub
-[Claude Code][260620150500] 减少 AI 上下文 token：recent context 改为最近 5 条玩家询问，uncovered points 合并最近 2 次推理结果
-[Claude Code][260620145500] 提示模式：从最近一次推理结果提取未覆盖得分点，注入 hint prompt，让 AI 优先引导玩家朝未命中方向前进
-[Claude Code][260620114200] AI 消息失败时在失败提示旁添加重试按钮（↺），点击后重新发送同一条消息并走正常积分判断流程
-[Claude Code][260620091527] 管理员积分操作改为赠送/扣除模式：新增 admin_adjust_user_points RPC 和 points_transactions.note 字段，积分调整通过弹窗填写数量和备注，结果写入流水记录。
-[Claude Code][260619222330] 修复账号删除后前端仍显示登录状态的问题：proxy.ts 中检测到 profile 行不存在时调用 getUser() 验证，账号已删除则强制登出并跳转登录页
-[CodeX][260615] 加快聊天与积分刷新，临时积分改为跟随座位而非玩家；修复移动座位、座位同步、积分弹窗等房间交互问题。
-[CodeX][260615-260616] 新增聊天模式（聊天/询问/提示/尝试推理），接入积分检查、二次确认、实时积分同步和数据库层速率限制。
-[CodeX][260616] 新增题库系统：puzzles/puzzle_progress 表、开题/关题 RPC、题库面板、难度筛选、完成状态与 Realtime 同步。
-[CodeX][260616] 管理端新增题库管理：新增、编辑、删除、关键点与示例问题编辑、整体导入/导出，并修复硬删除相关外键冲突。
-[CodeX][260616] 接入 DeepSeek AI 主持：新增 /rooms/[code]/ask，支持询问/提示/推理、积分扣除与退款、结构化 JSON 落库和前端分块展示。
-[CodeX][260616] 补齐 AI 上下文与安全边界：按 puzzle_id 隔离上下文、串行处理同房间 AI 请求、修复 service_role 权限、推理正确后回写 solved，并生成事实总结白板。
-[CodeX][260616] 多轮优化 AI 判定：修复 JSON 截断、评分点字段读取、yes/no/irrelevant/ambiguous 规则、示例问答复用、事实总结不泄露额外真相等问题。
-[CodeX][260616] 优化 AI 消息体验：新增事实/提示面板，推理成功自动播报汤底并关闭题目，询问结果按判定着色，前端改为乐观发送并显示回复状态。
-[CodeX][260616] 管理后台新增消息审计和房间清理：支持查看 AI 审计数据、批量强制清理 stale 房间、删除聊天记录，并验证管理员 RPC 权限。
-[CodeX][260616-260617] 持续更新 README、本地部署教程、tasks、AGENTS、CLAUDE 和文档索引，同步题库、AI、积分、部署与使用说明。
-[CodeX][260617] 重构 DeepSeek prompt：缓存静态前缀，强化已知事实推理、irrelevant/ambiguous 判定、提示安全规则和 prompt 注入防护。
-[CodeX][260617] 修复玩家侧接口泄露 ask_audit 的问题，审计数据仅保留给管理后台查看。
-[CodeX][260617] 优化房间页移动端/平板体验：房间入口保留主机名，密码验证刷新不丢状态，房间详情与标签布局更适配窄屏和横屏。
-[CodeX][260617] 将房间页高频整页刷新改为局部无感同步，降低兜底轮询频率，并把 URL 参数提示改为一次性 flash cookie。
-[CodeX][260617] 新增提示机会系统：提问或推理累计获得提示机会，提示额外消耗积分和机会；修复失败消息状态、回复中动画和积分即时刷新。
-[CodeX][260617] 修复 get_room_exit_reason 兜底 RPC 调用范围过宽、创建房间数字输入清空回填、推理模式 JSON 注入诱导等问题。
-[CodeX][260617] 准备 GitHub/Vercel 部署：清理本地配置、更新 .gitignore/.gitattributes、移除误跟踪文档与 BOM，并记录生产域名和部署检查命令。
-[CodeX][260617] 配置 Vercel 生产环境：设置 NEXT_PUBLIC_SITE_URL，修复注册和重置密码邮件跳转 localhost 的问题，完善邮件频率限制提示和失败日志。
-[CodeX][260617-260618] 管理端支持无邮箱账户：管理员可创建用户名+密码账户、设置初始积分、修改用户密码；登录页兼容用户名登录。
-[CodeX][260618] 修复管理员删除账户失败：捕获删除异常并清理关联房间 points_transactions，删除按钮与积分编辑布局同步优化。
-[CodeX][260618] 修复密码重置流程：浏览器端接收 Supabase recovery hash，并改用 Supabase updateUser 更新密码，避免服务端页面提前拦截会话。
-[CodeX][260617-260618] 新增并重构网站使用教程，按访客、房主管理、房主开题三类对象说明创建房间、AI 主持、积分和座位管理。
-[Claude Code][260618105606] fix: move variantRule after askCommonRules in buildAskPrompt so inferential mode overrides the common ambiguous definition
-[CodeX][260618105628] 管理端消息审计增加按当前筛选条件导出 CSV 的下载功能。
-[Claude Code][260618111947] 新增 AI 错误案例收集：ai_error_cases 表迁移、createAiErrorCase/updateAiErrorCase server actions、消息审计标记错误表单、独立「AI 错误案例」tab（状态筛选+内联编辑），记录提问/AI 回答/题目故事快照
-[CodeX][260618112627] 记录管理后台 UI 偏好：优先按钮进入二级界面，尽量不移动或扩大已有区域，不直接插入大表单
-[CodeX][260618222611] 将题库示例问题拆分为事实模型和推断模型，并让 AI 两路判断只读取各自示例。
-[CodeX][260618223142] 更新 DeepSeek 询问模式 yes/no/irrelevant/ambiguous 判定定义。
-[Claude Code][260618224840] 重写网站使用教程：新增整体流程概览、角色对比表、注册引导（2.0节）、刷新身份恢复说明，修复"提出"错别字，并在7处关键操作标注截图建议。
-[Claude Code][260618230800] 重写使用教程.html：改为与网站一致的浅色主题，顶部加 site-header，竖屏/窄屏侧边栏默认收起，点「目录」按钮展开。
-[Claude Code][260618234514] 新增 /tutorial 页面：src/app/tutorial/page.tsx（客户端组件，含灯箱和竖屏侧栏收起）、public/screenshots/ 10张截图、globals.css 教程样式、site-header 加「教程」导航链接，已部署至生产环境。
-[CodeX][260619151055] 管理端题目编辑支持示例问题上移下移及在事实/推断模型间移动。
-[CodeX][260619152034] 在 AGENTS.md 和 CLAUDE.md 追加本地 Supabase 密码读取规则，仅引用 .env.local 变量名不记录密码值
-[CodeX][260619-260622] 新增并持续强化 puzzle-example-generator skill：生成题库 fact/inferential 示例预览并校验 JSON，加入 boundary_type、禁止 key point 复读、跨模型近似重复校验、只读题库/缓存导出脚本、问答缓存审查流程、带日期预览命名，明确 examples 仅用于 ask 模式
-[Claude Code][260619160121] admin: 新增房间总览标签页（活跃房间列表+强制关闭）、积分流水标签页（300条记录+类型/日期/用户名筛选）；消息审计加日期范围过滤
-[CodeX][260619161957] 修复 Vercel 管理后台积分流水读取失败：补充 service_role 对 points_transactions 的权限迁移
-[Claude Code][260619164935] 管理端消息审计标记错误改为弹窗交互：新建 AdminAiErrorForm 客户端组件，列表只显示「标记错误」按钮，点击弹出 dialog 填写正确答案和备注；修复 admin page.tsx 弯引号导致的 TS 编译错误
-[Claude Code][260619170225] 管理端消息审计新增问答配对展示：room_messages 加 reply_to_id 字段，finish_room_ai_request 写入时填上对应提问消息ID，管理端在AI回复卡片内展示对应玩家提问
-[Claude Code][260619180500] 拆分事实总结生成：DeepSeek 判定模型只返回 answer_type，yes/no 判定后独立调用 GLM-4-Flash-250414 生成 fact_summary；移除题库示例中 summary 字段；admin 表单同步清理总结输入框
-[CodeX][260619181246] 修复教程页编码损坏导致的 JSX 乱码和页面不可用问题
-[CodeX][260619181749] 修复异常游客房间 cookie 可能把 tutorial 等路径误识别为房间的问题
-[CodeX][260619-260620] 收紧询问事实总结规则与防注入：GLM 增加玩家输入隔离、失败回退 DeepSeek 并显示来源；prompt 只用玩家问题/是否回答/已知事实，明确正反命题转换、保留主语人称视角、禁止额外推断，复杂复合问题返回 null
-[Claude Code][260619184056] deepseek.ts: 在 ambiguous 规则中明确说明包含多个子问题或多个条件的复合问题应判定为模糊问题
-[Claude Code][260619204558] AI错误案例编辑改为弹窗；缩小标记错误按钮；移除puzzle示例summary字段遗留引用；admin-ai-error-edit-form新组件。
-[Claude Code][260619-260623] 修复 deleteUser、邮件确认/重置登录链路系列问题：deleteUser 各步骤补错误检查并改为 RPC 事务清理、授予 service_role 对 rooms/room_ai_requests 权限；auth callback / 首页 ?code= 转发使邮件确认自动登录生效；管理员重置密码邮件链接直达重置页避免 implicit hash 被服务端误判
-[CodeX][260620152946] 设置汤局 logo 为网页 favicon 并加入公开图标资源（透明 logo 加白色圆形底，后改用 logo2.png 生成）
-[CodeX][260620181035] 创建 SoupCoder Codex 宠物包并完成 spritesheet 验证
-[Claude Code][260620181913] 新增个人主页：solved puzzles、积分流水（分页）、AI 统计；新增 RPC get_my_profile_page 和 get_my_points_history；header 用户名链接到 /profile
-[Claude Code][260620182350] soften reason mode scoring rules: covered=true when concept is mentioned/identified as key, lean true when in doubt
-[Claude Code][260620184520] 管理端 tab 从 7 个合并为 5 个（消息审计+AI错误案例、房间总览+房间清理各合并），消息卡片原始内容/审计详情/覆盖率改为 details 折叠展示
-[CodeX][260620185310] 优化聊天区手机竖屏布局并记录测试账号
-[CodeX][260620192331] 增加房间玩家在线/离线圆点、登录设备/IP记录和积分流水登录上下文字段；隐藏普通用户具体登录IP，仅显示登录地点并在管理端保留IP查看
-[Claude Code][260620210712] 前端性能优化：room-chat.tsx 提取 memo 消息组件、新增 MODE_COST 常量、useLayoutEffect 实现 stable onRetry；live-room-seats.tsx 将 Intl.DateTimeFormat 提升为模块级常量、删除死 tab DOM；page.tsx 房间页 server 端串行 DB 调用重构为并行批次，减少约 2-3 个 RTT
-[CodeX][260620220848] 收紧尝试推理 coverage prompt，按玩家最终明确立场判定关键点覆盖，强调关键词/accept 是重要证据但不能单独给分
-[CodeX][260620231058] 优化房间页刷新频率：细化聊天消息、座位和货币单独查询频率，不同消息刷新相关联动，降低兜底轮询频率并同步提示机会
-[CodeX][260620231703] 优化管理页 URL，筛选提交时移除空参数，切换后台 Tab 时清理无关筛选参数
-[CodeX][260620232250] 修复 AI 失败退款回滚提示机会/提问次数，并将管理员删用户数据库清理改为 RPC 事务
-[Claude Code][260622] 管理端问答缓存面板落地：每题「缓存 N」入口弹层，支持查看条目（问题/是否答案/命中次数/最近命中）、删除单条、是↔否翻转答案、编辑原文（同步重算 normalized_question）、清空整题缓存；新增 deleteCacheEntry/updateCacheAnswer/clearPuzzleCache server actions + AdminPuzzleCachePanel 组件 + globals.css 样式；授予 service_role delete 权限，已推送
-[CodeX][260622101122] remove fact summaries from AI prompt context and keep recent Q&A only
-[Claude Code][260622] CLAUDE.md 新增「AI错误分析与修复规划归档」规则；产出 ai-error/6-22 AI 判定错误修复规划（ClaudeCode/Codex 多版本，合并 ver2/ver3 修正复合句、否/无关边界和 fact_summary 范围），并按 ver3 实施 Phase1：deepseek.ts 收紧 ask/仲裁/reason 判定 + fact_summary 防污染
-[Claude Code][260622133506] formatExamples 每组注入上限从 8 提升到 12
-[CodeX][260622141002] 收紧 ambiguous 判定规则，修正哥哥示例并重新生成 ask-only 预览
-[Claude Code][260622142255] 校验示例预览并上传 examples 到 Supabase（餐厅自杀/怀孕的哥哥/消失的她，仅更新 examples 字段）
-[CodeX][260623] 新增单会话/房间级设备锁与管理端邮箱二次验证：单会话强制、多设备改为房间级设备锁、Supabase reauthentication 6→8 位验证码，修复验证回调与页面渲染期 cookie 变更，迁移已部署
-[CodeX][260623124920] 新增管理端发邮件面板，基于 Resend 配置
-[Claude Code][260623142514] 关闭房间整页跳转立即退出；创建房间后刷新顶部积分；默认房间名改为「房主名(截断5字)的房间」；横屏拆分门槛改为宽比例(min-width:880+aspect:6/5)；房间管理新增复制分享链接
-[Claude Code][260623143245] 分享链接按钮移到房间码旁(紧凑样式+可换行)；加固在线状态：presence 重连/重新可见时重新 track，并始终把自己座位算作在线
-[Claude Code][260623143652] 管理端二次验证新增「记住此设备」选项：勾选后写入 30 天设备 Cookie（HMAC 签名，只绑定 userId），再次进入管理端时优先检查设备 Cookie 免去重新验证
-[Claude Code][260623161112] 多设备同账号房间接管：get_my_active_room 去 session 过滤、新增 take_over_room_session/is_my_seat_session_active RPC、can_use_room_session 改接管/只读检查；首页「返回房间」带 ?action=enter，SSR 收到时调接管 RPC，普通刷新 session 不匹配则以 room_displaced 提示回首页；LiveRoomSeats 定时+Realtime 自检 session，被挤出后跳回首页
-[CodeX][260623193914] 上传新海龟汤《转回自己的邮件》到 Supabase 题库，包含评分点和示例问题
-[CodeX][260623194949] 适配长汤面阅读体验，当前题目支持展开收起并限制预览弹窗高度
-[Claude Code][260624084211] 去掉复制房间号按钮，房间码旁只保留分享链接按钮
-[CodeX][260624] 重写并优化题目《回到我手里的邮件》：强化确认链接矛盾、降低邮箱转发技术门槛，合并/缩短 key_points 至 3-4 个核心点（3/4 覆盖即判正确），并适配新题面重做 18 条 examples（上传 Supabase）
-[CodeX][260624091032] 调整房间海龟汤题面和事实总结展开收起体验，事实总结收起按钮固定到标题行
-[Claude Code][260624092546] 整理 updates.md：删除题库示例迭代/skill 小调整/确认类等极小记录，合并 Q&A 缓存、AI错误案例、邮箱二次验证、多设备接管、回到我手里的邮件等同类簇，从 153 行压到约 84 行
-[CodeX][260624093336] 放宽 AI 回复消息长度限制，修复 DeepSeek 推理回复写入超过 500 字导致 500 的问题
-[Claude Code][260624093530] 房间聊天字数上限调整：普通聊天 500->300、询问 50->100、推理 200->300（提示仍 50），同步前端 room-chat、ask 路由与 send_room_chat_message/send_room_ai_request RPC
-[Claude Code][260624102447] 项目体检修正过时内容：CLAUDE/AGENTS/tasks 字数上限同步为各模式（普通300/询问100/提示50/推理300），messages route schema 500→300 及报错文案改为模式无关，删除 tasks 已完成的“管理员积分改RPC”待办，CLAUDE/AGENTS RPC 表补全 open_puzzle/close_puzzle/send_room_ai_request/finish_room_ai_request，eslint globalIgnores 增加 .agents/tmp
-[Claude Code][260624102816] 添加 ZHIPU_API_KEY 到 .env.local，启用 GLM-4-Flash 事实摘要提取
-[Claude Code][260625140149] 修复多设备接管边界：leaveRoom 收到 room_device_in_use 时触发 room_displaced，修复 joinRoom 在 active_room_exists 和 room_device_in_use 的处理顺序
-[Claude Code][260625222614] 精简 CLAUDE.md：删除重复内容、合并相关章节、去除过时实现细节
-[CodeX][260625222415] 简化 AGENTS.md，移除易过时长清单并同步环境变量说明
-[Claude Code][260626] deepseek.ts: 新增 SOI（Seen Or Implied）宽松判定机制；formatPoints 识别 accept 含 soi/seen or implied 时输出 [SOI] 标注，推理模式 prompt 新增对应规则；管理员在 Accept 字段输入 SOI 即可标记
-[CodeX][260626111517] created id14 puzzle examples preview
-[CodeX][260626111820] uploaded id14 puzzle examples to Supabase
-[Claude Code][260626112006] 管理端消息审计新增「全量备份 JSON」按钮，新增 /admin/messages/backup 路由，忽略筛选导出全部房间元数据与聊天记录为结构化 JSON
-[Claude Code][260626113121] 管理端「消息 & 案例」新增「聊天备份」子标签：按自然日(Asia/Shanghai)分组列出聊天记录，显示每天消息数与是否已下载，点击按日下载 CSV；新增 chat_backup_downloads 表与 admin_list_chat_backup_days / admin_mark_chat_backup_downloaded 两个 RPC，/admin/messages/backup 改为按 date 下载并标记
-[Claude Code][260626115043] 修复5项真实代码问题：1.messageKey加30s时间桶防相同内容消息互相抵消；2.ask路由和messages路由同时剥离cache_hit内部字段不暴露给玩家；3.删除room-chat.tsx重复的profiles Realtime订阅改为监听personal-points-changed事件；4.管理端按activeTab按需加载listUsers/puzzles/cache/aiErrors/ptTxns五类数据；5.删除get_room_exit_reason旧签名兼容回退代码
-[Claude Code][260626213931] fix: 管理端切换标签无法查看内容——在 selectTab 中为非 messages/rooms 的标签调用 router.refresh()，触发服务端按新 tab 重取数据
-[CodeX][260627204016] 分析 6.26 AI error 案例，归档修复规划，并补充 reason 模式忽略清单自评标签的判定规则
-[CodeX][260627204514] 为《绝望的题目》生成纯 fact 类型 examples 预览，覆盖“只写了最后一题”双模型误判为否的问题
-[CodeX][260627205052] 已替换 Supabase《绝望的题目》fact examples，保留原 inferential examples，并验证线上题库为 7 fact + 4 inferential
-[Claude Code][260627212006] 房间右侧面板整理：房间码加标签+居中复制/分享图标按钮，座位列表区分房主/注册/访客身份，去掉返回大厅按钮，切换标签锁定侧栏宽度
-[Claude Code][260627213605] 深色模式去蓝：--navy 改为石板灰、按钮改为 slate-700、AI/标签等元素全面去除蓝色调；创建房间表单改为紧凑布局（500px 居中、座位数×积分双列、去掉冗余帮助文字）
-[Claude Code][260627214510] 深色模式题目面板加深色背景覆盖；座位菜单操作按钮统一为 seat-menu-action-btn 样式并用 seat-menu-actions 分组，增加间距和分割线
-[Claude Code][260627215537] 座位列表独立滚动：room-details-content 改为 overflow:hidden，room-manage-tab flex:1 撑满，seat-grid flex:1 + overflow-y:auto 独立滚动；puzzle-tab 同理
-[CodeX][260627220316] 房间消息时间显示到秒，稳定消息排序，并新增轻量 Realtime 消息事件与积分 Realtime 迁移
-[CodeX][260702162401] 修复 AI 主持请求因 DeepSeek thinking 参数卡住、超时过短和 ask 输出预算过低导致 502 的问题
-[CodeX][260702163013] 固定房间聊天时间格式化为北京时间，修复生产环境 React hydration text mismatch 418 报错
-[CodeX][260702163716] AI 询问改为 DeepSeek 双路判断部分成功即可返回，并降低 ask 输出预算，减少 30 秒超时导致的 502
-[CodeX][260702164416] DeepSeek 503 过载时将 AI 询问降级为默认单路调用，失败再备用，减少并发请求导致的 502
-[CodeX][260702164737] 按用户要求恢复 AI 询问两路并发交叉判断，保留一路成功可返回的容错逻辑
-
-[Claude Code][260705185055] 清理本地目录冗余文件：删除根目录重复的 ai-errors CSV、questions.json 副本、过期 next-dev 日志、tsbuildinfo 缓存、重复 logo.png（与 public/ 内容一致的文件均已确认不被代码引用）
-
-[Claude Code][260705185700] 提交清理：删除重复 logo.png，logo2.png 和旧版汤碗龟壳 logo 草稿移入新建 logo-archive/ 目录
-[CodeX][260706013601] 新增静态宣传房间演示 HTML
-[CodeX][260706014057] 调整静态房间 HTML：移除宣传文案，仅保留网站风格房间界面
-[CodeX][260706014557] 将静态房间 HTML 改为引用项目全局样式并按真实房间组件结构复刻
-[CodeX][260706014823] 按项目真实 AI 消息结构调整静态房间 HTML 的 AI 回复展示
-[CodeX][260706015000] 按真实 AI 主持输出规则调整静态房间 HTML 的 AI 回复内容
-[CodeX][260706144401] 将静态房间 HTML 内置项目 CSS 并移除暗色模式规则
-[ClaudeCode][260708124622] file updated
-[ClaudeCode][260708124629] file updated
-[ClaudeCode][260708124642] file updated
-[ClaudeCode][260708124651] file updated
-[ClaudeCode][260708124656] file updated
-[ClaudeCode][260708124706] file updated
-[ClaudeCode][260708124713] file updated
-[ClaudeCode][260708124725] file updated
-[ClaudeCode][260708124731] file updated
-[ClaudeCode][260708124745] file updated
-[ClaudeCode][260708124757] file updated
-[ClaudeCode][260708124805] file updated
-[ClaudeCode][260708124811] file updated
-[ClaudeCode][260708124819] file updated
-[ClaudeCode][260708124831] file updated
-[ClaudeCode][260708124845] file updated
-[ClaudeCode][260708124851] file updated
-[ClaudeCode][260708124910] file updated
-[ClaudeCode][260708125039] file updated
-[ClaudeCode][260708125045] file updated
-[Claude Code][260708125145] 管理端体验优化(review项2/3/4/5)：筛选表单改用 router.push 避免整页刷新；写操作 redirect 改为保留操作前 URL(referer)的 tab/筛选参数不再丢失；消息/房间 tab 5秒轮询在输入框聚焦或弹窗打开时跳过；账户管理用户名/积分调整加乐观本地更新；账户/消息/AI错误案例/积分流水命中查询上限(1000/200/500/300)时显示提示文案
-[CodeX][260709203952] 更新 AGENTS.md 和 CLAUDE.md，同步当前项目技术栈、AI 问答缓存、管理后台、多设备房间和 AI 错误归档规则
-[ClaudeCode][260709204213] file updated
-[ClaudeCode][260709204224] file updated
-[ClaudeCode][260709204244] file updated
-[ClaudeCode][260709204251] file updated
-[ClaudeCode][260709204256] file updated
-[ClaudeCode][260709210000] 修复房间页题目菜单弹出层被详情面板 overflow 裁剪/遮挡的问题，改为 Portal + 固定定位
-[ClaudeCode][260709205624] file updated
-[Claude Code][260709205634] 生成手机端房间 UI 4 套静态预览方案 onlinesoup_room_mobile_previews.html（未改动源码）
-[ClaudeCode][260709210229] file updated
-[Claude Code][260709210242] 生成方案 B 手机端房间可交互静态原型 onlinesoup_room_mobile_B_prototype.html（纯前端，无数据库）
-[ClaudeCode][260709211039] file updated
-[ClaudeCode][260709211058] file updated
-[ClaudeCode][260709211107] file updated
-[ClaudeCode][260709211114] file updated
-[ClaudeCode][260709211142] file updated
-[ClaudeCode][260709211149] file updated
-[Claude Code][260709211213] B 原型细节修正：手机尺寸不随标签切换抖动、题库弹层固定高度、赠送积分/调整位置/移出房间改为二级弹窗
-[ClaudeCode][260709212238] file updated
-[ClaudeCode][260709212448] file updated
-[ClaudeCode][260709212500] file updated
-[ClaudeCode][260709212518] file updated
-[ClaudeCode][260709212531] file updated
-[ClaudeCode][260709212652] file updated
-[Claude Code][260709213604] 落地方案 B 手机竖屏三段房间界面（信息栏+聊天/题目/座位导航+常驻题面条），仅 portrait≤760px 生效，横屏/平板/桌面零改动；改 live-room-seats/puzzle-panel/globals.css
-[ClaudeCode][260709213813] file updated
-[CodeX][260709215247] 生成 GLM 备用模型测试 Excel 表，包含真实 AI 错误案例和可填写评估列
-[CodeX][260709215810] 生成带复制按钮的 GLM prompt 测试 HTML 页面，便于官网模型测试
-[CodeX][260709220218] 生成竖版 GLM 测试 Excel，移除判定列并按模型逐行填写回答耗时和 token
-[CodeX][260709220425] 生成横向分列 GLM 测试 Excel，每个模型拆分回答耗时和 token 三列
-[CodeX][260709220635] 生成块状 GLM 测试 Excel，每个模型一列且回答耗时和 token 从上到下填写
-[CodeX][260709223005] 新增 GLM 备用模型拆分计划文档，记录测试表现价格来源和代码改造方案
-[CodeX][260709223941] 处理 Claude 对 GLM 备用模型计划的复核意见，补充超时预算API预检缓存策略和采纳结论
-[CodeX][260709224436] 采纳 Claude 关于 ask 全链路 wall-clock 总超时的补充建议并更新 GLM fallback 计划
-[CodeX][260709224620] 复查 GLM fallback 计划超时配置并标注 Claude 原提醒中的旧数字为修正前背景
-[ClaudeCode][260709223630] file updated
-[ClaudeCode][260709223640] file updated
-[ClaudeCode][260709224224] file updated
-[ClaudeCode][260709224240] file updated
-[CodeX][260709230338] 实现 DeepSeek 主持问答/提示/推理失败时的 GLM fallback，并补充相关环境变量示例
-[ClaudeCode][260709231732] file updated
-[ClaudeCode][260709231745] file updated
-[ClaudeCode][260709231755] file updated
-[ClaudeCode][260709231800] file updated
-[ClaudeCode][260709231805] file updated
-[ClaudeCode][260709231812] file updated
-[ClaudeCode][260709231823] file updated
-[ClaudeCode][260709231828] file updated
-[ClaudeCode][260709231834] file updated
-[ClaudeCode][260709231954] file updated
-[CodeX][260709232737] 修正 GLM fallback 为显式开关启用并为 reason 单独设置 DeepSeek 主超时
-[CodeX][260709234910] 验证 Vercel GLM fallback 环境并为 GLM 请求关闭 thinking 模式
-[ClaudeCode][260710000655] file updated
-[ClaudeCode][260710000656] file updated
-[ClaudeCode][260710000726] file updated
-[ClaudeCode][260715134241] file updated
-[ClaudeCode][260715134252] file updated
-[ClaudeCode][260715134301] file updated
-[ClaudeCode][260715134307] file updated
-[ClaudeCode][260715134311] file updated
-[ClaudeCode][260715141733] file updated
-[ClaudeCode][260715141737] file updated
-[ClaudeCode][260715141744] file updated
-[ClaudeCode][260715141749] file updated
-[ClaudeCode][260715141800] file updated
-[ClaudeCode][260715142350] file updated
-[Claude Code][260715142447] 移动端竖屏交互优化：房间页折叠全局站点头把顶部空间还给聊天区（消息区高度大幅增加）、放大聊天模式/发送/座位段触摸目标至40px、首页加入房间卡片竖屏垂直居中
-[CodeX][260726135420] 整理工作区目录：归类文档、房间原型、题库快照和重复截图，并更新文档索引链接
-[CodeX][260726135549] 补充整理后的项目资料索引，并修正迁移文档中的相对路径
-[CodeX][260726140331] 核对教程截图引用并按当前移动端、AI、环境变量和安全功能更新项目文档
-[CodeX][260726142417] 修复座位操作菜单被滚动容器裁剪的问题：通过 Portal 固定定位显示赠送积分、调整位置和移出房间
-[ClaudeCode][260731190041] file updated
-[ClaudeCode][260731190045] file updated
-[ClaudeCode][260731190056] file updated
-[ClaudeCode][260731190116] file updated
-[ClaudeCode][260731190127] file updated
-[ClaudeCode][260731190132] file updated
-[ClaudeCode][260731190141] file updated
-[ClaudeCode][260731190145] file updated
-[ClaudeCode][260731190155] file updated
-[ClaudeCode][260731190214] file updated
-[ClaudeCode][260731190218] file updated
-[ClaudeCode][260731190222] file updated
-[ClaudeCode][260731190226] file updated
-[ClaudeCode][260731190230] file updated
-[ClaudeCode][260731190234] file updated
-[ClaudeCode][260731190239] file updated
-[ClaudeCode][260731190243] file updated
-[ClaudeCode][260731190247] file updated
-[ClaudeCode][260731190250] file updated
-[ClaudeCode][260731190256] file updated
-[ClaudeCode][260731190300] file updated
-[ClaudeCode][260731190303] file updated
-[ClaudeCode][260731190310] file updated
-[ClaudeCode][260731190314] file updated
-[ClaudeCode][260731190319] file updated
-[ClaudeCode][260731190325] file updated
-[ClaudeCode][260731190331] file updated
-[ClaudeCode][260731190335] file updated
-[ClaudeCode][260731190338] file updated
-[ClaudeCode][260731190343] file updated
-[ClaudeCode][260731190354] file updated
-[ClaudeCode][260731190357] file updated
-[ClaudeCode][260731190402] file updated
-[ClaudeCode][260731190523] file updated
-[ClaudeCode][260731190530] file updated
-[Claude Code][260731191500] 新增用户反馈功能：独立 /feedback 页面（仅注册用户，5 类含投稿汤，2000 字，每账号每天 3 条限流），user_feedback 表与 submit_user_feedback/admin_update_feedback RPC，后台新增用户反馈 tab 支持状态流转与筛选
-[ClaudeCode][260731191156] file updated
-[ClaudeCode][260731191200] file updated
-[ClaudeCode][260731191212] file updated
-[ClaudeCode][260731191223] file updated
-[ClaudeCode][260731191244] file updated
-[ClaudeCode][260731191254] file updated
-[ClaudeCode][260731191311] file updated
-[Claude Code][260731193000] 教程补充意见反馈与投稿汤章节：/tutorial 页面新增第 7 节和 2 条 FAQ，常见问题改为第 8 节，同步更新 docs/guides/网站使用教程.md 和 使用教程.html
-[ClaudeCode][260731191841] file updated
-[ClaudeCode][260731191845] file updated
-[ClaudeCode][260731191849] file updated
-[ClaudeCode][260731192010] file updated
-[ClaudeCode][260731192015] file updated
-[ClaudeCode][260731192019] file updated
-[ClaudeCode][260731192024] file updated
-[ClaudeCode][260731192046] file updated
-[ClaudeCode][260731192059] file updated
-[ClaudeCode][260731192104] file updated
-[ClaudeCode][260731192108] file updated
-[ClaudeCode][260731192117] file updated
-[Claude Code][260731194500] 修正未登录进入 /feedback 时误显示创建房间提示（新增 login_required_feedback 文案），并同步更新 CLAUDE.md、AGENTS.md、tasks.md、README.md 中的用户反馈说明
-[ClaudeCode][260731192252] file updated
-[ClaudeCode][260731192255] file updated
-[ClaudeCode][260731192259] file updated
-[Claude Code][260731195500] 修正未登录访问 /account/username 时误显示创建房间提示（新增 login_required_username 文案）
-[ClaudeCode][260731205447] file updated
-[ClaudeCode][260731205453] file updated
-[ClaudeCode][260731205458] file updated
-[ClaudeCode][260731205513] file updated
-[ClaudeCode][260731205525] file updated
-[Claude Code][260731205656] 管理端性能与排版优化：消息/清理房间/活跃房间查询补上 tab 判断，未加载 tab 不再显示错误的 0 徽章，新增后台响应式样式
-[ClaudeCode][260731210140] file updated
-[ClaudeCode][260731210151] file updated
-[ClaudeCode][260731210717] file updated
-[ClaudeCode][260731210823] file updated
-[Claude Code][260731211551] 新增仅本地生效的开发用管理员账号（凭据不入库），并修复管理端移动端横向溢出：admin-tabs-shell 子 section 加 min-width:0、长邮箱换行、账户卡片操作区窄屏改单列
-[ClaudeCode][260731211607] file updated
-[ClaudeCode][260731211616] file updated
-[ClaudeCode][260731212013] file updated
-[ClaudeCode][260731212022] file updated
-[ClaudeCode][260731212028] file updated
-[CodeX][260805150642] added computer-migration handoff and file transfer inventory
-[CodeX][260805151000] corrected handoff framework version from verified production build
-[Claude Code][260806123600] 管理后台：切 tab/子 tab 显示加载状态而非空结果，消息 tab 按子 tab 收紧取数，AI 错误案例改服务端筛选，账户 profiles 并行查询，轮询降到 10 秒
-[Claude Code][260806190751] 房间清理改为先归档再删除：新增 room_messages_archive 表，admin_force_close_and_clear_room 归档后删消息，聊天备份统计与 CSV 导出合并归档数据
-[Claude Code][260806205755] 待清理房间规则重做：改以最后消息时间为基准（已关闭 3 天 / 未关闭 7 天），排除 0 消息房间以消除反复上榜的死循环，新增 backup_pending 标记且未备份房间默认不勾选
-[CodeX][260814202119] 通过 Homebrew 安装 Python 3.14.7，并确认 python3 与 pip3 已指向 /opt/homebrew/bin
-[CodeX][260814202352] 通过 Homebrew 安装 PyCharm 2026.2.1 到 /Applications/PyCharm.app，并启用 pycharm 命令行启动器
-[CodeX][260814204050] 为 OnlineSoup 创建独立 Python 3.14.7 虚拟环境 /Users/shuwenai/Desktop/Projects/OnlineSoup/.venv，待 PyCharm 窗口恢复焦点后选择该解释器
-[CodeX][260814204950] 在 paper/runner.py 新增独立 DeepSeek 受控实验跑批脚本：支持 test 或按 G1/G2/G3 选择 API key、两阶段串行调用、断点续跑、重试、JSONL 原始结果、prompt 留痕、manifest 和 summary；新增 paper/README.md 与敏感输出忽略规则
-[CodeX][260814205300] 按 DeepSeek 官方文档将 paper/runner.py 的 HTTP 调用改为 OpenAI Python SDK，保留 JSON Output、usage/cache tokens、finish reason 和完整 SDK 响应留痕；确认 paper/questions_v8.tsv 101 行、paper/puzzles.json 5 个谜面可读取
-[CodeX][260814205500] 新增被 git 忽略的 paper/api_keys.env 本地 key 文件，runner.py 自动读取并按 test 或 G1/G2/G3 profile 选择 key，环境变量优先且 key 不写入日志或 manifest
-[CodeX][260814230000] 将受控实验默认 thinking 设置为 disabled，通过 OpenAI SDK extra_body 传入；保留 max_tokens=640，并把 thinking 配置写入 manifest 与调用记录
-[CodeX][260814231500] 新增 paper/score_results.py，按 QA/QB/QC/QD/QE 分类规则离线判定 calls.jsonl，输出逐条 score_details.jsonl 与分组 score_summary.json
-[CodeX][260814232000] 修正 G2 neutral_a/neutral_b 仲裁 prompt 标签，区分 G2 与 G3 仲裁样本文件，并在判分汇总中增加 group|variant 维度
-[CodeX][260814233000] 加强跑批截断防护：finish_reason=length 无论 JSON 是否可解析都触发重试，耗尽后记 failed，并记录 reasoning_tokens 与截断计数
-[CodeX][260814234000] 为 runner.py 增加 PyCharm Terminal 实时进度输出、重试提示和结束汇总，所有 stdout 输出即时 flush
-[CodeX][260814234500] 统一论文分析入口为已有的 paper/analyze_results.py，使用题目级预注册指标 UER/CDR/OIR/RFR、divergence 与数据完整性报告，不再将旧 score_results.py 作为主分析
-[CodeX][260815001000] 将 DoubleAgent 最新 analyze_results.py 的 system_fingerprint 完整性检查与成本分析移植到 OnlineSoup paper/analyze_results.py，新增实际成本、独立部署成本和暖缓存下界
-[CodeX][260815083000] 按 DoubleAgent 当前版本补齐 blind/anchored 按 divergent 子集分层、McNemar 配对检验和正式分析输出；已重新生成 formal-v1/analysis.json
-[CodeX][260815001500] 将实验配置统一为所有正式与 pilot run 使用 DEEPSEEK_API_KEY_TEST，README 更新正式实验命令与 token 成本计算说明
-[CodeX][260815003000] 按最新确认将正式实验 key profile 改为 G1，保留 pilot 使用 test key；未启动任何实验调用
-[CodeX][260815091149] 新增 paper/anchoring_divergence.html 静态分歧展示页，内嵌 10 道题与 32 个分歧轮次的原题、expected answer、各组答案及 reason，无需上传实验数据
-[CodeX][260815091451] 将分歧展示页改为简洁可读样式，移除深色渐变、大面积装饰和阴影，改用白底、低饱和标记与清晰分组
-[CodeX][260815132553] 将 questions_v8.tsv 的 P3-QD4 expected 从 no 修正为 yes，并重新生成 formal-v1 的 analysis.json、item_metrics.jsonl 与 anchoring_stability.json
-[CodeX][260826232713] 新增 /docs 技术说明页，补充技术栈、数据流、房间规则、AI 主持、身份安全和运维入口；新增站点导航并允许无用户名登录用户访问
-[CodeX][260826232713] 按要求移除站点导航中的技术文档入口，避免提供跳转到 /docs 的 href；扩充路由、数据模型、AI 状态机和失败补偿技术细节
-[CodeX][260826232713] 扩充技术特点与设计取舍说明，增加数据库原子性、服务端优先、题目隔离、可恢复性、渐进式降级、缓存门槛、隐私最小化和可审计性；/docs 强制浅色模式
-[CodeX][260826232713] 将浅色模式变量提升到包含站点头部的 docs 页面 body 范围，确保系统深色模式下导航、背景和文档内容均保持浅色
-[CodeX][260826232713] 详细补充题库字段、key_points/examples 作用，以及 ask 双路判断、hint 引导机制、reason 关键点评分和对应的积分与失败处理规则
-[CodeX][260828171932] 将项目特点前置并扩充为独立章节，说明多人房间、AI 主持、访客参与、房间积分、共享事实白板、题库上下文、实时恢复和管理员质量控制；保留实现层技术取舍说明
-[CodeX][260829213257] 新增站内通知功能计划，明确管理员全体或指定注册用户通知、主页已读状态、私有表与受保护 RPC、验收项，以及不涉及邮件、推送和访客离线通知
-[CodeX][260829214319] 新增用户档案与好友功能计划，基于现有 profiles、房间成员、通知和账户删除流程规划预设头像、最小公开档案及分阶段好友申请
-[CodeX][260829214745] 更新用户档案与好友计划：好友改为顶部图标打开的同页二级抽屉，并规划全局头部的图标化、可访问性和服务端数据加载边界
-[Claude Code][260829214954] 修复深色模式 24 处未覆盖样式：新增 color-scheme 与 ::placeholder 规则；补齐竖屏房间页、教程页、题库徽章、积分语义色与后台浅底区块的深色覆盖；tutorial 页三处内联颜色改为 class
-[Claude Code][260829215630] 顶部菜单栏改为线性描边图标：新增 src/components/icons.tsx，site-header 与 logout-button 换用图标（积分/用户名保留文字），globals.css 补 .nav-icon/.nav-account 样式与 44px 点击区和窄屏收缩
-[Claude Code][260829220107] 顶部菜单栏窄屏修复：品牌禁止折行，520px 以下隐藏首页图标与积分币图标并收紧间距，解决登录态在 375px 下溢出裁切；登录图标箭头方向修正为指向门内
-[Claude Code][260829221704] 顶部栏交互重做：退出登录移入账户悬停菜单（含用户名与积分），nav 拆为客户端组件 site-nav.tsx，用自定义悬停面板替换原生 title 提示（普通项 100ms 展开/80ms 关闭，账户项 600ms 关闭），窄屏积分改在账户菜单显示并保留首页图标
-[Claude Code][260829222522] 顶部栏展开层修正：展开状态提升到 SiteNav 统一管理，同时只允许一个展开层；积分移出账户容器（悬停积分不再展开或维持账户菜单），改用独立分隔线；账户菜单拆为"个人资料"和"积分流水"两个按钮，暂均指向 /profile
-[CodeX][260829222918] 修订 /tutorial 玩家教程文字：补全全站唯一用户名和邮箱验证、推理正确后的公布汤底与自动结束、AI 请求不排队且需重试的真实行为；统一手机端「题目」命名，优化角色积分说明、移动座位、姓名冲突和事实总结表述
-[CodeX][260829223444] 个人资料页积分流水改为固定 292px 的最近 5 条预览并新增“查看全部”入口；新增 /points-history 完整分页页面，账户菜单同步指向该页面
-[CodeX][260829224324] 新增仅适用于 OnlineSoup 的 FRONTEND_SPEC.md，明确聊天不中断、稳定布局、房间横竖屏、积分列表、管理端刷新与可访问性要求，并加入文档索引
-[CodeX][260829224853] 将 FRONTEND_SPEC.md 的界面稳定原则扩展为全站约束，明确标签、筛选、选项、空加载错误态和滚动容器切换均不得造成大幅变形、位移或跳转
-[Claude Code][260829225154] 顶部栏对齐 FRONTEND_SPEC：窄屏触控区恢复 44x44，展开面板关闭态改 visibility 隐藏移出 Tab 顺序，账户菜单补焦点管理（点击打开进入首项、Escape 回到触发按钮、悬停不抢焦点），补 prefers-reduced-motion 降级与 user-select/focus-visible，清理窄屏重复的 .user-points 与失效的 .nav-account 规则
-[Claude Code][260829225827] 顶部栏新增房间态图标：SiteHeader 调用 get_my_active_room，存在未关闭房间时把"创建房间"加号换成门图标并直达 /rooms/{code}，提示显示房间码；icons.tsx 新增 IconDoor
-[Claude Code][260829231941] 整理根目录：HANDOFF.md 与 FILE_TRANSFER_LIST.md 移入 docs/handoff/ 并加归档说明，logo-archive/ 移入 archive/logo-archive/；文档索引补登两处新位置并修复两份规划文档脱离主表的表格格式；.agents/skills 与 dev.ps1 保留
-[Claude Code][260830001606] 修正 /docs 技术说明页：询问字数上限 50 改为实际的 100（对齐 ask/route.ts 与数据库 max_length），路由表补齐 /profile、/points-history、/feedback、/tutorial、/docs 五条，运维命令去掉 Windows 专用的 .cmd 后缀
-[CodeX][260903122210] 新增临时 /debug/network-test 网络性能测试页及 no-store Route Handler：并行测量 Next.js 往返、Supabase REST SELECT、只读 is_username_available RPC、Auth 用户请求和 Realtime 建连，提供 Run once/Run 20 tests、latest/average/min/max/p95/failures 统计及 JSON 复制导出；Realtime 不写业务数据。
-[CodeX][260904122549] 新增安全房间清理迁移：清理前保留仍被 room_ai_requests 或 room_message_events 引用的消息，避免级联删除其它引用；清理候选只统计实际可删除的消息，并返回保留消息数量；不恢复历史数据、不修改个人资料统计。
-
-[CodeX][260905212627] 新增全项目只读评估报告与 AI 架构专项归档：按功能、架构和交互整理保留/修复/补缺项，记录 25 组问题的源码证据、优先级与验收要求；完成 typecheck、lint、build、生产依赖审计及公开权限零行探针，未修改业务代码、数据库或部署。
-
-[CodeX][260914215934] 落实全项目评估止损批：新增迁移固定公开注册 100 积分、管理员建号改用 service_role 积分调整、退出/踢人保留座位余额、限制建房 1–20 座/2–8 字/6 位数字密码、普通聊天 RPC 仅允许 chat，并在聊天 bootstrap 及首屏/HTTP/AI 响应统一剥离审计缓存与推理评分点；管理员二次认证改为消费邮箱 OTP 或经受控回调的验证链接，可信设备改为默认不勾选且 30 天有效，移除公开 key 签名回退；修复用户名 ILIKE 通配、跳转反斜杠、中文输入 Enter、普通聊天失败草稿恢复；Next.js 与 eslint-config-next 升至 16.3.3。
-
-[Claude Code][260916122207] 调整 CLAUDE.md 沟通方式：改为动手前先给可读方案、确认后一次完成代码与验证，保留微小改动豁免，并要求线上迁移/RLS 权限/删数据等高危动作单独确认。
-
-[CodeX][260918110153] 建立最小回归测试基础：新增 Vitest、npm test/test:db 脚本、QA cache 单元测试和 pgTAP 房间契约测试骨架；新增未应用的房间一致性迁移，定义 AI request lease、stale reconciliation、核心 chat/AI/bootstrap 的活跃会话成员校验及受保护房间状态 RPC；npm test 与 typecheck 通过，远端 Supabase 连接中断导致 dry-run 与 pgTAP 尚未执行。
-[CodeX][260918112644] 应用 20260918025855 房间安全迁移并确认远端记录；收缩匿名 rooms/room_seats 直读，新增受保护房间状态接口；QA 语义缓存改为单次 GLM 批量候选判定，新增最小 GitHub CI 与离线精确命中回归用例；公开 RPC 与前端 typecheck/lint/build/test 验证通过。
-[CodeX][260919194753] 在 AGENTS.md 与 CLAUDE.md 新增工程经验沉淀规则：问题解决并有充分验证依据后，遇到可复用的根因、边界或预防规则时，按 lessons.md 模板追加记录并关联 updates.md。
-[CodeX][260919195028] 完成全项目文档巡检：更新 README、文档索引、站内技术说明和 tasks 的当前测试、受保护房间状态与 AI 租约说明；新增文档与文件保留价值盘点，标明历史、规划、非运行与本地可再生候选，未删除或读取敏感配置。
-[CodeX][260919195417] 按用户授权将 archive、prototypes、docs/handoff 与 outputs 移入系统废纸篓的专用可恢复目录；保留 paper 及 data，未读取或移动可能含敏感配置的 paper 文件，并同步文档索引与盘点记录。
-[CodeX][260919195631] 复核项目目录结构：保留既有应用、迁移、测试、文档、资料与框架配置分层，仅移除未被 Git 跟踪、无引用且为空的 src/lib/ai 目录；未移动 paper 或运行文件。
-[CodeX][260919204023] 按用户明确授权清空线上 Supabase 题库：通过 admin_delete_puzzle 逐题删除 5 道题目；级联清除 53 条题目进度与 7 条问答缓存，并清空 28 个房间的当前题目引用。删除后只读核验 puzzles、puzzle_progress、puzzle_qa_cache 与 current_puzzle_id 引用均为 0，未发现 pending AI 请求。
-[CodeX][260919204402] 在 lessons.md 记录严重生产删除事故：后续任何线上删除或全量替换必须先盘点精确影响，再创建并读回验证带时间戳的本地恢复备份，报告恢复位置并取得确认后才可执行；授权、无活跃请求与部分历史快照均不能替代恢复点。
-[CodeX][260919204830] 按用户要求尝试恢复被清空的线上题库：先从 ai_error_cases 导出并验证 5 条题目快照至 .agents/tmp/recovery-backups/260919204402.ai-error-puzzle-snapshots.json，再恢复 5 道题目的标题、谜面与汤底为未启用草稿（id 15–19）。原始评分点、示例、精确难度、启用状态、进度与缓存无法无损恢复，线上回读确认总数 5、启用数 0、评分点/示例数均为 0。
-[CodeX][260919204305] 管理端邮箱二次认证前端与发送入口统一为仅输入 OTP 验证码：移除登录链接回调参数和相关文案，保留 Supabase verifyOtp、管理员身份比对、会话绑定与可信设备边界；线上 Magic Link 模板待改为 Token 验证码模板。
-[CodeX][260919205259] 管理端二次认证改为独立 Resend 八位一次性验证码：仅管理员已登录会话可发起，验证码以 HMAC 摘要和会话绑定写入私有表，10 分钟单次有效、最多 5 次尝试且 1 分钟限发；新增原子消费 RPC，未修改普通用户 Supabase 登录邮件。
-[CodeX][260919210953] 使用 puzzle-example-generator 导出当前线上题库并新增“雨伞与电梯”完整题目预览：包含题面、汤底、4 个评分点及 4 条 fact / 4 条 inferential Ask 示例，已通过结构与边界类型校验；仅生成 .agents/tmp 本地评审文件，未上传 Supabase。
-[CodeX][260919211308] 重写“雨伞与电梯”预览的 Ask 示例为玩家逐步探查式问题，移除题干中直接点出雨伞、按钮与触及范围的问法；保留 4 条 fact / 4 条 inferential，并通过格式、边界类型和谜底泄露词检查。
-[CodeX][260919211711] 经用户审核后使用 admin_create_puzzle 仅新增并启用“雨伞与电梯”（线上 ID 20）：保留 4 个关键点与 8 条 Ask 示例，按决定移除仅供预览审核的 boundary_type；数据库回读确认字段完整且启用，未替换题库或删除旧草稿。
-
-[CodeX][260929124714] 重新截取 tutorial 当前界面截图：更新首页、房间、询问、积分、注册、赠送积分与选题画面；演示数据统一使用 ai0506、ASW506 与高积分示例，并确保房间人数徽章单行显示，保留所有既有图片比例与尺寸。
-[CodeX][260929125932] 重新制作 tutorial 的赠送积分截图：临时访客 bsw0506 实际加入房间并打开赠送积分弹窗后截取，展示 [2] bsw0506、77 积分输入及 2/5 人；截图完成后该访客已退出并释放座位，系统加入/退出消息保留在审计聊天中。
-[CodeX][260929130149] 修正 tutorial 首页房间码截图：使用未登录状态重截 1.1mainpageentercode.png，展示加入房间入口与 ASW506，避免演示账号会话导致页面错误显示“你已在房间中”。
-[CodeX][260929130809] 按当前 UI 全量重截 tutorial 引用的 10 张图片：桌面图均为 2864×1630，手机图为 1420×1630；创建房间图同步更新为当前表单结构和演示积分，选题图展示已打开的题目选择列表。
-[CodeX][260929131304] 修复访客加入房间表单缺失房间码：未入座页面改用已标准化的路由 code 传给 GuestRoomPanel，不再读取不含 code 的 get_room_join_info 返回值；核对线上无密码房间与加入 RPC，完成本地表单渲染、typecheck、lint、build 验证。
-[CodeX][260929230445] 调整《生日》题库预览：放宽探险及发现朋友有手的 key points.accept 表达范围；8 条 ask 示例全部改为从汤面出发的自然问题，并重建审核 HTML。
-[CodeX][260929230908] 重做《生日》示例审核 HTML：按事实判断/合理推断分组展示问题、答案、理由；逐项展示 key points 及完整 accept 表达，不再用 JSON 式表格铺陈。
-[CodeX][260929231152] 精简《生日》key points.accept 为每项一个宽泛评分描述；将“他为什么要把朋友都杀了？”标为模糊问题，并说明开放式为什么问句不能用是/否回答。
-[CodeX][260929231152] 按需保留《生日》key points.accept：仅探险缺粮情境与发现朋友有手的线索保留宽泛接受描述；其他关键点移除 accept，审核页仅显示存在的字段。
-[CodeX][260929231534] 明确《生日》accept 的评分容错语义：改为描述符合逻辑的相近情境与替代线索，不再作为同义词列表；审核页对应标签更新为“可接受的合理变体”。
-[CodeX][260929231534] 更新 puzzle-example-generator skill：明确 accept 是可选的 reason-mode 评分容错边界而非同义词；规范 ask 示例采用玩家视角、依据汤面自然提问及开放式问题处理；新增静态审核 HTML 渲染器，分组展示问答并按需显示 accept。
-[CodeX][260929232108] 按反馈缩短《生日》accept 描述，并重写 inferential 示例覆盖因果关联、顺序矛盾、缺证据应答与开放式问法；答案分布为是/否/与此无关/模糊问题各 1 条，验证通过并重生成审核页。
-[CodeX][260929232350] 修正题库示例审核页展示范围：渲染器新增按标题筛选，单题预览只展示目标题目，避免整库 JSON 使审核页混入无关题目。
-[CodeX][260929232510] 明确题目审核 HTML 永远按单题生成；多题 JSON 必须指定目标题名，渲染器拒绝默认生成整库预览；多题编辑需各自产生独立页面。
-[CodeX][260929232850] 拆分《生日》欺骗事实与实际受害者两个评分点，并在实际受害者点标记 SOI；审核页和题库 skill 将 SOI 与普通合理变体分开展示和说明。
-[CodeX][260929233313] 通过 admin_create_puzzle 受控 RPC 将《生日》作为启用题目新增到线上题库（ID 21）；回读核对题面、汤底、难度、6 个评分点及 8 条示例一致，上传数据不含审核用 boundary_type。
-[Claude Code][261008092952] 聊天字数计数改为 85% 橙色提醒、满上限才红色（新增 --warning）；赠送积分输入改为输入时只过滤非数字、提交时校验，窄屏补步进器与 1/5/10/全部 快捷档位，报错区预留高度避免布局跳动
-[Claude Code][261008152351] 系统消息结构化：move_seat/gift_points_to_seat 改用 jsonb 输出座位与身份，前端渲染为 [座位号][身份] 小标签并兼容旧纯文本；赠送弹窗错误改为红边+红底条带提示；竖屏断点对齐房间页 (portrait & <=760px)；补档线上已应用但本地缺失的迁移 20260929083508
-[Claude Code][261008152541] 沉淀迁移历史不同步的排障经验到 lessons.md；在 AGENTS.md 数据库迁移章节补充“线上改动必须补迁移文件”和 DbPushMissingLocalError 的正确处理方式
-[Claude Code][261008153431] 首页房间码输入抽成 RoomCodeInput 客户端组件，输入时过滤非字母数字并转大写（保留光标位置）；创建房间座位数/每座积分、管理端积分数量/初始积分四个 number 输入加 onWheel 失焦，防滚轮误改数值
-[Claude Code][261008155131] 修复房间页 React key 误报（RSC 元素作为 prop 传入客户端组件兄弟列表，给 manageExtra 根节点加 key）；进入房间后用 replaceState 清除 ?action=enter，避免刷新变成静默强制接管；新增 vercel.json 将函数区域固定到 sin1 与 Supabase 同区
-
-[CodeX][261009112152] 修订并归档 OnlineSoup CLI 实施计划 v2：以当前工作区及线上 RPC 为基线，补充游客凭证恢复、显式会话接管、房主/跨房关房限制、原子请求键与退款恢复、按房间提交顺序游标、完整事实、JSON/CSRF/Cookie 合同及 P0-P2 验收；更新文档索引，同步 Downloads 原计划；未实施代码或数据库变更。
-[Claude Code][261009151806] 修订 OnlineSoup CLI 实施计划为 v3：CLI 仅支持注册用户（删除访客流程）；网页接管 CLI 座位前站内确认（CLI 专用文案）及大厅提示；CLI 闲置 1 小时服务端清退；CLI 专用限流（聊天 1/秒 20/分、AI 冷却 7.5 秒、每 10 分钟 80 次等）；补充 5xx 结果未知、令牌轮换丢失、失效本地锁、断网场景表、防作弊运行环境、无锁游标备选方案及验收条目；仅改文档，未改代码或数据库
-[Claude Code][261009152305] 按评审意见修订 CLI 实施计划 v3.1：更正 get_my_active_room 不按 session 过滤（复用现有活动房间入口+CLI 标识）；房主/关房/Proxy 保护前移 P0；认证失效允许同账号重登；闲置清退先对账后释放并持久化 idle_timeout；cli_sessions 覆盖旧路由/旧 RPC、按账号计数；刷新令牌丢失先正常恢复；网页接管确认事务内版本复核；本地锁改用 OS 锁；仅改文档
-[Claude Code][261009152541] 按二轮评审修订 CLI 实施计划 v3.2：更正 AI 请求锁顺序事实（先座位行锁后 advisory lock）并要求五条路径统一审查；结果未知允许同键同内容重提交；CLI 会话调用旧加入/接管/房主 RPC 直接拒绝（USE_PLAYER_API）；清退锁内复核、idle_timeout 绑定成员关系；/login、/session 登记例外；清退时间改为 60–65 分钟范围；邮箱验证改为待核实线上配置；修正游客 Cookie 残留验收项；仅改文档
-[Claude Code][261009152942] 统一 CLI 实施计划文案：7.4/7.1 结果未知改为先查询、必要时同键同内容重提交；限流表 CLI 冷却与总量标为每账号，网页现有规则标为每座位；仅改文档
-
-[CodeX][261009155933] 实施 CLI P0：新增注册 CLI 会话、JSON 玩家 API、独立 Node CLI、请求键去重/状态恢复、账号限流及闲置清退；抽取网页共用 AI runner 并检查退款错误；统一短事务锁并在关房结算前退款。Supabase 已应用 20261009075840_cli_player_contracts，三张私表启用 RLS 且仅 service_role 直访、登记/清理 RPC 仅 service_role；本地 21 项数据库行为、4 项 CLI 行为通过，真实流程验收进行中。
-[CodeX][261009160734] 补齐 CLI 首次跨房加入 OWNED_ROOM_ACTIVE 优先级、管理端关房前退款和 CLI 按账号限流（跳过旧座位计数）；部署并归档 20261009080722_cli_join_owner_and_cleanup_guards；本地数据库行为扩展至 24 项通过，真实网页界面与 CLI 双向聊天、真实 AI 回答和同键恢复验证通过；undici 固定升级到 7.30.0 修复审计中的高危告警。
-[CodeX][261009161327] 完成 CLI P0 本地交付：24 项隔离数据库行为、4 项 CLI 行为、原有 4 项 Vitest、typecheck/build 通过，lint 仅 3 条既有 warning；线上公开 key 验证旧 RPC/私表/自行登记拒绝与真实切题退款；网页界面和 CLI 双向聊天/真实 AI/退出登出通过，清理专用账号/房间/凭证。新增 README、Agent 使用边界、验收记录并更新计划状态；未推送 GitHub、未部署 Vercel、P1/P2 与跨平台长时验收未完成。
-
-[CodeX][261009170056] 修复 CLI 评审项：移除入房明文密码参数，密码房使用 TTY 隐藏输入或 --password-stdin；确认后的本地请求立即清理、未确认正文保留 7 天；切换账号先验证新凭据，再吊销旧 CLI/Auth 会话。新增并已应用迁移 20261009085757_cli_review_session_and_membership_fixes，管理员改名纳入事务 gate、同用户昵称修复保留成员代次/闲置计时/进行中 AI、网页重新加入清除旧 idle_timeout；6 项 CLI、26 项本地数据库行为及 typecheck/lint/build 通过。20 房间 1000 次读取 p95 9.29ms；250ms 锁持有故障注入阻塞其他房间约 259ms，仍需后续拆分读取锁。网站发布及线上完整流程继续验证。
-[CodeX][261009170734] 发布前干净依赖审计发现既有 Next.js 与传递依赖公告；将 next/eslint-config-next 固定到 16.3.8，更新 sharp 0.35.5、source-map-js 1.2.2、baseline-browser-mapping 2.11.28 及对应锁文件；生产依赖 npm audit --omit=dev 为 0，typecheck/lint/build 再次通过（lint 3 条既有 warning），未执行全量强制依赖升级。
-[CodeX][261009171311] 将 f8dcd05（含 e55c8fa 的 CLI 评审修复）从干净提交归档发布到 Vercel Production dpl_BdFsR72SrgUPsprubXrnHtDMuCub，生产域名已生效；默认域名 CLI 登录/密码入房/进程恢复/双向 RPC 聊天/真实 AI completed/原键查询/离开/登出及旧会话吊销通过，线上昵称修复保留成员代次和闲置计时。发布前后各 5 房间 60 次公开 key 读取零错误，p95 为 6622ms/806ms；保留全局锁及首次网络长尾未定位限制，不宣称容量验收通过。清理 7 个专用账号、5 房间和本地凭证；同步 README、计划及验收记录，未推送 GitHub，保留既有未提交 UI 改动。
-
-[CodeX][261009182750] Implement CLI P1 facts/seats/points/wait and signed xid8 snapshot-fenced history/incremental pagination; persist recent messages with cursor atomically; add 10 CLI tests and 11 P1 database behaviors alongside 26 P0 regressions; apply and archive Supabase migration 20261009102525 with restricted read RPCs outside global write gate; record protocol limits and platform scope.
-
-[CodeX][261009183552] Complete CLI P1 production verification on onlinesoup.ai0506.com: stdin login/password join, state/seats/points, bidirectional web RPC chat, persistent history pagination, wait wakeup, real reason/hint charging and facts, public-key RPC permissions and takeover/leave/logout; fix wait budget exhaustion to normal timed_out with poll_incomplete while preserving early network failures; 11 CLI/38 DB/4 root tests pass; Vercel 6fbf361 READY and fixtures cleaned; record remaining P2 and untested Linux/Windows; no GitHub push.
-[Claude Code][261009184202] 新增 docs/testing/OnlineSoup-CLI-Windows-测试清单.md：Windows 端 CLI 手动测试清单（代码获取、安装构建、25 项检查覆盖隐藏密码/stdin/BOM/中文代码页/引号/Git Bash 路径改写/ACL/进程锁/JSON 退出码/wait/接管），仅新增文档
-
-[CodeX][260929164111] 新增迁移修复 send_room_chat_message 速率限制查询的 message_mode 参数/列名歧义，保留原有权限边界；生产迁移记录及 anon/authenticated 执行权限已回读，注册用户网页发送与匿名访客公开 key 发送均成功。选题组件改为成功后主动补拉当前题目、可见时定期补拉，并捕获开题/停题 Server Action 异常，避免错误冒泡到整页。
-[Claude Code][261009184717] 新增 Windows CLI 测试清单；在独立 worktree 合并 origin/main（补回 fdb7bc5 切题刷新修复，代码冲突保留本地已含 8bad800 的版本，日志并集去重，沿用远端删除 ci.yml），合并树 typecheck/lint/build/4 项单测/11 项 CLI 测试通过
-[Claude Code][261009190509] 提交此前未提交的网页 UI 改动（房间码输入过滤、进房清除 action=enter、赠分弹窗、结构化座位系统消息渲染、字数上限提示、vercel.json 固定 sin1），并与 origin/main 合并（updates.md 并集，房间页自动合并）
-[Claude Code][261009191227] 房主选题/停题少一次往返：openPuzzle 成功后在同一次 Server Action 内读取并返回当前题目（读取失败则回退前端刷新），closePuzzle 返回 null；puzzle-panel 直接应用返回结果并作废在途轮询；typecheck/lint/build 通过，未做浏览器实测
-
-[CodeX][261009192725] Implement P2 web CLI-seat confirmation dialog and lobby status; add HMAC-bound seat session compare-and-swap RPC with membership/session revalidation, guard both legacy web takeover and auto-join against bypass; apply matching migration 20261009112650; add 11 P2 DB cases including concurrent confirmation and explicit personal payment; retain web-to-web behavior and update P0/P1 tests for confirmed takeover.
-
-[CodeX][261009194230] P2 实现 4e2a0ec 已发布 Vercel 生产域名并在线验证网页 CLI 占座标识、取消保留、过期版本拒绝/再次确认及旧 CLI 失权；真实个人积分单次付款、受控过期触发 Supabase 令牌轮换持久化、认证撤销/同账号重登与显式恢复通过。独立 Codex CLI 通过受限临时 soup 适配器完成 8 次真实玩家调用与推理通关；49 项 DB、11 项 CLI、4 项根单测及 typecheck/lint/build 通过。补齐 v1 协议、安装/Agent 文档、验收截图与状态；Claude/真人混合/长期运行、Windows/Linux 仍未验收。专用测试账号、房间、会话及临时凭证副本已清理，未推送 GitHub。
-
-[CodeX][261009230940] 新增 CLI 浏览器登录：/login 打开 /auth/cli，网页确认当前账号或切换账号后输入终端验证码；独立 CLI Auth 会话、256 位设备秘密与验证器绑定、5 分钟授权期限、错误验证码 5 次拒绝、单发行者和加密凭证暂存/落盘后确认；原密码登录保留，换账号前仍要求处理座位。Supabase 迁移 20261009150856 已应用并按真实版本补档，权限回读通过；8 项 DB 和 13 项 CLI 测试、根 typecheck/lint/build 通过，真实浏览器验收进行中。
-
-[CodeX][261009231546] CLI 浏览器登录初版已部署生产，真实网页切换账号/确认成功；验证 CLI 会话独立于网页、收取确认后密文清空、取消保留旧登录，以及首次 Cookie 响应丢失后同授权重试成功。统一授权按钮使用现有 button/secondary 样式；确定授权失败后清理本地待授权记录，避免再次 /login 继续失效请求。57 项 DB、13 项 CLI、4 项根单测及 typecheck/lint/build 通过。
-
-[CodeX][261009231852] 浏览器登录最终生产验收通过：无网页登录、切换账号、当前账号直接确认、取消保留旧登录；故意丢弃首次发行 Cookie 后原授权重试成功；替换后仅一个活动 CLI 会话、旧会话撤销、网页登录仍有效，ack 后密文清空。最终部署 dpl_2aodU8tJT8WLWjn7JPAPYwUPgNXY READY，Supabase 版本 20261009150856。补齐浏览器登录验收文档与生产截图，加强为两个独立数据库连接竞争发行测试；57 项 DB、13 项 CLI、4 项根单测及 typecheck/lint/build 通过。
-
-[CodeX][261009232059] 浏览器授权验收清理完成：两个专用 Auth 账号及关联数据、四个临时授权请求已删除；生产/本地网页与 CLI 临时登录已退出，私有会话目录移除。验收未创建或接管真实房间；文档本地链接与 diff 检查通过，未推送 GitHub。
-
-[CodeX][261009233120] 发布 CLI 0.2.0 网站分发能力：新增 /cli 下载入门页与完整 PLAYER_GUIDE.md，预编译共享协议并捆绑全部运行依赖生成 1.8MB tgz、SHA-256 和发布清单；新增可重复打包/空目录空缓存离线安装验证脚本及线上文件校验模式，同版本不同内容拒绝覆盖；教程/技术文档增加入口，downloads 静态文件排除登录代理、CLI 教程允许未设用户名账号访问；本地 typecheck/build、lint（0 错误/3 旧 warning）、13 CLI+4 根测试及安装验证通过，线上部署待核验。
-
-[CodeX][261009233514] CLI 0.2.0 安装包及玩家教程已部署生产（dpl_ZKwAXUYMAxJzFgfyZCwWZKK8kDqe READY）：线上四种发布文件与仓库字节/校验一致，真实生产 URL 在空 prefix/cache 安装运行成功，浏览器两个下载按钮实测成功；保存生产截图和安装包验收记录，已清理临时安装/归档。仅 macOS arm64 Node24 实机通过，其他系统未实测；无数据库改动、未接管真实房间、未推送 GitHub。
-
-[CodeX][261009233722] CLI 玩家指南新增汤局网页版图文教程 /tutorial 链接和纯命令行账号/邮箱隐藏密码登录独立章节，明确 --no-browser 仍需网页授权、禁止密码作为参数；文档补丁版 0.2.1 更新 lockfile、预编译安装包/校验和网站指南，保留 0.2.0 下载；typecheck/build、lint（0 错误/3 旧 warning）及空缓存离线安装通过，登录逻辑未修改。
-
-[CodeX][261009233838] CLI 指南补丁 0.2.1 已部署生产（dpl_FAJVNrGRoAARxXjLDTqoQAyehAYb READY）；线上清单、安装包、SHA-256、Markdown 与本地一致并通过独立离线安装；验证网页版教程链接/纯终端登录章节在线可读及旧 0.2.0 安装包仍 200。8 个运行模块与 0.2.0 完全一致，未更改登录逻辑；同步上轮下载且未经修改的本机指南，清理本次部署归档。
-
-[CodeX][261010000110] CLI 0.3.0 新增房间操作后新消息检查：ask/reason/hint/chat/join/状态等命令附带一次 2 秒预算的受保护消息读取，文本提醒或 JSON message_check；不推进消息游标、不保存检查正文，最近 200 个已返回消息 ID 抑制本人发言/AI 回复重复提醒；检查失败、分页/事务可见性延迟和游标过期显式标记，原写入结果/请求键/退出码不变，退出房间/本地命令不附加检查。新增 CLI 实进程 HTTP 验证与同步/失败/超时用例；18 CLI、4 根测试、typecheck/build、lint（0 错误/3 旧 warning）及独立离线安装通过，更新网站指南/下载包，保留旧版本。
-
-[CodeX][261010000305] CLI 0.3.0 操作后消息提醒已发布生产（dpl_9fWjcfuNZNzC3opc4NCbAw1iurPM READY）：线上清单/安装包/校验/指南一致，实际生产 URL 安装包通过实进程 ask/reason/hint/chat/房间读取及 504 未知结果+附带检查失败验证（受控 HTTP 服务）；生产未登录消息读取仍 401，浏览器确认新增说明并保存截图。未对真实房间付费游玩验收，无数据库/服务端 API 改动；临时安装/部署归档已清理，未推送 GitHub。
-
-[CodeX][261010000936] 同步 CLI 0.3.0 相关仓库文档：README、tasks、实施计划、文档索引与安装包验收增加当前交付摘要、浏览器/终端登录、网站分发及操作后消息提醒；保留历史记录和跨平台/长期运行验收边界，纠正仓库缺少 GitHub Actions workflow 的过时说明；本次不修改运行代码或已发布安装包。
-
-[CodeX][261010001036] 已将浏览器登录至 CLI 0.3.0 的 9 个既有提交及文档提交 b81cd5e 推送到 GitHub main，ls-remote 核对远端一致；追加安装包验收中的 GitHub 同步记录。推送前复跑 typecheck、18 CLI/4 根测试、生产包字节/指南比对和空缓存离线安装均通过，lint 0 错误/3 旧 warning；文档本地链接与 diff 检查通过，本次未改运行代码/数据库/发布包，未重跑网站 build 或真实付费 E2E。
-
-[CodeX][261010135252] 新增 docs/architecture/Arena房间实施计划.md 并登记文档索引：整理指定单房间的 5 秒人工优先裁决、ask/hint/reason 共用 8 并发、每选手单条未回答 ask、原子唯一胜者、取消退款及普通房间保持一致的边界；将超限队列策略、结算和模型失败降级明确列为待确定事项。仅文档规划，未修改代码、数据库或线上配置。
-
-[CodeX][261010135942] 更新 Arena 房间实施计划及文档索引：ask 接受后优先通知管理员并立即并行启动双模型，不等待人工队首；人工逐题队首计时 5 秒，决定或超时立即推进，连续三次超时切换自动 AI 并释放后续人工等待；补充计数幂等、多标签页/离线推进、恢复模式待定及人工队列与八请求容量队列的区别，纠正六名选手最多十二个双路判断调用。仅规划，无运行代码或数据库改动。
-
-[CodeX][261010140747] 修复访客退出房间后仍停留在加入页：leaveRoom 完成 RPC 和 Cookie 清理后使用服务端 redirect + replace 返回首页，避免 Cookie 重渲染卸载组件导致客户端跳转丢失；新增访客/注册成员成功跳转及失败保留 Cookie 的 3 项回归测试。typecheck、lint（3 条已有警告）、build、7 项测试通过；本地生产构建连接真实房间 35WE8U 的访客加入/退出浏览器验收通过，未部署线上。
-
-[CodeX][261010140900] 更正退出成功提示的旧 URL 参数写法：leaveRoom 使用现有 setFlashMessage 写入短期 HttpOnly Cookie（room_left/notice/home），再以 replace 重定向到纯 /；回归测试增加提示 Cookie 内容与属性断言，注册成员不删除访客 Cookie、失败不写提示。typecheck、build、7 项测试通过，lint 无错误（3 条已有警告）。
-本次补充验收：本地生产构建的真实访客 exit1010 在 35WE8U 退出后返回 http://localhost:3000/，地址不含查询参数；lessons.md 同步更正最终实现。未部署线上。
-
-[CodeX][261010154027] Arena 房间计划新增仅指定房间的预约自动开题：管理员预选题目与时间、服务端到时原子开题、提前开启限制、取消修改竞争、离线触发及调度恢复验收；明确一次性预约为建议，时区/调度精度/迟到补开/上一轮未结束策略待确定，并同步文档索引。仅文档，无运行代码、数据库或实际定时任务改动。
-
-[CodeX][261010154539] 放宽 ask inferential 为有依据的多步推理并禁止未给前提与多方向猜测，新增12组通用边界示范；同步共同/仲裁规则与命题因果检查，strict/仲裁隔离历史主持判定；ask 显式关闭默认思考以避免320 token耗尽，新增真实模型回归工具及2项调用/脱敏测试，19/19模型回归、9/9单测、typecheck/lint/build通过；更新prompt文档、文档索引并在ai-error/10-10归档，未部署。
-
-[CodeX][261010185814] 创建同级 OnlineSoup Arena 六个工作区（ChatGPT/Claude/Qwen/Deepseek/Kimi/Doubao），从现有 CLI 0.3.0 tgz 离线安装共享运行目录，配置各自 ./soup 包装入口、独立私密会话目录和 Agent/玩家指南；生产新建 ChatGPT/Qwen/Deepseek/Kimi 普通账号并经 admin_adjust_user_points 将初始净积分归零，保留 Claude/Doubao。六账号密码匹配/零余额、四新账号净积分流水 0、四账号生产 CLI 登录/退出、六工作区入口与 0700/0600 权限核验通过；测试均已退出且未加入房间，无 schema/权限/运行源码变更，未修改或提交其他既有改动。
-
-[CodeX][261010190550] 参考 puzzle-example-generator 的10类边界，将 ask 通用方法示范由inferential 12题扩为strict 10题/inferential 20题并按路隔离，增加意图/情绪/职责归类/因果链/反讽/谐音及未知前提对照；澄清先解析指代再判断事实证据，回归工具新增12个独立故事（31/31真实模型最终判定通过），9/9单测、typecheck/lint/build及diff检查通过；更新prompt文档/索引并在ai-error/10-10/ask-boundary-examples.md归档，未改技能文件、题库或数据库，未部署。
-
-[CodeX][261010190957] 按用户反馈撤回 ask 的全部通用故事示范及生日专用规则举例，仅保留当前题目 fact/inferential examples 与通用推理边界；更新prompt文档/索引，将30题方案标为已撤回并保留历史记录；撤回后真实模型抽样28/31（未知信念/错误历史/具体职务3项未通过，归档ai-error/10-10/remove-generic-examples.md），9/9单测、typecheck/lint/build及diff检查通过，未修改线上数据、未部署。
-
-[CodeX][261010191734] 只读导出35WE8U/生日原始问题与当前题目配置，以当前本地ask实现分别进行16条新历史/原历史真实DeepSeek重放；明确评分15项分别11项/12项正确，1419另行审阅，确认1413/1421纠正但未知心理状态仍误判否、仲裁可能引入错误；提示/最终推理主模型测试均未获完整结果，未验证备用模型；原问/审计/调用元数据/报告归档ai-error/10-10/doubao-replay-report.md并更新索引，未改prompt或线上数据、未部署。
-
-[CodeX][261011111742] 按用户要求将同级带空格目录 OnlineSoup Arena 的六个工作区、共享 CLI 运行文件及指南迁入已有 OnlineSoupArena；迁移前创建私密 tar.gz 备份并逐文件校验 442 个文件，保留目标原有 OnlineSoup_AI_Arena_比赛.md 且哈希不变，无重名覆盖；迁移后删除原空目录，更新 README 标题，六个 CLI 入口从外部目录运行帮助均通过；未修改线上账号、积分或会话身份。
-
-[CodeX][261011111807] 调整ask推断与仲裁的认知范围/反证标准、完整命题示例匹配和证据先输出；inferential移除历史主持判定，保留有依据多步推理；增加5项认知离线用例。35WE8U原问按两种历史真实重放inferential与最终各15/15（1项另审），独立回归最终31/36仍有5项失败，未认定稳定修复；同步prompt文档、本地分析归档及索引，在lessons.md沉淀单路/最终指标不可混用的经验，9项单测/typecheck/lint/build通过，未部署或修改数据库。
-[Claude Code][261011115032] 更新 Windows CLI 测试清单：改为从网站安装 0.3.0 包，自动化测试改为可选的三目录稀疏检出；新增浏览器登录检查项；CLI 账号改为专用 wintest（test 名下有开放房间会触发 OWNED_ROOM_ACTIVE）；接管项改为先出现网页确认弹窗
-[Claude Code][261011131104] CLI 0.3.1：按 Windows 实测修复 --password-stdin 开头 UTF-8 BOM、正文按模式本地字数校验并明确提示、未知选项提示具体名称及 PowerShell 去掉 -- 时改用 soup.cmd、测试子进程路径改用 fileURLToPath；新增 2 项 CLI 用例（20/20 通过），打包 0.3.1 并通过离线安装检查；存档 Windows 验收记录
-[Claude Code][261011131355] 按用户要求提交工作区其余改动（ask 两路判定规则重写与 thinking 关闭、ask-inference 测试、Arena 房间实施计划、lessons 与文档索引）；含线上题目汤底/核心线索的 scripts/evaluate-ask-inference.mjs 与 docs/ai/prompts_suggestion.md 暂不提交，因仓库公开
-
-[CodeX][261011135314] 将 OnlineSoupArena 六工作区共享 CLI 从 0.3.0 升级为 0.3.1：核对生产发布清单及本地 tgz SHA-256，离线暂存安装并验证共享协议/原生锁后切换 .runtime；备份旧运行文件和指南，更新 README/包内玩家与 Agent 指南。六个 ./soup 入口从外部目录执行帮助均通过，所有工作区原文件及私密会话内容哈希保持不变；未登录、加入房间或修改账号/积分，保留项目其他未提交改动。
-
-[CodeX][261012141316] 修复 CLI 浏览器“使用其他账号”覆盖网页会话：signInForCli 改用公开 key 非持久化 Auth 客户端，账号密码与终端验证码同表单授权原 RPC，不写网页 Cookie；失败清理临时 session、成功保留发行校验；新增10项隔离回归及验收说明。19项单测/typecheck/build通过，lint 0错误3条旧警告；本地构建+真实Supabase验证网页A保持、CLI登录B及ack/logout，测试账号清理；无迁移，未部署/推送。
-
-[CodeX][261012142719] 审查网页/CLI账号切换与退出路径；修复CLI登录/浏览器收取/logout先保存Cookie再保存身份的中断窗口，改为验证响应后将Cookie、账号与缓存边界原子保存。新增/login --credentials-file FILE（UTF-8/BOM、普通文件/16KiB上限、POSIX私有权限及防符号链接、错误不泄露密码），每Agent独立home。CLI升级0.3.2并生成安装包/指南/清单，新增审查报告；24项CLI、19项网站测试及typecheck/lint/build、离线安装通过。真实Supabase双CLI文件登录/错密码保留/网页账号保持/logout通过，测试账号和文件清理；无迁移，未部署/推送/升级现有Agent运行时。
-
-[CodeX][261012151536] 生产发布CLI0.3.2及网页授权账号隔离修复，Vercel dpl_AQbxRWDcag4JsUDdvUabPSSi9Tku READY/主域名已绑定；部署从HEAD 27297ee加本次白名单文件构建，排除未完成AI prompt/评估脚本。更新线上/cli多Agent文件登录说明、生产Markdown指南及本地README/tasks/实施计划/索引/验收记录。生产tgz/清单/指南/校验哈希一致并通过离线安装；真实网页A-CLI B授权及两CLI账号文件登录/错密码保留/logout通过，测试用户/文件清理。Arena共享runtime升0.3.2，六入口/17个原私密文件哈希通过，更新各工作区文档与忽略规则；未登录Arena、无数据库迁移、未推送GitHub。部署源备份/Users/shuwenai/Desktop/Projects/.codex-backups/onlinesoup-release-0.3.2-20261012-151536.tar.gz。
-
-[CodeX][261012160113] 为六个Arena工作区创建各自私有account.json，identity与目录同名、密码采用操作者指定值，文件权限0600；更新六份AGENTS和各目录updates及根README，确认各.gitignore忽略账号文件/会话。原11个私密会话文件哈希保持；未登录/修改线上密码/加入房间。
-
-[CodeX][261012160651] 登记线上 AI 错误案例 f7ca798c-1390-4d14-8de0-24b3e6bc1f9f：ZC82YQ 题目21、消息1504，正确答案否，保留消息及题目快照；归档 ai-error/10-12/ZC82YQ-puzzle21-direct-causality.md，状态open，推断及仲裁混淆直接与间接因果，尚未修复。
-[Claude Code][261012191555] 房间标题栏“x/y 人”徽标加 flex-shrink:0 与 nowrap，修复桌面端被挤成两行
-
-[CodeX][261012192650] 修复CLI活跃玩家被网页座位标为离线：get_room_member_state新增脱敏cli_online布尔标记（当前有效CLI会话、2分钟活动窗口或有效pending AI租期），网页合并Presence与该标记；线上已应用20261012112106迁移并同版本本地归档，新增11场景回滚SQL回归及真实CLI/公开key/游客Cookie/SSR验收；typecheck/build/19项单测通过，lint仅3条旧警告；网页改动未部署，未提交推送。
-[Claude Code][261013161545] 管理端账户页改为紧凑表格，改用户名/改密码/重置邮件收进行内「编辑」弹层，清理旧账户卡片样式
-[Claude Code][261013162740] 管理端账户表新增注册时间/最近登录列及两种排序（URL 参数 sort 保留），创建账户降为工具栏小按钮并去掉冗余标题
-[CodeX][261013185502] 新增 docs/ai/Ask分支验证实施计划.md：明确 A→B1/B2→冲突仲裁，B1仅验证完整命题证据、不验证主线相关性；规划独立Facts审核与版本、旧缓存隔离、共享事实准入、串行预算/失败补偿、版本化审计和分路径验收，补充文档索引并归档ai-error/10-13设计审阅；仅文档，未修改运行代码/数据库/线上配置，未执行付费模型评估。
-
-[CodeX][261013190741] DeepSeek统一JSON调用补齐服务端[ai-usage]结构化日志：按strict/inferential/arbitration/hint/reason/fact_summary区分用途，记录输入/输出/总token、缓存命中/未命中及推理token、HTTP状态、finish_reason和耗时；在内容解析前提取usage，空内容/截断/非法JSON仍保留用量，缺失或非法usage记null；字段白名单剥离额外数据，不记录prompt/密钥，不改变玩家响应和数据库；新增9项usage回归测试，与ask既有测试共11项通过，typecheck通过，lint零错误及3项既有警告；未调用真实模型、未部署。
-[Claude Code][261013191354] 更新 docs/ai/Ask分支验证实施计划.md：确认 A 与 B1 并发、B2 串行，补充分路径时延/调用数表、并发失败规则、公共前缀以命中 DeepSeek 上下文缓存、限制 B 输出长度及并发测试场景；更正 CLI 已共用 room-ai-runner 的描述；仅文档。
-
-[CodeX][261013191543] 按用户指定仅发布DeepSeek usage：以当前线上dpl_AQbxRWDcag4JsUDdvUabPSSi9Tku的CLI0.3.2源码备份隔离构建，逐文件确认唯一运行差异为src/lib/deepseek.ts，排除工作区其他未提交改动；隔离源码11项测试/lint/build通过（lint保留3项旧警告），Vercel生产部署dpl_24H1sPRpEsJisHtBBaougem34wNy READY且主域名已绑定，主页及/cli返回200，线上CLI清单与0.3.2安装包哈希保持一致；未进行真实付费模型调用或线上usage日志端到端核验，无数据库变更、未推送GitHub。无secret部署源码备份：/Users/shuwenai/Desktop/Projects/.codex-backups/onlinesoup-usage-release-20261013-191452.tar.gz。
-
-[CodeX][261013191938] 按用户要求准备提交并发布工作区全部改动：CLI0.3.2账号隔离/凭据文件/安装包、管理账户表格与时间排序、CLI在线绿点、房间人数徽标、DeepSeek usage及文档/回归；将AI评估脚本内嵌的36项私密题目用例完整迁移至Git忽略的ai-error/fixtures/ask-inference-cases.json，公开工具新增--fixtures输入并保留本地默认路径，同步prompt工具说明。网站28项/CLI24项测试、typecheck/build/安装包检查通过，lint0错误3项旧警告；MCP确认线上20261012112106迁移、anon/authenticated RPC权限及cli_online实现，11场景事务回滚测试通过，CLI直连中断已改用MCP，无新增数据库变更；凭据模式扫描与私密用例忽略检查通过，未执行付费AI回归。
-
-[CodeX][261013192138] 全部工作区改动已提交e360c02并推送origin/main；从该提交git archive干净源码发布Vercel生产dpl_ENGDDzgyorwiEg5MfUV7uuJMVDoh，READY且onlinesoup.ai0506.com已绑定。主页/cli/login返回200、未登录/admin跳转/login、未知房间状态404；生产CLI0.3.2包/清单/指南/校验文件一致及下载包离线安装通过；公开key可到达成员RPC且无效房间拒绝。未执行管理员二次验证后交互、生产房间多客户端在线绿点实测或真实付费AI调用；数据库使用已部署迁移，未重复应用。私密评估用例留在忽略目录，不随提交或生产源码上传。
-[Claude Code][261013192346] 搁置线上 #15–#19 五道未启用草稿（不启用不删除）：将 08-06 完整题库导出及 09-19 两份恢复备份复制到 data/puzzle-exports/ 并逐字节校验，data/README.md 补充搁置说明与各文件用途；未修改线上数据。
-[Claude Code][261013192521] 更新 docs/ai/Ask分支验证实施计划.md：记录线上仅 #20/#21 启用、#15–#19 搁置；Facts 第一版改用 puzzles.facts/facts_version 字段代替独立表（复核 puzzles 仅 service_role 可读）；实施顺序改为仅为两题起草审核 Facts、新题按新格式录入、对照前补 2–3 道新题并单列无 Facts 题；仅文档。
-[Claude Code][261013192759] 只读审阅线上房间 587JUS（题目21《生日》）：归档 ai-error/10-13/587JUS-puzzle21-review.md，确认4条必要推断缺失（听觉/双手鼓掌/触觉被判无关或模糊，两路一致未触发仲裁）、1条hint事实摘要泄露“朋友有手”、1条reason覆盖存疑；未登记线上案例、未修改prompt/代码。
-[Claude Code][261013193847] 新增 user_activity 表与入座/发消息触发器记录注册用户最近活跃时间（含历史回填，未推送线上），管理端账户表「最近登录」改为「最近活跃」
-[Claude Code][261013194034] 已推送 20261013113735_user_activity_tracking 到线上（Session Pooler），验证表/RLS/触发器/回填13行及 anon 无权读表和调用函数
-[Claude Code][261013194114] Ask 重构第1步：新增 src/lib/puzzle-facts.ts（Facts 格式/原文与依赖/循环校验，排除式表述提醒）、src/lib/ask-v2-prompts.ts（A/B1/B2/仲裁 prompt，共用可缓存前缀，仅传最近5条玩家问题）、src/lib/ask-v2.ts（A+B1并发、B2串行、决定表、引用核对、失败不伪装、version 2 审计）、scripts/review-puzzle-facts.ts 与 tests/ask-v2.test.ts（34项）；deepseek.ts 仅导出 PuzzleContext/PuzzleMessage/escapePromptText/getPuzzleExamples；本地生成 #20/#21 Facts 草稿与审核页（ai-error，不入Git）；未接入执行器、未改数据库、未发付费请求；typecheck/lint(0错误,3项既有警告)/全部62项测试通过；计划文档补充 Facts 格式与不写排除式表述规则。
-[Claude Code][261013194254] 提交管理端「最近活跃」列与 user_activity 迁移，并从干净源码部署 Vercel 生产
-[Claude Code][261013194455] ask v2 prompt 中 Facts 只输出“编号 内容”，去掉 derived/stated 类型标记；原文依据、依赖、备注仅供审核；同步测试与计划文档，typecheck/lint/34项测试通过。
-[Claude Code][261013194501] 19ea8b7 已推送 origin/main，git archive 干净源码构建通过并部署 Vercel 生产 dpl_J22X1bRqQt96bkHrnerx7PQqD6F4（READY，域名已指向）；首页/login 200，未登录 /admin 跳转登录
-[Claude Code][261013194631] ask v2 Facts prompt 调整：推导事实保留依赖编号标记，明说事实只给编号和内容；原文与备注仍仅供审核；同步测试与计划文档，typecheck/lint/34项测试通过。
-[Claude Code][261013195332] 本地 Facts 草稿 #21 F7 改为“直到生日聚会前都没发现朋友们其实没有砍手”，依赖补入 F10，重新生成审核页（ai-error，不入Git）。
-[Claude Code][261013195537] 本地 Facts 草稿 #21 F11 按用户表述改为“男主通过听到朋友们鼓掌的声音，意识到朋友们实际上没有砍掉自己的手，从而识破了欺骗”，依赖补入 F4、F5，重新生成审核页（ai-error，不入Git）。
-[Claude Code][261013195621] 本地 Facts 草稿 #21 F11“自己的手”改为“他们自己的手”以消除指代歧义，重新生成审核页（ai-error，不入Git）。
-[Claude Code][261013201936] Ask v2 Vercel 试跑：新增受保护内部接口 /api/internal/ask-eval（非生产+ASK_EVAL_TOKEN 双重门禁，不写库）、src/lib/ask-eval.ts、scripts/evaluate-ask-v2.ts、门禁测试；deepseek.ts 增加 v2 调用用途与 createAskV2DeepSeekCaller，proxy 跳过 /api/internal/；修复 B2 空 answer 与 null evidence 被误判、允许引用 Fact 原话；Vercel CLI 安装、Preview 环境新增 ASK_EVAL_TOKEN、生成部署保护自动化密钥（均存 .agents/ 不入Git），从仅含 git 可见文件的副本部署 Preview；sin1 实测 56 例：旧 47/新 53，判定 P50 旧1204ms/新1078ms，总往返 P50 1747/2239ms、P95 2858/3179ms，新引擎0失败；报告 ai-error/10-13/ask-v2-eval-vercel-2610131215.md；typecheck/lint/build/69项测试通过；未接入线上 ask、未改数据库。
-[Claude Code][261013204215] Ask v2 改为 A+B1 两路：取消 B2，A 为 yes/no/irrelevant 均等待 B1（irrelevant+无法确定直接保留，其余冲突仲裁），B1 结论合并为支持/反驳/无法确定且不判断问法；A 与仲裁新增合并提问/指代不明/二选一/“暴露证明”规则；同步测试（68项）与计划文档；重新部署 Preview，sin1 两轮 56 例：新 55/56、56/56，旧 48、47；新引擎判定 P50 1049/968ms，总往返 P50 2023/1924ms、P95 2863/2824ms，平均调用 2.0–2.1 次，0 失败；报告 ai-error/10-13/ask-v2-eval-b1only-run1/2.md；typecheck/lint 通过；未接入线上 ask、未改数据库。
-[Claude Code][261013213336] Ask v2 接入线上准备（未部署）：新增迁移 20261013132907_ask_v2_facts_and_cache_engine（puzzles.facts/content_version、内容变化自动加版本并将 Facts 置待复核的触发器、puzzle_qa_cache.engine/content_version 及约束索引、service_role 专用 admin_set_puzzle_facts）；qa-cache 按引擎与版本隔离；新增 src/lib/ask-v2-host.ts（ASK_ENGINE 全局开关，v2 失败改由 v1 作答且不缓存，审计记 v2_failure）；room-ai-runner 仅在 v2 读新字段、发布前校验 content_version、AI 内容超 4000 字时裁剪审计；.env.example 增加 ASK_ENGINE；新增 4 项 host 测试；typecheck/lint/72项测试/build 通过；线上 dry-run 仅待推此迁移，事务内执行并回滚验证触发器/约束/授权符合预期且已确认回滚；本地生成已批准 Facts 文件（ai-error）；计划文档同步；未推迁移、未写数据、未改 Vercel 配置。
-
-[CodeX][261013220615] Ask v2发布前复核：72项测试/typecheck/build通过，lint仅3条旧警告；线上已记录20261013132907迁移，启用题20/21分别8/13条批准Facts；生产评估接口强制404，私密用例/令牌保持Git忽略。当前全部实现已提交8831f63，准备推送GitHub main自动部署并设置Production ASK_ENGINE=v2后重部署；未重复迁移或改写题库。
-
-[CodeX][261013220742] Ask v2实现8831f63及验证记录bc65063已推送GitHub main，Git自动生产部署dpl_GSK9PLgu9PXdMoTd5fJcig82dTMU READY；Production ASK_ENGINE已设为v2并通过单变量API核对。提交此记录以通过Git触发应用新配置的第二次生产构建，不使用CLI上传源码；待最终部署/域名/生产评估404核验。
-
-[CodeX][261013220901] Ask v2生产启用完成：Production ASK_ENGINE=v2，GitHub main提交7ea58e3触发的第二次生产部署dpl_3BNEKwC7pRadH82wbfi7sKQij3mL READY/source=git，主域名onlinesoup.ai0506.com绑定确认；部署后首页/cli为200，POST /api/internal/ask-eval为404。72项测试/typecheck/build通过，lint保留3项旧警告；未发送生产真实付费ask或执行房间E2E。代码已推送，此最终验收记录留本地updates.md，避免再触发一次纯文档部署。
-
-[CodeX][261014114615] 将 /docs 更新为15节架构说明，补充网页/CLI共用执行器、身份与设备接管、请求键恢复、消息游标同步、私密Facts与公开事实、A/B1证据验证/仲裁/v1回退、请求补偿与质量闭环；新增 docs/architecture/Ask新旧架构对比.md，核对两轮56题预览原始JSON并记录准确率、总往返P50/P95和缓存/未缓存/输出token，说明判定计时口径差异与日志用量局限；更新文档索引及设计计划状态说明。typecheck/build通过，lint零错误及3项既有警告，本地生产构建页面与目录锚点已检查；未改业务逻辑、数据库或生产配置，未发起新付费评估。
-
-[CodeX][261014115541] 经用户授权上线架构文档：从仅含筛选后的Git可见源码及新增对比文档的临时副本执行Vercel Production部署，dpl_9P4qXcNQhmo9kvVTY5bGwxHeAveZ READY并绑定onlinesoup.ai0506.com；正式/docs、首页、/cli HTTP 200，核验15节架构内容与ask对比数据，浏览器确认正式页面；POST /api/internal/ask-eval保持404。未修改数据库/生产环境变量，未提交或推送Git；更新记录留本地。
-
-[CodeX][261014115843] 修复/tutorial及离线HTML/Markdown教程：房主章节从2.1连续编号至2.7，页面/HTML海龟汤章节重排3.1–3.3并同步目录锚点；事实总结标题去除未展开的进度；移除面向玩家文案中的760px断点；概览提前定义座位临时积分，1.7正文补充座位餐券/换座不转移解释并精简FAQ；统一移出房间/移动座位操作名称，移动步骤按当前真实菜单更正为调整位置；保留截图资源。三份教程编号/链接/唯一ID检查、typecheck/build、本地页面与目录跳转检查通过，lint零错误及3项既有警告；未部署、未提交Git。
-[Claude Code][261015124009] 管理端紧凑化第二轮：页面放宽至1440px、页头压成一行、tab/筛选栏/小节标题紧凑化；积分流水、房间总览、房间清理、用户反馈改为表格（反馈点行展开处理）；新增 src/lib/admin-time.ts 统一时间格式；删除旧卡片样式；typecheck/lint/build 通过，组件级预览已验证桌面/手机/深色，未提交
-[Claude Code][261015124804] 消息审计列表从 admin/page.tsx 抽为 src/components/admin-message-audit-list.tsx（逻辑不变，为改版和预览做准备）；本地预览接入线上真实题库/缓存/消息（只读导出到会话临时目录，不入库）；发现 Ask v2 审计在后台无法解析且被误标“两路一致”，题库页未展示 Facts/content_version；typecheck/lint/build 通过，未提交
-[Claude Code][261015125119] 修复管理端切 tab 时内容上下跳：消息子 tab 移到主 tab 同一行（admin-tabs-bar），页头加 min-height 与搜索框同高；预览实测 7 个 tab 正文起点一致（114px），未提交
-[Claude Code][261015130138] 管理端题库/消息审计改版：消息审计改为左列表+右详情（新增 src/lib/admin-ask-audit.ts 统一解析 v2/v1/v1回退/缓存/截断审计，修复 v2 消息无审计且被误标“两路一致”，B1 证据显示 Fact 原文，窄屏详情为全屏浮层）；题库改为表格，新增 Facts 只读面板、内容版本列，缓存面板区分 v1/v2 并标出因改题失效的 v2 缓存；用户反馈改为同一时间只展开一条并保持被点行屏幕位置；修复 tab 栏容器在手机上撑宽整页；新增 tests/admin-ask-audit.test.ts（10项）；全量82项测试/typecheck/lint/build 通过，未提交
-[Claude Code][261015130343] 修复竖屏切 tab 时搜索框出现/消失导致内容跳动：搜索框从全局页头移到账户工具栏与题库操作区（账户搜索保留当前排序），页头各 tab 等高；竖屏下搜索框占满整行；82项测试/typecheck/lint/build 通过，未提交
-[Claude Code][261015130743] 修复题库 Facts 表“原文/已审核”等短列被压成每字一行：表格只对内容/依据列开换行（admin-table-text），状态标签与主/子 tab 统一 nowrap；lessons.md 新增“中文短标签在可收缩容器里会被压成每字一行”，CLAUDE.md 开发原则补充对应规则
-[Claude Code][261015131029] 提交管理端紧凑化与题库/消息审计改版，并按用户确认一并提交 Codex 已于 10-14 上线但未入库的 /docs 架构说明（docs 页、Ask新旧架构对比、文档索引、计划文档；本地内容与线上一致），/tutorial 未部署改动不提交；从干净源码部署 Vercel 生产
-[Claude Code][261015131143] b0348f7 已推送 origin/main，干净副本 82 项测试与 build 通过；Git 触发生产部署 dpl_896gX2TFjFYGtoppJjT9JhE8Pq8A READY 并绑定 onlinesoup.ai0506.com；首页/login/docs/tutorial 200、未登录 /admin 307、ask-eval POST 404；/docs 新内容 375/375 段与上线前一致未回退；管理端登录后交互待用户验证
-[Claude Code][261015131719] 管理端写库操作补点击反馈与防重复提交：新增 src/lib/use-pending-action.ts（同一时间一个请求、显示处理中、服务端数据回来即解除）；题库缓存面板5个操作与删除题目改用它，确认框处理中保持打开；编辑账户/调整积分弹窗提交时不再立即关闭以显示保存中，数据刷新后关闭；SubmitButton 增加600ms重复点击拦截（全站共用，校验未通过不计）；预览模拟1.5s延迟实测连点仅1次请求；82项测试/typecheck/lint/build 通过，未提交
-[Claude Code][261015194640] 新增房间页 spotlight 新手引导（首次进入房间时弹出，可跳过，按账号记在 localStorage；房主/玩家步骤分开：开题入口、聊天与问 AI 区分、提问输入、房间码），教程页增加「重新播放引导」
-[Claude Code][261015195813] 新手引导改为可实操的练习房间：首次登录后首页弹出（按账号记在 localStorage，可随时跳过），纯前端假房间（练习模式标签、无房间码），只能点高亮按钮，依次打开题库→选题→开始题目→切询问→自动写入预设问题→发送→预设回答（不调用 AI、不写入任何真实房间）；移除上一版只看式房间引导；教程页改为「进入新手练习」
-[Claude Code][261015201244] 新手引导重做为独立页 /onboarding「上手教程」：按真实房间页 DOM 和 class 复刻（聊天区、模式栏、AI主持「回复」气泡与答案变色、题目▾菜单→选择题目→预览→开始这道题、事实总结、竖屏分段与置顶题面），房间码留空；数据全部本地预设、不调接口不写真实房间；首次登录进首页自动跳转，完成/跳过记在 localStorage（待改为账户字段）；教程页入口改为「进入上手教程」；删除上一版练习组件
-[Claude Code][261015202236] 修复退出登录确认弹窗在竖屏向右撑宽：弹窗改用 createPortal 挂到 body（父级账户菜单有 transform 导致 fixed 相对菜单定位），打开时同时收起账户菜单；上手教程每步声明所需分段，竖屏按步骤自动显示聊天/题目，中途旋转或缩放窗口后高亮目标与卡片不再丢失，题目菜单随窗口变化重新定位
-[Claude Code][261015202933] 上手教程改为按账户首次登录触发：迁移 20261015122533_onboarding_completion 新增 profiles.onboarding_completed_at 与 complete_onboarding()（SECURITY DEFINER、空 search_path、仅 authenticated 可执行）已推送线上；密码登录/注册直登/邮件回调在未完成时直接跳 /onboarding（读取失败回首页），完成或跳过调用 RPC；移除 localStorage 与首页跳转。验证：anon 调用 42501 拒绝，test 登录→/onboarding，跳过后字段写入，再登录→/
-[Claude Code][261015203048] 提交 7a15bbc（上手教程 /onboarding、按账户首次登录跳转、onboarding_completion 迁移、退出登录弹窗修复）；tutorial/page.tsx 与 updates.md 只提交本次相关行，其他人未提交的 admin/文档改动保留在工作区；未推送、未部署
-[Claude Code][261015203312] 7a15bbc 已推送 origin/main，Git 触发生产部署 dpl_HAacuzRkUDt9vWsVBV3YMrFfVYjy READY 并绑定 onlinesoup.ai0506.com（GitHub 部署记录 sha=7a15bbc）；线上 /、/login、/tutorial、/onboarding 均 200，教程页含「进入上手教程」，访客身份走通 /onboarding 开题流程、跳过后回首页且无控制台错误；线上登录跳转因安全规则未用密码实测，代码与本地已验证版本一致，待用户用未完成教程的账号登录确认
-[Claude Code][261015205459] 按用户要求清空线上 test 账号的 profiles.onboarding_completed_at（仅 1 行），便于在线上重新测试首次登录跳转上手教程
-
-[CodeX][261015210236] 审查并整理本地未提交修改：教程页面与离线HTML/Markdown的编号、目录锚点、临时积分说明及菜单名称修订；管理端缓存/题目删除的处理中状态与防重复调用、账户弹窗延后关闭、SubmitButton的600ms防连点及usePendingAction。未发现阻碍提交的问题；typecheck、82项Vitest测试、build、git diff --check及教程唯一ID/锚点/截图引用/房主章节编号检查通过，lint零错误及3项既有警告。未执行真实管理员写操作E2E，未修改数据库，按用户要求仅本地提交、不推送或部署。
-[Claude Code][261016085544] 房间内复制房间链接按钮图标由上传箭头改为锁链图标，更易识别
-[Claude Code][261016090500] 管理端题库列表无 fact 题目的 Facts 禁用按钮光标由转圈(wait)改为禁止(not-allowed)
-[CodeX][261016152543] 将 puzzle-example-generator 升级并迁移为 puzzle-generator：核对 ask v2 缓存/A+B1/仲裁/v1 回退及 hint/reason 合同，加入完整题目与编号 Facts 原文/推导/审核规则、examples evidence_ids 审核关联、生产同源 Facts 校验、含 Facts/版本的只读导出和可跳转证据的单题 HTML；同步 AGENTS/CLAUDE 与 skill Git 跟踪规则，明确现有导入不保存 Facts 及独立 RPC 回读边界；6 组离线工具测试、40 项 ask v2 回归、skill 校验与 typecheck 通过，lint 0 错误/3 个既有警告。
-
-[CodeX][261016153928] 生成《你会习惯的》单题本地审核稿：按用户要求将同事保持干燥改为无实体、无碰撞箱的幽灵被雨滴穿过，以贴地飘行解释地面关系；明确伞为自用、主角普通人身份、关切微笑、善意安慰与幽灵共事及隔天首次领悟。附30条draft Facts（29 explicit/1 derived）、5条fact和2条inferential示例、4个评分点及静态HTML；完整预览与生产同源Facts校验通过，未写线上题库。
-[Claude Code][261016154405] 按审核意见改写《你会习惯的》第二版本地预览：修正汤底感知矛盾、收窄幽灵设定、补同事进店原因，Facts 28 条 draft、评分点 4 条、示例 5+4 条，校验通过并生成审核页，未写线上题库。
-[Claude Code][261016154814] 《你会习惯的》第二版预览微调：F28 改为只陈述原文确定的干燥原因；汤底补“那位同事知道他是普通人”并新增 F29 支撑对应示例，重新校验和生成审核页，未写线上题库。
-
-[CodeX][261016155849] 按用户要求生成《你会习惯的》精简审核稿：汤底由529减至324字符，Facts由29减至14条explicit/draft；删去重复和非核心独立证据，保留旧编号语义并新增F31/F32，同步9条examples的证据引用及理由。保留原稿、汤面及4个评分点，生成JSON/HTML/审核说明；完整结构与生产同源Facts校验通过，未写线上题库。
-[Claude Code][261016160229] 《你会习惯的》精简稿修订：补回下雨没带伞、无湿脚印、没有威胁、没有连续想一整天 4 条 Facts（F33–F36），修汤底飘行→无脚印和想起那句话→想通两处衔接，校验通过并生成审核页，未写线上题库。
-
-[CodeX][261016171131] 按用户授权将《你会习惯的》精简版正式发布至OnlineSoup生产题库：题目ID22、中等、已启用、content_version=2，含4个评分点、9条examples和14条approved Facts。发布前核对线上RPC签名/权限/RLS及Facts迁移记录，使用service_role在同一事务调用现有admin_create_puzzle与admin_set_puzzle_facts，事务内及提交后逐字段比对一致；线上回读同源Facts校验通过，公开key配合test真实认证确认房主get_puzzle_list可见且不泄露私密字段，anon及authenticated均无法调用Facts管理RPC，匿名私密表读取被拒绝。临时认证会话已登出；未修改schema、未更改其他题目、未进行收费AI试玩。批准副本、发布SQL、回读及验证收据保存在忽略目录。
-[CodeX][261016182544] 实现按实际占座人数分档的房间 AI 并发准入（总量/ask/reason=2/2/1、4/3/2、6/4/3；每玩家1、hint1），保留网页/CLI事务和租约退款；超时退款后刷新座位余额；聊天等待/回答颜色/模型历史按reply_to_id关联并截断请求后的历史；新增86项单测中的并发回归及真实公开key并发验收。线上迁移20261016102145已应用并回读核验，本地typecheck/lint/build通过（lint有3条已有警告），SQL回滚/公开RPC并发验收通过。
-[CodeX][261016183131] 将动态房间AI并发实现214c17d单独推送main，CLI直接发布Not authorized后通过现有GitHub自动部署完成生产发布；Vercel dpl_7XSSrA1qFTFtCGr2hiyfQqBV5uEF Ready且主域名别名与提交检查success已确认，首页/docs/login 200、POST内部ask-eval 404；记录验收回执、清理隔离数据并归档临时发布工作树，保留其余未提交改动；未进行收费AI多浏览器试玩。
-
-[CodeX][261016190928] 创建《口供：错层》本地新题审核稿，修订楼层显示/真实停靠、住宅误认、四人共谋、预拆护栏与两次落地时间线；生成7个评分点、55条原文Facts+5条推导Facts（全部draft）、8条fact+2条inferential示例及JSON/HTML/叙事与逻辑审核文件；生产同源Facts/结构校验OK，无警告。私密材料保存于忽略目录，未修改线上题库或应用代码。
-
-[CodeX][261016192024] 修订《口供：错层》本地审核稿：明确真实28楼意外假说及选择2801的监控原因，行李和小张留楼梯间直至坠落，补门牌/厅牌恢复与独立运行记录只读权限；修正第9示例F59错引为F60及其实际返家依赖；同步8个评分点、60条draft Facts（55原文/5推导）与10条示例，保留旧版并退役13个编号、不复用ID。结构/quote/依赖校验OK，10条理由编号一致性检查通过，另完成人工命题核对；未改应用代码或线上题库。
-
-[CodeX][261016193005] 第三版修订本地《口供：错层》：王的准备说辞改为酒后误按，警方假说收窄为醉酒误入同户型未锁住宅，恢复显示/标识明确为清除可见改动；删除隐藏摄像头必答评分点8，保留背景Facts；以F74/F75恢复其他楼层正常与王知道倚靠习惯，新增停靠记录证明范围F78及说辞范围F79，替换2条问答边界示例。7评分点、60条draft Facts、10示例结构/quote/依赖校验OK，保存后断言通过；旧稿保留，未改代码或线上题库。
-
-[CodeX][261016194344] 第四版调整《口供：错层》本地审核稿：示例8改为王故意按28→是、仅引F17，示例4改为实际按钮楼层是否被改；放宽第7评分点accept为停靠记录不单独给合谋分且不扣正确概括分；退役F78/F79，以F80/F81恢复正常地面及电话碰撞声命题。故事字段不变，7评分点/60条draft Facts/10示例通过同源校验及保存后引用/范围断言；旧稿保留，未改应用代码或线上题库。
-
-[CodeX][261016195730] 创建《口供：错层》精简本地审核稿：汤面610→325字符、汤底1561→693、Facts60→32（全draft）、评分7→5、示例10→8，移出证据充分性审核说明并将失修明确为编造说辞；新增拆前完好澄清F82，保留事实ID且不复用退役编号。同源结构/quote校验OK，实际prompt构造测得A/B1输入字符减少25.5%/27.5%；准备18项前后对比候选用例与独立诊断，未进行付费AI实测、未改代码或线上题库。
-
-[CodeX][261016201926] 定稿并发布《口供：错层》至生产题库ID23（困难、启用、content_version=2）：补信号判断及实际说出口、拒绝下楼的通话衔接，修示例7为F4/F61/F43；保持325/729字符故事、恢复7评分点、8示例、35approved Facts。本地真实v2模型对比v4/定稿三个问题均否/是/否，额外2通话问题答是，8请求A/B1全一致、无仲裁；不宣称准确率提升。既有管理RPC在单事务写入，事务内及提交后逐字段核验一致；回读Facts校验OK，公开key+test选题可见且无私密字段，anon/authenticated管理RPC拒绝、临时会话已退出。未改schema/代码/其他题目，未做房间扣费试玩。
-
-[CodeX][261016212256] 只读分析生产ask新旧引擎：去重122条回复，以近期v1的46条对照v2含回退53条，统计入库间隔P50/P95、7组同题变化、8次仲裁和2次B1校验回退；按官方空闲单价估算20请求49次DeepSeek调用费用，明确GLM/历史日志/完整正确标注缺失。结果及动机误判、身份边界、B1输出诊断规划归档ai-error/10-16/ask-production-comparison.md；未修改代码、题库、数据库或部署。
-[Claude Code][261018225905] 修复登录用户加入其他房间时会不退款直接关闭自己创建的房间：新迁移 20261018145758 让 join_room_as_member 在拥有未关闭房间时抛 owned_room_active 并移除直接关房逻辑（未 push 线上）；加入页对已在其他房间的登录用户显示说明和“返回原房间”入口
-[Claude Code][261018230437] 迁移 20261018145758 已 push 线上并回读确认（守卫 owned_room_active 生效、不再改 rooms、CLI 注入与权限保留）；事务内回滚测试与测试账号本地实测房主跳转他人房间被拦截、原房间不受影响；加入页“已在其他房间”说明改为卡片内样式（原 .notice 是右上角浮层）
-[Claude Code][261018230829] 修复同一账号跨会话可同时占两个房间座位：新迁移 20261018150756 让 join_room_as_member 在其他未关闭房间存在任意会话占用的座位时抛 active_room_exists（原先只拦同会话），仅释放无会话旧座位；保留 CLI 注入、owned_room_active 守卫与仅 authenticated 权限；线上只读核查无现存多房间占座数据（未 push 线上）
-[Claude Code][261018231121] 迁移 20261018150756 经 Session Pooler dry-run 后 push 线上并回读确认（旧同会话条件已移除、仅释放无会话旧座位、CLI 注入/owned_room_active/仅 authenticated/空 search_path 保留）；test 账号事务内回滚测试：跨会话旧座位加入新房间报 active_room_exists，无会话旧座位正常释放并返回 previous_room_codes，测试后无残留
-[Claude Code][261018232756] 加入页：登录用户已在其他房间时隐藏密码/进入房间表单，只保留「返回原房间」主按钮，说明改为需先退出或关闭原房间（与 active_room_exists / owned_room_active 新规则一致）；test 账号本地实测显示与跳转正确，测试房间已关闭
-[Claude Code][261018234547] 房间页：新增共用 ConfirmDialog，关闭房间/移出房间/退出房间改为站内二次确认；顶部导航积分监听 personal-points-changed 在房间内实时更新；房主在关闭房间旁新增「修改密码」（次要样式）弹窗，可设新 6 位密码或改为无需密码，新迁移 20261018154232 update_room_password（仅房主、bcrypt、仅 authenticated，未 push 线上）；访客已验证的旧密码失效时清掉验证 Cookie 并回到输入密码步骤。typecheck/lint/build 通过，test 账号本地实测关闭确认、修改密码弹窗与顶部积分监听，踢人/退出确认未做浏览器实测
-[Claude Code][261018235805] 迁移 20261018154232 update_room_password 经 Session Pooler dry-run 后 push 线上并回读确认（单一签名、SECURITY DEFINER、空 search_path、仅 authenticated、房主校验、bcrypt、CLI 拦截）；公开 key 调用返回 permission denied；test 账号本地实测设置/改为无需密码/再设置均生效，新密码校验通过、旧密码失效；修复改密后「需要密码」标签不刷新（改用服务端 revalidatePath），测试房间已关闭
-
-[CodeX][261019104731] 房间密码按钮按现有 hasPassword 状态显示：无密码时为“设置密码”，有密码时为“修改密码”；同步弹窗标题为“设置房间密码”或“修改房间密码”。typecheck、lint（0错误、3条既有警告）、build及diff检查通过；未做浏览器实测，未部署。
+# 更新记录
+
+> 2026-10-22 起重新开始记录。此前全部原始条目（585 行）归档在 [`docs/archive/updates_261022original.md`](docs/archive/updates_261022original.md)；`lessons.md` 等文档引用的旧时间戳都可在归档中检索。
+> 记录格式不变：每次改动后在文件末尾追加一行 `[作者][YYMMDDHHMMSS] 说明`。
+
+## 历史摘要（2026-06 至 2026-10-21）
+
+### 房间、积分与聊天
+- [2606] 建立房间/座位/积分基础：座位临时积分跟随座位、关房退款、赠送积分走房主个人积分；聊天四种模式（聊天/询问/提示/尝试推理）接入积分检查、数据库速率限制和 Realtime + 轮询兜底。
+- [2606] 字数上限定为普通聊天 300、询问 100、提示 50、推理 300（前端与 RPC 同步）；新增提示机会系统和 AI 失败退款回滚。
+- [2606-2607] 单会话、房间级设备锁、同账号多设备房间接管（`take_over_room_session` 等 RPC）与被挤出后只读/跳转提示。
+- [2609] 全项目评估止损批：注册固定 100 积分、建房 1–20 座/6 位数字密码、聊天 bootstrap 与 AI 响应统一剥离审计和评分点；AI 请求租约、stale 对账与受保护房间状态 RPC，收缩匿名 rooms/room_seats 直读。
+- [2610] 系统消息结构化（座位号/身份标签）；按实际占座人数分档的 AI 并发准入（2/2/1、4/3/2、6/4/3），回复按 `reply_to_id` 关联。
+
+### AI 主持
+- [2606] 接入 DeepSeek（询问/提示/推理，结构化 JSON 落库）；按 `puzzle_id` 隔离上下文；ask 改为严格/推断双路 + 仲裁；ask_audit、cache_hit 只留给管理端。
+- [2606] 事实摘要拆给 GLM-4-Flash 生成、失败回退 DeepSeek；问答缓存 `puzzle_qa_cache`（只缓存稳定 yes/no，后续加 pending 审批与 GLM 批量等价判定）。
+- [2606-2607] 推理评分新增 SOI（Seen Or Implied）宽松标记；GLM 作为 DeepSeek 失败时的显式开关备用模型；修复 thinking 参数、超时和输出预算导致的 502。
+- [2610] 多轮 ask 推断边界调整，通用故事示范方案已撤回（详见 `ai-error/10-10`）；DeepSeek 调用补 `[ai-usage]` 结构化日志。
+- [2610-13] Ask v2 上线：A + B1 两路证据验证 + 仲裁，失败回退 v1；`puzzles.facts`/`content_version`，缓存按引擎与版本隔离；生产 `ASK_ENGINE=v2`。新旧对比见 `docs/architecture/Ask新旧架构对比.md`。
+
+### 题库与 examples
+- [2606] 题库系统（puzzles/puzzle_progress、开题/关题 RPC、管理端增删改与导入导出）；examples 拆为 fact/inferential 两类。
+- [2606-2609] puzzle-example-generator skill 持续强化；[2610-16] 升级为 `puzzle-generator`，覆盖完整题目、编号 Facts 与证据关联。
+- [2609-19] 线上题库被整体清空的事故及部分恢复（#15–#19 仅恢复为未启用草稿并搁置），规则已写入 `lessons.md`：线上删除/全量替换前必须先做可读回的本地备份。
+- 截至 2610-16 线上启用题目：#20《雨伞与电梯》、#21《生日》、#22《你会习惯的》、#23《口供：错层》。
+
+### 账户、认证与安全
+- [2606] 管理端支持无邮箱账户、用户名登录；修复删除账户、邮件确认和密码重置链路；deleteUser 清理改为 RPC 事务。
+- [2606-2609] 管理端二次验证演进为独立 Resend 八位一次性验证码（HMAC 摘要、会话绑定、10 分钟单次有效），可信设备 Cookie 默认不勾选、30 天。
+- [2606] 在线状态圆点、登录设备/地点记录（普通用户不显示 IP）。
+
+### 管理后台
+- [2606-2608] 消息审计（问答配对、标记 AI 错误、CSV/JSON 导出、按日聊天备份）、AI 错误案例、房间总览与清理（先归档到 `room_messages_archive` 再删）、积分流水、邮件发送、问答缓存面板。
+- [2607] 筛选与写操作保留原 tab/筛选参数；输入或弹窗时跳过自动刷新；按 tab 按需取数。
+- [2610] 紧凑化改版：账户/积分流水/房间/反馈改为表格，消息审计左列表右详情并统一解析 v1/v2 审计，题库展示 Facts 与内容版本；`user_activity` 记录最近活跃；写操作统一处理中状态与防重复提交。
+
+### 页面与体验
+- [2606-2607] 移动端竖屏三段房间界面（聊天/题目/座位）、深色模式、长汤面展开收起、座位菜单 Portal 化。
+- [2607] 用户反馈 `/feedback`（仅注册用户、每天 3 条）；个人主页 `/profile` 与 `/points-history`。
+- [2608] 顶部导航改为图标 + 悬停面板，存在活动房间时直达；新增 `FRONTEND_SPEC.md`；站内技术说明 `/docs`（2610 扩为 15 节架构说明）。
+- [2609-2610] `/tutorial` 截图全量重拍与章节修订；[2610-15] 首次登录跳转 `/onboarding` 上手教程（`profiles.onboarding_completed_at`）。
+- [2609-03] 临时网络测试页 `/debug/network-test`（尚未移除）。
+
+### CLI 与 Arena
+- [2610-09] CLI P0–P2：注册用户 CLI 会话、JSON 玩家 API、请求键去重与恢复、快照游标同步、网页接管 CLI 座位前站内确认；浏览器授权登录。
+- [2610-09 至 2610-12] 网站分发 `/cli` 与 `/downloads`，版本 0.2.0 → 0.3.2（操作后新消息提醒、Windows 实测修复、凭据文件登录与账号隔离）。旧安装包已于 261022 删除，仅保留 0.3.2。
+- [2610] Arena 房间实施计划（`docs/architecture/Arena房间实施计划.md`，仅规划）；同级目录 OnlineSoupArena 六个 AI 选手工作区。
+
+### 工程、部署与文档
+- [2609] Vitest 单测、pgTAP 房间契约测试骨架；Next.js 固定 16.3.8，生产依赖审计清零；Vercel 函数区域固定 sin1。
+- [2610-08] 迁移历史不同步排障：线上改动必须补迁移文件（见 `lessons.md`）。
+- [2608] `paper/` 下 DeepSeek 受控实验脚本与分析（本地、不入 Git）。
+- AGENTS.md（Codex）与 CLAUDE.md（Claude Code）分别维护；`lessons.md` 沉淀已验证的工程经验。
+
+## 记录
+
+[Claude Code][261018230437] 修复房主加入他人房间会不退款直接关闭自己房间：`join_room_as_member` 改抛 `owned_room_active`（迁移 20261018145758，已上线）
+[Claude Code][261018231121] 禁止同账号跨会话同时占两个房间座位：`join_room_as_member` 遇其他房间有会话占座时抛 `active_room_exists`（迁移 20261018150756，已上线）；加入页对已在其他房间的用户只保留「返回原房间」
+[Claude Code][261018235805] 关闭/移出/退出房间改为站内二次确认；顶部积分在房间内实时更新；房主可修改或取消房间密码（迁移 20261018154232 `update_room_password`，已上线）
+[CodeX][261019104731] 房间密码按钮按是否已有密码显示「设置密码」或「修改密码」；未部署
+[Claude Code][261022121837] 题库缓存「改为是/否」增加二次确认弹窗（显示问题原文与改前改后答案，已批准条目提示立即生效），确认中禁用、完成后关闭；组件预览实测取消不发请求、连点确认仅1次；typecheck/lint/test/build 通过，未提交
+[Claude Code][261022123604] 精简发布产物与更新记录：删除 public/downloads 中 CLI 0.2.0–0.3.1 旧安装包及校验文件（无代码或当前文档引用，git 历史可找回），仅保留 0.3.2；原 updates.md 归档为 docs/archive/updates_261022original.md，新建按主题摘要的 updates.md；文档索引补登归档位置
+[Claude Code][261022123819] 提交上一条清理（旧 CLI 安装包删除、updates.md 归档与精简版、文档索引），未包含 admin-puzzle-cache-panel 的未提交改动；未推送、未部署
