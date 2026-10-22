@@ -59,6 +59,7 @@ export function AdminPuzzleCachePanel({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
   const [clearing, setClearing] = useState(false);
+  const [flippingId, setFlippingId] = useState<number | null>(null);
   const [syncedEntries, setSyncedEntries] = useState(entries);
   const { busy, pendingKey, run } = usePendingAction<string>(entries);
 
@@ -68,9 +69,11 @@ export function AdminPuzzleCachePanel({
     setEditingId(null);
     setDeletingId(null);
     setClearing(false);
+    setFlippingId(null);
   }
 
   const deletingEntry = entries.find((entry) => entry.id === deletingId) ?? null;
+  const flippingEntry = entries.find((entry) => entry.id === flippingId) ?? null;
   const pendingLabel = "处理中…";
 
   if (entries.length === 0) {
@@ -189,17 +192,10 @@ export function AdminPuzzleCachePanel({
                     <button
                       className="button secondary"
                       disabled={busy}
-                      onClick={() => {
-                        const formData = new FormData();
-                        formData.set("entryId", String(entry.id));
-                        formData.set("answerType", entry.answer_type === "yes" ? "no" : "yes");
-                        run(`answer-${entry.id}`, updateAnswerAction, formData);
-                      }}
+                      onClick={() => setFlippingId(entry.id)}
                       type="button"
                     >
-                      {pendingKey === `answer-${entry.id}`
-                        ? pendingLabel
-                        : `改为「${answerLabel(entry.answer_type === "yes" ? "no" : "yes")}」`}
+                      改为「{answerLabel(entry.answer_type === "yes" ? "no" : "yes")}」
                     </button>
                     <button
                       className="button danger"
@@ -242,6 +238,42 @@ export function AdminPuzzleCachePanel({
                 type="button"
               >
                 {pendingKey === "delete" ? "删除中…" : "确认删除"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {flippingEntry && (
+        <div className="dialog-backdrop" role="dialog" aria-modal="true" aria-label="确认修改缓存答案">
+          <div className="dialog-panel">
+            <h2>修改这条缓存的答案？</h2>
+            <p>
+              「{flippingEntry.question_text}」将从「{answerLabel(flippingEntry.answer_type)}」改为「
+              {answerLabel(flippingEntry.answer_type === "yes" ? "no" : "yes")}」。
+              {flippingEntry.status === "approved" && "这条缓存已批准，修改后玩家再问会立即得到新答案。"}
+            </p>
+            <div className="dialog-actions">
+              <button
+                className="button secondary"
+                disabled={busy}
+                onClick={() => setFlippingId(null)}
+                type="button"
+              >
+                取消
+              </button>
+              <button
+                className="button danger"
+                disabled={busy}
+                onClick={() => {
+                  const formData = new FormData();
+                  formData.set("entryId", String(flippingEntry.id));
+                  formData.set("answerType", flippingEntry.answer_type === "yes" ? "no" : "yes");
+                  run("answer", updateAnswerAction, formData, () => setFlippingId(null));
+                }}
+                type="button"
+              >
+                {pendingKey === "answer" ? "修改中…" : "确认修改"}
               </button>
             </div>
           </div>
